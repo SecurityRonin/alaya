@@ -8,6 +8,38 @@ retrieval with spreading activation, and adaptive lifecycle processes. It is
 headless and LLM-agnostic — the consuming agent owns identity, embeddings,
 and prompt assembly.
 
+## Why Alaya?
+
+Most AI memory systems are Python libraries that require external infrastructure
+(Postgres, Neo4j, Redis, Pinecone) and are tightly coupled to specific LLM
+providers. Alaya takes a different approach.
+
+**Key differentiators:**
+
+- **Single-file deployment** — one SQLite database, no external services
+- **Rust** — embed in any language via FFI, or use natively with zero GC pauses
+- **LLM-agnostic** — no hardcoded provider; the agent supplies embeddings and consolidation logic via traits
+- **No network calls** — fully local, privacy by architecture
+- **Memory as process** — Hebbian graph reshaping, adaptive forgetting, and preference crystallization make memory a living system, not a static store
+- **Principled foundations** — architecture grounded in CLS theory, Bjork forgetting, spreading activation, and Yogacara psychology, not ad-hoc heuristics
+
+### Comparison with Alternatives
+
+| | **Alaya** | **mem0** | **Zep / Graphiti** | **Letta (MemGPT)** | **LangChain Memory** |
+|---|---|---|---|---|---|
+| **Language** | Rust | Python | Python | Python | Python |
+| **Storage** | SQLite (single file) | Postgres + Qdrant/Pinecone | Postgres + Neo4j | Postgres + Chroma | In-memory / Redis |
+| **External infra** | None | Vector DB + relational DB | Graph DB + relational DB | Vector DB + relational DB | Varies by backend |
+| **LLM coupling** | None — agent provides via traits | OpenAI / others required | OpenAI required for extraction | OpenAI required | LangChain providers |
+| **Network calls** | Zero | Yes (LLM + vector DB) | Yes (LLM + graph DB) | Yes (LLM + vector DB) | Yes (LLM) |
+| **Memory model** | Three-store (episodic, semantic, implicit) | Flat key-value memories | Graph-based entities + relations | Tiered (core, recall, archival) | Buffer / summary / entity |
+| **Graph** | Hebbian — reshapes through use (LTP/LTD) | No graph | Static knowledge graph | No graph | No graph |
+| **Retrieval** | BM25 + vector + graph + RRF + spreading activation | Vector similarity | Graph traversal + vector | Vector similarity | Vector similarity |
+| **Forgetting** | Bjork dual-strength decay + RIF suppression | TTL-based expiry | No built-in forgetting | No built-in forgetting | Sliding window / token limit |
+| **Preference learning** | Vasana — emerges from accumulated impressions | Explicit user profiles | No | No | No |
+| **Privacy** | Fully local, no data leaves the process | Cloud-dependent | Cloud-dependent | Cloud-dependent | Cloud-dependent |
+| **Embedding provider** | BYO (or skip — BM25-only works) | Bundled | Bundled | Bundled | Bundled |
+
 ## Architecture
 
 ```mermaid
