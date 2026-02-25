@@ -1,0 +1,6 @@
+/target
+Cargo.lock
+*.db
+*.db-journal
+*.db-wal
+.DS_Store
