@@ -1,9 +1,9 @@
-# Alaya: A Neuroscience and Buddhist-Inspired Memory Engine
+# Alaya: A Neuroscience and Buddhist Psychology-Inspired Memory Engine
 
 ## Name
 
 **Alaya** (Sanskrit: *alaya-vijnana*, "storehouse consciousness") — the eighth
-consciousness in Yogacara Buddhism. The persistent substrate that stores seeds
+consciousness in Yogacara Buddhist Psychology. The persistent substrate that stores seeds
 (bija), accumulates impressions through perfuming (vasana), and lets seeds ripen
 when conditions align. No ego, no identity, no interpretation. Just the store.
 
@@ -35,7 +35,7 @@ conversational AI agents. It stores, links, consolidates, retrieves, and forgets
 | Working Memory Limits (Cowan) | 4 +/- 1 chunks | Max 3-5 retrieval results |
 | Episodic-to-Semantic Consolidation | Repeated episodes become general knowledge | Consolidation pipeline |
 
-### Yogacara Buddhism
+### Yogacara Buddhist Psychology
 
 | Concept | Meaning | Alaya Component |
 |---------|---------|-----------------|

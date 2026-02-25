@@ -1,6 +1,6 @@
 //! # Alaya
 //!
-//! A neuroscience and Buddhist-inspired memory engine for conversational AI agents.
+//! A neuroscience and Buddhist psychology-inspired memory engine for conversational AI agents.
 //!
 //! Alaya (Sanskrit: *alaya-vijnana*, "storehouse consciousness") provides three
 //! memory stores, a Hebbian graph overlay, hybrid retrieval with spreading

@@ -1,6 +1,6 @@
 # Alaya
 
-A neuroscience and Buddhist-inspired memory engine for conversational AI agents.
+A neuroscience and Buddhist psychology-inspired memory engine for conversational AI agents.
 
 **Alaya** (Sanskrit: *alaya-vijnana*, "storehouse consciousness") is a Rust
 library that provides three-tier memory, a Hebbian graph overlay, hybrid
@@ -74,7 +74,7 @@ flowchart LR
 | Process | Inspiration | What it does |
 |---------|-------------|--------------|
 | **Consolidation** | CLS theory (McClelland et al.) | Distills episodes into semantic knowledge |
-| **Perfuming** | Vasana (Yogacara Buddhism) | Accumulates impressions, crystallizes preferences |
+| **Perfuming** | Vasana (Yogacara Buddhist psychology) | Accumulates impressions, crystallizes preferences |
 | **Transformation** | Asraya-paravrtti | Deduplicates, resolves contradictions, prunes |
 | **Forgetting** | Bjork & Bjork (1992) | Decays retrieval strength, archives weak nodes |
 
@@ -124,7 +124,7 @@ store.forget()?;
 - **Retrieval-Induced Forgetting** — retrieving some memories suppresses competitors (Anderson et al. 1994)
 - **Working Memory Limits** — 4 +/- 1 chunks (Cowan 2001)
 
-### Yogacara Buddhism
+### Yogacara Buddhist psychology
 
 - **Alaya-vijnana** — the storehouse consciousness, persistent substrate for all seeds
 - **Bija (seeds)** — living potentials that ripen when conditions align

@@ -2,7 +2,8 @@
 name = "alaya"
 version = "0.1.0"
 edition = "2021"
-description = "A neuroscience and Buddhist-inspired memory engine for conversational AI agents"
+authors = ["Albert Hui <albert@securityronin.com>"]
+description = "A memory engine for conversational AI agents, inspired by neuroscience and Buddhist psychology"
 license = "MIT"
 repository = "https://github.com/h4x0r/alaya"
 keywords = ["memory", "ai", "rag", "conversational", "embedding"]
