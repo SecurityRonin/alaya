@@ -292,6 +292,14 @@ pub struct Query {
 }
 
 impl Query {
+    /// Create a simple text query with default settings.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let q = alaya::Query::simple("What is Rust?");
+    /// assert_eq!(q.max_results, 5);
+    /// ```
     pub fn simple(text: impl Into<String>) -> Self {
         Self {
             text: text.into(),

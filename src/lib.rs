@@ -6,6 +6,28 @@
 //! memory stores, a Hebbian graph overlay, hybrid retrieval with spreading
 //! activation, and adaptive lifecycle processes — all without coupling to any
 //! specific LLM or agent framework.
+//!
+//! # Quick Start
+//!
+//! ```
+//! use alaya::{AlayaStore, NewEpisode, Role, EpisodeContext, Query};
+//!
+//! let store = AlayaStore::open_in_memory().unwrap();
+//!
+//! // Store an episode
+//! store.store_episode(&NewEpisode {
+//!     content: "Rust has zero-cost abstractions.".to_string(),
+//!     role: Role::User,
+//!     session_id: "session-1".to_string(),
+//!     timestamp: 1700000000,
+//!     context: EpisodeContext::default(),
+//!     embedding: None,
+//! }).unwrap();
+//!
+//! // Query memories
+//! let results = store.query(&Query::simple("Rust")).unwrap();
+//! assert!(!results.is_empty());
+//! ```
 
 pub(crate) mod error;
 pub(crate) mod types;
@@ -25,18 +47,39 @@ pub use types::*;
 
 /// The main entry point. Owns a SQLite connection and exposes the full
 /// store / query / lifecycle API.
+///
+/// # Examples
+///
+/// ```
+/// let store = alaya::AlayaStore::open_in_memory().unwrap();
+/// let status = store.status().unwrap();
+/// assert_eq!(status.episode_count, 0);
+/// ```
 pub struct AlayaStore {
     conn: Connection,
 }
 
 impl AlayaStore {
     /// Open (or create) a persistent database at `path`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let dir = tempfile::tempdir().unwrap();
+    /// let store = alaya::AlayaStore::open(dir.path().join("test.db")).unwrap();
+    /// ```
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         let conn = schema::open_db(path.as_ref().to_str().unwrap_or("alaya.db"))?;
         Ok(Self { conn })
     }
 
     /// Open an ephemeral in-memory database (useful for tests).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let store = alaya::AlayaStore::open_in_memory().unwrap();
+    /// ```
     pub fn open_in_memory() -> Result<Self> {
         let conn = schema::open_memory_db()?;
         Ok(Self { conn })
@@ -47,6 +90,27 @@ impl AlayaStore {
     // -----------------------------------------------------------------------
 
     /// Store a conversation episode with full context.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`AlayaError::InvalidInput`] if `content` or `session_id` is empty.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use alaya::{AlayaStore, NewEpisode, Role, EpisodeContext};
+    ///
+    /// let store = AlayaStore::open_in_memory().unwrap();
+    /// let id = store.store_episode(&NewEpisode {
+    ///     content: "The user prefers dark mode.".to_string(),
+    ///     role: Role::User,
+    ///     session_id: "session-1".to_string(),
+    ///     timestamp: 1700000000,
+    ///     context: EpisodeContext::default(),
+    ///     embedding: None,
+    /// }).unwrap();
+    /// assert!(id.0 > 0);
+    /// ```
     pub fn store_episode(&self, episode: &NewEpisode) -> Result<EpisodeId> {
         if episode.content.trim().is_empty() {
             return Err(AlayaError::InvalidInput("episode content must not be empty".into()));
@@ -84,6 +148,29 @@ impl AlayaStore {
     // -----------------------------------------------------------------------
 
     /// Hybrid retrieval: BM25 + vector + graph activation -> RRF -> rerank.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`AlayaError::InvalidInput`] if `text` is empty or `max_results` is 0.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use alaya::{AlayaStore, NewEpisode, Role, EpisodeContext, Query};
+    ///
+    /// let store = AlayaStore::open_in_memory().unwrap();
+    /// store.store_episode(&NewEpisode {
+    ///     content: "Rust has zero-cost abstractions.".to_string(),
+    ///     role: Role::User,
+    ///     session_id: "s1".to_string(),
+    ///     timestamp: 1000,
+    ///     context: EpisodeContext::default(),
+    ///     embedding: None,
+    /// }).unwrap();
+    ///
+    /// let results = store.query(&Query::simple("Rust")).unwrap();
+    /// assert!(!results.is_empty());
+    /// ```
     pub fn query(&self, q: &Query) -> Result<Vec<ScoredMemory>> {
         if q.text.trim().is_empty() {
             return Err(AlayaError::InvalidInput("query text must not be empty".into()));
@@ -96,11 +183,27 @@ impl AlayaStore {
     }
 
     /// Get crystallized preferences, optionally filtered by domain.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let store = alaya::AlayaStore::open_in_memory().unwrap();
+    /// let prefs = store.preferences(None).unwrap();
+    /// assert!(prefs.is_empty());
+    /// ```
     pub fn preferences(&self, domain: Option<&str>) -> Result<Vec<Preference>> {
         store::implicit::get_preferences(&self.conn, domain)
     }
 
     /// Get semantic knowledge nodes with optional filtering.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let store = alaya::AlayaStore::open_in_memory().unwrap();
+    /// let nodes = store.knowledge(None).unwrap();
+    /// assert!(nodes.is_empty());
+    /// ```
     pub fn knowledge(&self, filter: Option<KnowledgeFilter>) -> Result<Vec<SemanticNode>> {
         let f = filter.unwrap_or_default();
         match f.node_type {
@@ -142,6 +245,16 @@ impl AlayaStore {
     }
 
     /// Get graph neighbors of a node up to `depth` hops.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use alaya::{AlayaStore, NodeRef, EpisodeId};
+    ///
+    /// let store = AlayaStore::open_in_memory().unwrap();
+    /// let neighbors = store.neighbors(NodeRef::Episode(EpisodeId(1)), 2).unwrap();
+    /// assert!(neighbors.is_empty());
+    /// ```
     pub fn neighbors(&self, node: NodeRef, depth: u32) -> Result<Vec<(NodeRef, f32)>> {
         let result = graph::activation::spread_activation(
             &self.conn,
@@ -163,6 +276,19 @@ impl AlayaStore {
     // -----------------------------------------------------------------------
 
     /// Run consolidation: episodic -> semantic (CLS replay).
+    ///
+    /// The provider extracts knowledge from episodes. Use [`NoOpProvider`]
+    /// if no LLM is available.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use alaya::{AlayaStore, NoOpProvider};
+    ///
+    /// let store = AlayaStore::open_in_memory().unwrap();
+    /// let report = store.consolidate(&NoOpProvider).unwrap();
+    /// assert_eq!(report.nodes_created, 0);
+    /// ```
     pub fn consolidate(&self, provider: &dyn ConsolidationProvider) -> Result<ConsolidationReport> {
         let tx = schema::begin_immediate(&self.conn)?;
         let report = lifecycle::consolidation::consolidate(&tx, provider)?;
@@ -171,6 +297,22 @@ impl AlayaStore {
     }
 
     /// Run perfuming: extract impressions, crystallize preferences (vasana).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use alaya::{AlayaStore, NoOpProvider, Interaction, Role, EpisodeContext};
+    ///
+    /// let store = AlayaStore::open_in_memory().unwrap();
+    /// let interaction = Interaction {
+    ///     text: "I prefer dark themes.".to_string(),
+    ///     role: Role::User,
+    ///     session_id: "s1".to_string(),
+    ///     timestamp: 1000,
+    ///     context: EpisodeContext::default(),
+    /// };
+    /// let report = store.perfume(&interaction, &NoOpProvider).unwrap();
+    /// ```
     pub fn perfume(
         &self,
         interaction: &Interaction,
@@ -183,6 +325,14 @@ impl AlayaStore {
     }
 
     /// Run transformation: dedup, prune, decay (asraya-paravrtti).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let store = alaya::AlayaStore::open_in_memory().unwrap();
+    /// let report = store.transform().unwrap();
+    /// assert_eq!(report.duplicates_merged, 0);
+    /// ```
     pub fn transform(&self) -> Result<TransformationReport> {
         let tx = schema::begin_immediate(&self.conn)?;
         let report = lifecycle::transformation::transform(&tx)?;
@@ -191,6 +341,14 @@ impl AlayaStore {
     }
 
     /// Run forgetting: decay retrieval strengths, archive weak nodes (Bjork).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let store = alaya::AlayaStore::open_in_memory().unwrap();
+    /// let report = store.forget().unwrap();
+    /// assert_eq!(report.nodes_decayed, 0);
+    /// ```
     pub fn forget(&self) -> Result<ForgettingReport> {
         let tx = schema::begin_immediate(&self.conn)?;
         let report = lifecycle::forgetting::forget(&tx)?;
@@ -203,6 +361,15 @@ impl AlayaStore {
     // -----------------------------------------------------------------------
 
     /// Counts across all stores.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let store = alaya::AlayaStore::open_in_memory().unwrap();
+    /// let status = store.status().unwrap();
+    /// assert_eq!(status.episode_count, 0);
+    /// assert_eq!(status.semantic_node_count, 0);
+    /// ```
     pub fn status(&self) -> Result<MemoryStatus> {
         Ok(MemoryStatus {
             episode_count: store::episodic::count_episodes(&self.conn)?,
@@ -215,6 +382,25 @@ impl AlayaStore {
     }
 
     /// Purge data matching the filter.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use alaya::{AlayaStore, NewEpisode, Role, EpisodeContext, PurgeFilter};
+    ///
+    /// let store = AlayaStore::open_in_memory().unwrap();
+    /// store.store_episode(&NewEpisode {
+    ///     content: "temporary".to_string(),
+    ///     role: Role::User,
+    ///     session_id: "s1".to_string(),
+    ///     timestamp: 1000,
+    ///     context: EpisodeContext::default(),
+    ///     embedding: None,
+    /// }).unwrap();
+    ///
+    /// store.purge(PurgeFilter::All).unwrap();
+    /// assert_eq!(store.status().unwrap().episode_count, 0);
+    /// ```
     pub fn purge(&self, filter: PurgeFilter) -> Result<PurgeReport> {
         let tx = schema::begin_immediate(&self.conn)?;
         let mut report = PurgeReport::default();
