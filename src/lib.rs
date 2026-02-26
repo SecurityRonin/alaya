@@ -273,4 +273,29 @@ mod tests {
         store.purge(PurgeFilter::All).unwrap();
         assert_eq!(store.status().unwrap().episode_count, 0);
     }
+
+    #[test]
+    fn test_open_persistent_db() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.db");
+        let store = AlayaStore::open(&path).unwrap();
+
+        store
+            .store_episode(&NewEpisode {
+                content: "persistent test".to_string(),
+                role: Role::User,
+                session_id: "s1".to_string(),
+                timestamp: 1000,
+                context: EpisodeContext::default(),
+                embedding: None,
+            })
+            .unwrap();
+
+        assert_eq!(store.status().unwrap().episode_count, 1);
+
+        // Drop and reopen — data should persist
+        drop(store);
+        let store2 = AlayaStore::open(&path).unwrap();
+        assert_eq!(store2.status().unwrap().episode_count, 1);
+    }
 }
