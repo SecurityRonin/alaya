@@ -11,6 +11,7 @@ RAG and agent memory.
   - [Production Systems](#production-systems)
   - [Framework-Level Memory](#framework-level-memory)
   - [Vector Databases as Memory](#vector-databases-as-memory)
+  - [Additional Notable Systems](#additional-notable-systems)
   - [Academic / Research Systems](#academic--research-systems)
 - [Comparative Matrices](#comparative-matrices)
   - [CoALA Dimension Analysis](#coala-dimension-analysis)
@@ -19,6 +20,10 @@ RAG and agent memory.
   - [Memory Lifecycle](#memory-lifecycle)
 - [Landscape Analysis](#landscape-analysis)
 - [Where Alaya Sits](#where-alaya-sits)
+  - [Taxonomic Position](#taxonomic-position)
+  - [Why Alaya: Unique Value Propositions](#why-alaya-unique-value-propositions)
+  - [Closest Alternatives and Critical Differences](#closest-alternatives-and-critical-differences)
+  - [What Alaya Does Not Do](#what-alaya-does-not-do)
 - [Tradeoffs: Embedded SQLite vs. External Infrastructure](#tradeoffs-embedded-sqlite-vs-external-infrastructure)
 - [References](#references)
 
@@ -74,6 +79,14 @@ cognitive structures via a 3D-8Q model (Object x Form x Time).
   traits from interactions.
 - **Key results:** 26% accuracy improvement over OpenAI memory on LOCOMO. 91%
   lower p95 latency vs. full-context approaches.
+- **vs. Alaya:** Mem0 requires 2-3 external services and an LLM for every memory
+  write. Alaya requires none. Mem0's forgetting is simple exponential decay;
+  Alaya's Bjork model distinguishes storage strength from retrieval strength,
+  enabling spaced-repetition-like dynamics. Mem0 extracts preferences via LLM
+  prompts (brittle, expensive); Alaya accumulates impressions that crystallize
+  into preferences organically. Mem0 is the right choice for cloud-deployed,
+  multi-user SaaS products with dedicated infrastructure teams. Alaya is the
+  right choice for privacy-first, single-user agents that must work offline.
 
 #### Zep / Graphiti
 
@@ -94,6 +107,15 @@ cognitive structures via a 3D-8Q model (Object x Form x Time).
   nodes/edges.
 - **Key results:** 94.8% on DMR benchmark. Up to 18.5% accuracy improvement on
   LongMemEval.
+- **vs. Alaya:** Zep/Graphiti requires Neo4j infrastructure and an LLM for entity
+  extraction. Their knowledge graph is static — entities and relationships exist
+  only when the LLM creates them. Alaya's Hebbian graph is dynamic: it emerges
+  from use patterns, strengthening co-retrieved connections and weakening unused
+  ones without any LLM involvement. Zep's bi-temporal invalidation (facts are
+  versioned, never deleted) is more conservative than Alaya's Bjork forgetting
+  (retrieval strength genuinely decays, improving retrieval precision). Zep
+  excels at structured factual recall; Alaya excels at associative, context-
+  dependent retrieval where the memory landscape reshapes through interaction.
 
 #### Letta (formerly MemGPT)
 
@@ -113,6 +135,15 @@ cognitive structures via a 3D-8Q model (Object x Form x Time).
   reorganization.
 - **Preference learning:** Yes — core memory blocks store and track evolving
   user preferences.
+- **vs. Alaya:** Letta delegates all memory management to the LLM — the model
+  decides what to store, evict, and retrieve. This makes Letta's memory quality
+  entirely dependent on LLM capability and cost. Alaya's memory processes
+  (consolidation, forgetting, perfuming) are deterministic algorithms grounded
+  in cognitive science — they work identically regardless of which LLM (or no
+  LLM) the agent uses. Letta's eviction is crude (summarize and drop ~70%);
+  Alaya's forgetting is principled (weak retrieval strength decays, strong
+  storage persists). Letta requires persistent infrastructure; Alaya is a single
+  file.
 
 #### Cognee
 
@@ -125,6 +156,12 @@ cognitive structures via a 3D-8Q model (Object x Form x Time).
 - **Forgetting:** Not documented.
 - **Key context:** 500x pipeline volume growth in 2025. Running in 70+
   companies. Backed by OpenAI and FAIR founders.
+- **vs. Alaya:** Cognee is a knowledge engine, not a memory system — it
+  transforms data into graph-structured knowledge but lacks forgetting,
+  consolidation, and preference learning. Alaya treats memory as a living
+  process with principled lifecycle management. Cognee requires Neo4j and an LLM
+  for graph construction; Alaya's graph emerges from use with no external
+  dependencies.
 
 #### MemoryOS
 
@@ -140,6 +177,13 @@ cognitive structures via a 3D-8Q model (Object x Form x Time).
 - **Forgetting:** FIFO eviction (short-to-mid), segmented page organization
   (mid-to-long).
 - **Key results:** 49% F1 improvement and 46% BLEU-1 improvement on LoCoMo.
+- **vs. Alaya:** MemoryOS and Alaya share the three-tier architecture insight but
+  diverge on implementation. MemoryOS uses FIFO eviction and page-based
+  organization — mechanical operations with no cognitive grounding. Alaya uses
+  Bjork dual-strength forgetting and CLS consolidation — processes derived from
+  how biological memory actually works. MemoryOS has no graph overlay or
+  preference learning. MemoryOS is research code with LLM dependency; Alaya is
+  an embeddable library with graceful degradation.
 
 #### A-MEM
 
@@ -153,6 +197,13 @@ cognitive structures via a 3D-8Q model (Object x Form x Time).
 - **LLM dependency:** Required for note construction, linking, and evolution.
 - **Forgetting:** Evolution-based — notes are continuously updated, not deleted.
 - **Key results:** Doubles multi-hop reasoning performance vs. baselines.
+- **vs. Alaya:** A-MEM's Zettelkasten approach stores processed notes, not raw
+  episodes — it has no episodic memory. Alaya preserves raw episodes AND
+  distills semantic knowledge, maintaining the original context for
+  encoding-specific retrieval. A-MEM's note "evolution" replaces old content;
+  Alaya's transformation lifecycle explicitly handles contradictions and
+  deduplication while preserving provenance. A-MEM requires an LLM for every
+  note construction; Alaya stores episodes with no LLM involvement.
 
 #### Supermemory
 
@@ -169,6 +220,14 @@ cognitive structures via a 3D-8Q model (Object x Form x Time).
 - **Key context:** 16.6K GitHub stars. Claims 10x faster than Zep, 25x faster
   than Mem0. Founded by 19-year-old Dhravya Shah. Customers include Cluely
   (a16z-backed). TypeScript.
+- **vs. Alaya:** Supermemory is the most traction-heavy competitor (16.6K stars,
+  VC-backed). It uses decay curves and expiry, but these are ad-hoc rather than
+  grounded in forgetting theory. Its graph is static (LLM-extracted), not
+  Hebbian. It requires 2-3 external services and an LLM for all operations.
+  Supermemory is optimized for cloud SaaS products with infrastructure teams;
+  Alaya is optimized for embedded, privacy-first, zero-dependency agents.
+  Supermemory's TypeScript stack limits embedding in non-JS environments; Alaya's
+  Rust is embeddable in any language via FFI.
 
 #### Hindsight (Vectorize)
 
@@ -186,6 +245,14 @@ cognitive structures via a 3D-8Q model (Object x Form x Time).
 - **Forgetting:** Not explicit — belief confidence scores evolve over time.
 - **Key results:** Claims SOTA: 91.4% LongMemEval, 89.61% LoCoMo.
   Distinguishes facts from opinions with confidence-scored belief evolution.
+- **vs. Alaya:** Hindsight's opinion memory with belief evolution is the most
+  novel contribution in the field — Alaya's vasana model addresses the same
+  problem (tracking evolving preferences) from a different angle. Hindsight
+  tracks opinions explicitly with confidence scores; Alaya lets preferences
+  crystallize implicitly from accumulated impressions. Hindsight's four-network
+  decomposition (world, experience, opinion, observation) is finer-grained than
+  Alaya's three stores, but lacks a graph overlay and principled forgetting.
+  Hindsight requires an LLM and external infrastructure; Alaya requires neither.
 
 #### Cortex-Mem
 
@@ -201,6 +268,12 @@ cognitive structures via a 3D-8Q model (Object x Form x Time).
 - **Key context:** The closest Rust-based competitor. Same language as Alaya,
   but positioned as a standalone service (REST/MCP) rather than an embeddable
   library. Claims 60-90% storage savings via deduplication.
+- **vs. Alaya:** Both are Rust. But Cortex-Mem is a standalone service (REST/MCP)
+  that extracts facts via LLM — it requires an LLM for all operations and has
+  no graph, no forgetting, no consolidation, no preference emergence. Alaya is
+  an embeddable library that works with or without an LLM and provides the full
+  cognitive memory lifecycle. Cortex-Mem's deduplication is a strength Alaya
+  addresses through its transformation lifecycle.
 
 #### Memvid
 
@@ -219,6 +292,15 @@ cognitive structures via a 3D-8Q model (Object x Form x Time).
 - **Key context:** The closest deployment model to Alaya (Rust, single-file,
   zero dependencies). Key difference: Memvid is append-only with no forgetting
   or consolidation; Alaya has cognitive lifecycle processes.
+- **vs. Alaya:** Memvid is the closest system in deployment model — Rust, single
+  file, zero external dependencies, zero LLM requirement. But Memvid is a log,
+  not a memory system. It has no semantic store, no graph, no forgetting, no
+  consolidation, no preferences, no contradiction resolution. Memories are
+  immutable Smart Frames that can only be appended. Alaya provides the full
+  cognitive lifecycle on the same zero-ops deployment footprint. Memvid's
+  Tantivy + HNSW retrieval is faster than Alaya's SQLite-based approach for
+  pure search, but cannot provide associative graph retrieval or spreading
+  activation.
 
 #### Redis Agent Memory Server
 
@@ -233,6 +315,11 @@ cognitive structures via a 3D-8Q model (Object x Form x Time).
 - **Forgetting:** Not documented.
 - **Key context:** Official Redis project (v0.13.1). Docker deployment.
   Represents a major infrastructure company entering the memory space.
+- **vs. Alaya:** Redis Memory extracts topics and entities but has no graph
+  overlay, no forgetting, no consolidation, and no preference learning. It is a
+  memory-shaped wrapper around Redis infrastructure. Alaya provides the full
+  cognitive memory lifecycle. Redis Memory requires Docker + Redis; Alaya is a
+  single file.
 
 #### LangMem SDK
 
@@ -247,6 +334,11 @@ cognitive structures via a 3D-8Q model (Object x Form x Time).
 - **Forgetting:** Not documented.
 - **Key context:** LangChain's actual memory engine for production use.
   48.72 F1 on LoCoMo. 1.3K GitHub stars.
+- **vs. Alaya:** LangMem is semantic + procedural memory without episodic
+  storage, graph, forgetting, or preference emergence. Its procedural memory
+  (prompt updates) is a novel capability Alaya does not offer. However, LangMem
+  is tightly coupled to LangGraph's storage layer and requires an LLM for
+  extraction. Alaya is framework-agnostic and provides richer memory semantics.
 
 ---
 
@@ -272,6 +364,12 @@ cognitive structures via a 3D-8Q model (Object x Form x Time).
 - **Key context:** Written in Rust for performance. Extremely simple API.
   LangChain integration via MotorheadMemory class. Less actively maintained as
   of 2025.
+- **vs. Alaya:** Motorhead is a conversation buffer, not a memory system. It has
+  no graph, no semantic store, no forgetting model, no preference learning, and
+  no consolidation — just a sliding window with summarization. Alaya provides
+  the full cognitive memory lifecycle that Motorhead's architecture cannot
+  support. Both are written in Rust, but Motorhead requires Redis infrastructure
+  while Alaya requires nothing.
 
 #### Engram
 
@@ -292,6 +390,13 @@ cognitive structures via a 3D-8Q model (Object x Form x Time).
   decides what is worth remembering). Closest in spirit to Alaya's
   zero-dependency approach, though without vector search, graph, or lifecycle
   processes.
+- **vs. Alaya:** Engram and Alaya share the zero-dependency, single-file
+  philosophy. But Engram is a flat key-value store with FTS5 — no semantic
+  store, no graph, no forgetting, no consolidation, no preferences, no vector
+  search. Alaya provides the full cognitive memory architecture on the same
+  deployment footprint. Engram delegates all memory decisions to the agent;
+  Alaya provides intelligent memory management that works independently of
+  agent sophistication.
 
 #### OpenViking (ByteDance / Volcengine)
 
@@ -313,6 +418,13 @@ cognitive structures via a 3D-8Q model (Object x Form x Time).
   the team behind VikingDB (serves all ByteDance production workloads since
   2019). Designed for coding agents (e.g., OpenClaw). Strongly opinionated
   against traditional RAG fragmentation. ~2.9K GitHub stars.
+- **vs. Alaya:** OpenViking's filesystem metaphor (directories, paths) is a
+  fundamentally different abstraction from Alaya's cognitive model (episodes,
+  semantics, impressions). OpenViking has no forgetting, no graph dynamics, no
+  preference learning, and requires VikingDB infrastructure. Its tiered loading
+  is mechanical (L0/L1/L2 directories), not cognitive (episodic → semantic
+  consolidation). OpenViking targets coding agents with structured context;
+  Alaya targets conversational agents with associative, evolving memory.
 
 ---
 
@@ -334,6 +446,11 @@ cognitive structures via a 3D-8Q model (Object x Form x Time).
   intelligent decay.
 - **Key context:** Most widely adopted but also most basic. Most memory classes
   now deprecated in favor of RunnableWithMessageHistory.
+- **vs. Alaya:** LangChain Memory is working memory only — no long-term
+  persistence, no semantic store, no graph, no forgetting model, no preferences.
+  It is the "hello world" of agent memory. Alaya provides the complete cognitive
+  memory architecture that LangChain's buffer/window classes were never designed
+  to offer. LangChain's own team replaced these with LangMem SDK (see above).
 
 #### LlamaIndex Memory
 
@@ -347,6 +464,10 @@ cognitive structures via a 3D-8Q model (Object x Form x Time).
 - **LLM dependency:** Optional — basic buffer needs none.
   FactExtractionMemoryBlock requires LLM.
 - **Forgetting:** FIFO eviction when chat exceeds token ratio.
+- **vs. Alaya:** LlamaIndex's composable blocks are flexible but shallow — FIFO
+  eviction and fact extraction are the extent of memory management. No graph, no
+  principled forgetting, no consolidation, no preference emergence. Alaya
+  provides the deeper memory semantics that LlamaIndex's blocks do not address.
 
 #### Haystack (deepset)
 
@@ -359,6 +480,10 @@ cognitive structures via a 3D-8Q model (Object x Form x Time).
 - **Forgetting:** No built-in mechanism.
 - **Key context:** Advanced Agent Memory was P3 (low priority) on Q1 2025
   roadmap.
+- **vs. Alaya:** Haystack treats memory as a low-priority pipeline component, not
+  a first-class concern. Alaya is purpose-built for memory with four lifecycle
+  processes, three stores, and a Hebbian graph — capabilities that Haystack's
+  architecture cannot provide.
 
 #### LangGraph
 
@@ -372,6 +497,11 @@ cognitive structures via a 3D-8Q model (Object x Form x Time).
 - **Forgetting:** No built-in mechanism beyond state management.
 - **Key context:** Not a memory system per se — a stateful orchestration
   framework. Memory is an emergent property of persistent graph execution.
+- **vs. Alaya:** LangGraph is an orchestration framework, not a memory system.
+  Its "memory" is persistent graph state — useful for maintaining conversation
+  flow, but it provides no episodic/semantic distinction, no forgetting, no
+  consolidation, and no preference learning. Alaya provides the memory
+  architecture that LangGraph's state management does not address.
 
 ---
 
@@ -409,6 +539,14 @@ retrieval.
 - **Forgetting:** Exponential recency decay. Unaccessed memories score lower.
 - **Significance:** The seminal paper that launched modern agent memory research.
   The recency/importance/relevance scoring is now widely copied.
+- **vs. Alaya:** Generative Agents pioneered agent memory but uses in-memory
+  storage (ephemeral), a flat memory stream (no stores), no graph overlay, and
+  single-curve recency decay. Alaya's Bjork forgetting model is more
+  sophisticated (dual-strength), its three-store architecture provides
+  structural organization, and its Hebbian graph enables associative retrieval
+  that Generative Agents' cosine-only approach cannot match. Generative Agents'
+  "reflections" (episodic → higher-order thoughts) inspired Alaya's
+  consolidation pipeline.
 
 #### Reflexion (Shinn et al., 2023)
 
@@ -418,6 +556,12 @@ retrieval.
   generates a natural language self-reflection. Bounded to 1-3 entries.
 - **Significance:** Reframes memory as "verbal reinforcement learning." 91%
   pass@1 on HumanEval vs. GPT-4's 80%.
+- **vs. Alaya:** Reflexion's 1-3 entry self-reflection buffer is a minimal
+  episodic store — no semantic consolidation, no graph, no forgetting, no
+  preferences. It demonstrates that even tiny memory with the right content
+  (self-reflections) can dramatically improve performance. Alaya's full memory
+  architecture could complement Reflexion's approach — storing reflections as
+  episodes that consolidate into semantic knowledge.
 
 #### Voyager (Wang et al., 2023)
 
@@ -429,6 +573,11 @@ retrieval.
   focused on procedural memory.
 - **Significance:** First LLM-powered embodied lifelong learning agent. Memory
   as executable code. 15.3x faster tech tree progression vs. baselines.
+- **vs. Alaya:** Voyager is pure procedural memory (executable skills) — the only
+  system in this survey focused on procedural memory. Alaya does not provide
+  procedural memory. These are complementary systems: Voyager stores "how to do
+  things" as code; Alaya stores "what happened and what was learned" as
+  episodes, knowledge, and preferences.
 
 #### MemoryBank (Zhong et al., 2024)
 
@@ -440,6 +589,12 @@ retrieval.
   strengthen (S increments, t resets). The first system to formally implement
   Ebbinghaus forgetting in LLM memory.
 - **Preference learning:** Explicit user portrait construction.
+- **vs. Alaya:** MemoryBank is the first system to implement Ebbinghaus
+  forgetting in LLM memory. Its single-curve model (R = e^(-t/S)) is simpler
+  than Alaya's Bjork dual-strength model, which tracks storage and retrieval
+  strength independently. MemoryBank's user portrait synthesis is an early form
+  of preference learning; Alaya's vasana model accumulates impressions more
+  organically. MemoryBank has no graph overlay or consolidation.
 
 #### Think-in-Memory (Liu et al., 2023)
 
@@ -450,6 +605,12 @@ retrieval.
 - **Forgetting:** Explicit forget and merge operations.
 - **Significance:** Unique approach — storing reasoning results rather than
   observations.
+- **vs. Alaya:** Think-in-Memory stores processed thoughts (reasoning
+  conclusions), not raw episodes. Alaya preserves both — raw episodes for
+  context-dependent retrieval and distilled semantic knowledge from
+  consolidation. Think-in-Memory's LSH for O(1) retrieval is faster than
+  Alaya's hybrid pipeline, but at the cost of losing the multi-signal fusion
+  (BM25 + vector + graph) that enables richer retrieval.
 
 #### Second Me (Mindverse, 2025)
 
@@ -460,6 +621,13 @@ retrieval.
   model parameters via fine-tuning).
 - **Significance:** Unique "memory as model parameters" approach. Parametric
   memory eliminates retrieval latency for deeply learned knowledge.
+- **vs. Alaya:** Second Me represents a fundamentally different paradigm —
+  parametric memory encoded in model weights via fine-tuning. Alaya uses
+  non-parametric memory (stored in a database). Parametric memory eliminates
+  retrieval latency but requires fine-tuning infrastructure, is opaque
+  (no inspection/debugging), and cannot be selectively forgotten. Alaya's
+  non-parametric approach is transparent, inspectable, and supports principled
+  forgetting. These are complementary paradigms, not competitors.
 
 #### HippoRAG / HippoRAG 2 (OSU NLP, 2024-2025)
 
@@ -475,6 +643,15 @@ retrieval.
 - **Significance:** Top-venue neuroscience-inspired memory. PPR on KG is
   comparable to Alaya's spreading activation on Hebbian graph — different
   mechanisms, similar cognitive inspiration.
+- **vs. Alaya:** Both are neuroscience-inspired, but from different theories.
+  HippoRAG models the hippocampal indexing theory (neocortex + hippocampus +
+  parahippocampal region); Alaya models Hebbian plasticity and CLS theory.
+  HippoRAG's knowledge graph is static (LLM-extracted entities); Alaya's is
+  dynamic (reshapes through use). HippoRAG has no forgetting, no consolidation,
+  no preferences, and requires an LLM for all KG construction. Alaya provides
+  the full cognitive lifecycle with zero LLM requirement. HippoRAG is stronger
+  for document-grounded multi-hop QA; Alaya is stronger for conversational
+  memory with evolving preferences.
 
 #### SYNAPSE (Jiang et al., 2026)
 
@@ -488,6 +665,14 @@ retrieval.
 - **Significance:** The most directly comparable system to Alaya's retrieval
   approach. Both use spreading activation over episodic-semantic graphs. SYNAPSE
   adds lateral inhibition (analogous to Alaya's RIF suppression).
+- **vs. Alaya:** SYNAPSE is Alaya's closest competitor in retrieval architecture.
+  Both use spreading activation on episodic-semantic graphs. SYNAPSE adds
+  lateral inhibition (analogous to Alaya's RIF); Alaya adds Hebbian weight
+  evolution (LTP/LTD). SYNAPSE has no preference learning, no CLS
+  consolidation, and no Bjork forgetting — its lifecycle is simpler. SYNAPSE is
+  in-memory Python research code; Alaya is a persistent, embeddable Rust
+  library. For the specific mechanism of associative retrieval, these two
+  systems are the state of the art.
 
 #### Mem-alpha (Wang et al., 2025)
 
@@ -500,6 +685,13 @@ retrieval.
 - **Significance:** Nearly identical three-component memory decomposition to
   Alaya (core + episodic + semantic). Key difference: Mem-alpha learns
   management via RL; Alaya uses cognitive principles.
+- **vs. Alaya:** The most architecturally similar system. Same three-store
+  decomposition (core/episodic/semantic). The fundamental divergence is
+  governance: Mem-alpha learns memory management via RL reward signals; Alaya
+  uses hand-crafted cognitive processes (Bjork forgetting, CLS consolidation,
+  vasana perfuming). RL can potentially discover better policies, but requires
+  training data and is opaque. Alaya's cognitive processes are interpretable,
+  require no training, and work on first use.
 
 #### MAGMA (Jiang et al., 2026)
 
@@ -512,6 +704,13 @@ retrieval.
 - **Significance:** Multi-graph decomposition is a different approach from
   Alaya's single Hebbian graph with multiple edge types. MAGMA separates
   graph types; Alaya unifies them with typed, weighted edges.
+- **vs. Alaya:** MAGMA decomposes memory relationships into four separate graphs
+  (semantic, temporal, causal, entity) with adaptive traversal policies. Alaya
+  uses a single Hebbian graph with typed, weighted edges. MAGMA's decomposition
+  enables specialized traversal per graph type; Alaya's unified graph enables
+  cross-type associations through spreading activation. MAGMA achieves SOTA on
+  LoCoMo and LongMemEval, but is Python research code. MAGMA has no preference
+  learning or Bjork forgetting.
 
 #### LightMem (Fang et al., 2025)
 
@@ -524,6 +723,13 @@ retrieval.
 - **Significance:** Best efficiency profile. Sleep-time consolidation pattern
   parallels Alaya's offline lifecycle processes. Both inspired by
   complementary learning systems.
+- **vs. Alaya:** Both are CLS-inspired with offline consolidation. LightMem's
+  sleep-time consolidation mirrors Alaya's lifecycle processes. LightMem adds a
+  sensory memory stage (compression + topic grouping) that Alaya does not have.
+  LightMem achieves the best efficiency profile in the field (38x token
+  reduction). However, LightMem has no graph overlay, no Hebbian dynamics, no
+  preference learning, and no Bjork forgetting. LightMem is Python; Alaya is
+  Rust.
 
 #### MemTree (Rezazadeh et al., 2025)
 
@@ -535,6 +741,12 @@ retrieval.
 - **Significance:** Tree vs. graph is a fundamental structural difference from
   Alaya. MemTree's hierarchical schemas enable top-down reasoning; Alaya's flat
   stores + graph overlay enable lateral associative reasoning.
+- **vs. Alaya:** Fundamentally different data structures: MemTree's hierarchical
+  tree enables top-down schema-based reasoning; Alaya's flat stores + Hebbian
+  graph enable lateral associative reasoning. Trees are better for structured
+  taxonomic knowledge; graphs are better for associative, context-dependent
+  retrieval. MemTree has no forgetting, no preferences, and is Python research
+  code.
 
 #### RMM (Tan et al., 2025)
 
@@ -547,32 +759,204 @@ retrieval.
 - **Key results:** 10%+ accuracy improvement on LongMemEval.
 - **Significance:** Explicitly designed for personalized conversational agents
   — the same target as Alaya.
+- **vs. Alaya:** RMM targets the same use case as Alaya — long-term personalized
+  conversational agents. RMM's prospective reflection (dynamic summarization)
+  parallels Alaya's consolidation; its retrospective reflection (RL-refined
+  retrieval) parallels Alaya's Hebbian graph dynamics. RMM combines hand-crafted
+  and RL-learned processes; Alaya uses purely cognitive-principle-based
+  processes. RMM has no graph overlay, no preference emergence, and is Python.
 
 ### Additional Notable Systems
 
-Systems with significant community traction or novel ideas, presented in
-summary form:
+Systems with significant community traction or novel ideas. Each is compared
+against Alaya's architecture.
 
-| System | Type | Key Idea | Stars / Venue |
-|--------|------|----------|---------------|
-| **EverMemOS** | Memory OS | Self-organizing memory; encoding/consolidation/retrieval pipeline; 93% LoCoMo | 2.2K stars |
-| **MemOS** | Memory OS | Textual + activation (KV cache) + parametric (LoRA) memory types | 5.9K stars |
-| **OpenMemory** | Cognitive engine | Hierarchical Memory Decomposition + temporal graph; MCP native | 3.4K stars |
-| **SimpleMem** | Compression | Semantic lossless compression via implicit density gating | 3.0K stars |
-| **Memobase** | User profiling | Extracts user profiles from conversations; top LoCoMo scores | 2.6K stars |
-| **IronClaw** | Rust agent | OpenClaw-inspired Rust agent with persistent hybrid-search memory | 3.5K stars |
-| **LightRAG** | Graph RAG | Simple, fast graph-based RAG with KG extraction | 28.7K stars, EMNLP 2025 |
-| **Memory-R1** | RL memory | RL-trained ADD/UPDATE/DELETE/NOOP; 48% F1 improvement over Mem0 | arXiv:2508.19828 |
-| **MemRL** | RL memory | Runtime RL on episodic memory; MDP formalization of memory use | arXiv:2601.03192 |
-| **AgeMem** | RL memory | Unified LTM/STM via progressive RL; SOTA on 5 long-horizon benchmarks | arXiv:2601.01885 |
-| **G-Memory** | Multi-agent | Three-tier graph hierarchy for multi-agent systems | NeurIPS 2025 Spotlight |
-| **CAM** | Constructivist | Piaget-inspired assimilation/accommodation of memory schemas | NeurIPS 2025 |
-| **SGMem** | Lightweight | Sentence-level graphs; no LLM extraction needed; strong LoCoMo/LongMemEval | arXiv:2509.21212 |
-| **RGMem** | Physics-inspired | Renormalization group multi-scale memory with phase transitions | arXiv:2510.16392 |
-| **Memoria** | Weighted KG | Exponential weighted average for conflict resolution; 87.1% LongMemEvals | arXiv:2512.12686 |
-| **CortexGraph** | Forgetting | Ebbinghaus forgetting curves; Markdown-compatible storage | GitHub |
-| **PowerMem** | Hybrid | Vector + FTS + graph with Ebbinghaus forgetting; backed by OceanBase | GitHub |
-| **Papr Memory** | Multi-DB | MongoDB + Qdrant + Neo4j; GraphQL API; 91% STARK accuracy | GitHub |
+#### EverMemOS
+
+- **Type:** Memory OS. Self-organizing memory with encoding/consolidation/
+  retrieval pipeline. 93% LoCoMo. 2.2K stars.
+- **vs. Alaya:** EverMemOS's encoding/consolidation/retrieval pipeline parallels
+  Alaya's lifecycle processes. Both are CLS-inspired. Key difference: EverMemOS
+  is Python research code requiring LLM infrastructure; Alaya is an embeddable
+  Rust library with zero dependencies. EverMemOS lacks Hebbian graph dynamics
+  and preference emergence.
+
+#### MemOS
+
+- **Type:** Memory OS. Textual + activation (KV cache) + parametric (LoRA)
+  memory types. 5.9K stars.
+- **vs. Alaya:** MemOS introduces activation memory (KV cache persistence) and
+  parametric memory (LoRA fine-tuning) — memory forms that Alaya does not
+  support. These are powerful for inference optimization but require GPU
+  infrastructure. Alaya's CPU-only, single-file approach trades these
+  capabilities for deployment simplicity and privacy.
+
+#### OpenMemory
+
+- **Type:** Cognitive engine. Hierarchical Memory Decomposition + temporal
+  graph; MCP native. 3.4K stars.
+- **vs. Alaya:** OpenMemory's temporal graph is static (LLM-constructed);
+  Alaya's Hebbian graph is dynamic (reshapes through use). OpenMemory's MCP
+  integration is appealing for tool-use agents, but it requires external
+  infrastructure and an LLM. Alaya's trait-based API is more flexible for
+  embedding in any architecture.
+
+#### SimpleMem
+
+- **Type:** Compression. Semantic lossless compression via implicit density
+  gating. 3.0K stars.
+- **vs. Alaya:** SimpleMem solves a different problem — compressing conversation
+  context to fit in LLM windows. It has no long-term memory, no graph, no
+  forgetting, no consolidation. Alaya provides the long-term memory
+  architecture that SimpleMem's compression approach does not address. These are
+  complementary: SimpleMem compresses what goes into the prompt; Alaya decides
+  what is worth remembering.
+
+#### Memobase
+
+- **Type:** User profiling engine. Extracts user profiles from conversations;
+  top LoCoMo scores. 2.6K stars.
+- **vs. Alaya:** Memobase focuses narrowly on user profile extraction — it
+  builds structured profiles (interests, demographics, preferences) from
+  conversations. Alaya's vasana model captures preferences but also provides
+  episodic memory, semantic consolidation, graph dynamics, and forgetting —
+  a complete memory system rather than a profiling tool. Memobase requires an
+  LLM for all extraction; Alaya's preference emergence needs no LLM.
+
+#### IronClaw
+
+- **Type:** Rust agent with persistent hybrid-search memory. 3.5K stars.
+- **vs. Alaya:** IronClaw is an agent, not a memory library — it bundles memory
+  as part of a complete agent system. Alaya is a headless memory engine that any
+  agent can use. IronClaw's memory is tightly coupled to its agent architecture;
+  Alaya is composable and framework-agnostic. Both are Rust, demonstrating the
+  growing Rust ecosystem for AI agents.
+
+#### LightRAG
+
+- **Type:** Graph RAG. Simple, fast graph-based RAG with KG extraction. 28.7K
+  stars, EMNLP 2025.
+- **vs. Alaya:** LightRAG is a retrieval system, not a memory system — it builds
+  knowledge graphs for document QA, not conversational memory. It has no
+  episodic memory, no forgetting, no consolidation, no preferences. Alaya's
+  graph is Hebbian (dynamic, use-shaped); LightRAG's is static (LLM-extracted
+  entities). LightRAG is the right choice for document retrieval; Alaya is the
+  right choice for agent memory.
+
+#### Memory-R1
+
+- **Type:** RL memory. RL-trained ADD/UPDATE/DELETE/NOOP operations; 48% F1
+  improvement over Mem0. arXiv:2508.19828.
+- **vs. Alaya:** Memory-R1 learns memory management operations via RL instead of
+  hand-crafting them. This is the strongest emerging trend in the field. Alaya
+  uses cognitive principles (Bjork, CLS, Hebbian) instead of RL. The tradeoff:
+  RL-trained policies can discover non-obvious management strategies, but
+  require training data and are opaque. Alaya's cognitive principles are
+  interpretable and require no training.
+
+#### MemRL
+
+- **Type:** RL memory. Runtime RL on episodic memory with MDP formalization.
+  arXiv:2601.03192.
+- **vs. Alaya:** MemRL formalizes memory management as a Markov Decision Process
+  and trains policies via reinforcement learning. Same tradeoff as Memory-R1:
+  learned policies vs. Alaya's principled cognitive processes. MemRL's MDP
+  formalization is theoretically elegant but requires training infrastructure
+  that Alaya's approach does not.
+
+#### AgeMem
+
+- **Type:** RL memory. Unified LTM/STM via progressive RL; SOTA on 5 long-
+  horizon benchmarks. arXiv:2601.01885.
+- **vs. Alaya:** AgeMem's progressive RL approach achieves SOTA on long-horizon
+  tasks. Its unified LTM/STM is simpler than Alaya's three-store architecture
+  but is trained end-to-end. Alaya's principled decomposition (episodic,
+  semantic, implicit) provides more interpretable memory management at the cost
+  of potentially suboptimal policies that RL could discover.
+
+#### G-Memory
+
+- **Type:** Multi-agent memory. Three-tier graph hierarchy for multi-agent
+  systems. NeurIPS 2025 Spotlight.
+- **vs. Alaya:** G-Memory is designed for multi-agent coordination — a use case
+  Alaya does not currently target. Its three-tier graph hierarchy (agent-local,
+  team, global) addresses shared knowledge across agents. Alaya's architecture
+  is single-agent; multi-agent memory sharing would require explicit
+  coordination above the Alaya layer.
+
+#### CAM
+
+- **Type:** Constructivist memory. Piaget-inspired assimilation/accommodation
+  of memory schemas. NeurIPS 2025.
+- **vs. Alaya:** CAM and Alaya share the insight that memory should be grounded
+  in cognitive theory, but draw from different traditions. CAM uses Piaget's
+  developmental psychology (assimilation/accommodation of schemas); Alaya uses
+  neuroscience (Hebbian LTP/LTD, CLS theory) and Yogacara Buddhist psychology
+  (vasana/perfuming). CAM's schema modification is more structured; Alaya's
+  Hebbian dynamics are more organic.
+
+#### SGMem
+
+- **Type:** Lightweight memory. Sentence-level graphs; no LLM extraction
+  needed; strong LoCoMo/LongMemEval. arXiv:2509.21212.
+- **vs. Alaya:** SGMem constructs sentence-level graphs without LLM
+  extraction — the same LLM-free graph construction philosophy as Alaya's
+  Hebbian approach. Both demonstrate that useful graph structure can emerge
+  without expensive LLM entity extraction. SGMem's sentence-level granularity
+  is finer than Alaya's episode-level granularity. SGMem has no forgetting or
+  preference learning.
+
+#### RGMem
+
+- **Type:** Physics-inspired memory. Renormalization group multi-scale memory
+  with phase transitions. arXiv:2510.16392.
+- **vs. Alaya:** RGMem applies renormalization group theory from physics to
+  create multi-scale memory representations with phase transitions. This is
+  a theoretically novel approach with no cognitive counterpart in Alaya's
+  neuroscience-based model. Both systems share the insight that memory should
+  operate at multiple scales of abstraction.
+
+#### Memoria
+
+- **Type:** Weighted knowledge graph. Exponential weighted average for conflict
+  resolution; 87.1% LongMemEvals. arXiv:2512.12686.
+- **vs. Alaya:** Memoria's exponential weighted average for conflict resolution
+  is comparable to Alaya's transformation lifecycle (contradiction resolution),
+  but more mathematically elegant. Memoria's weighted KG is static (weights
+  from EWA); Alaya's Hebbian graph is dynamic (weights from co-retrieval).
+  Alaya provides a more complete lifecycle (forgetting, consolidation,
+  preferences) around its graph.
+
+#### CortexGraph
+
+- **Type:** Forgetting-focused memory. Ebbinghaus forgetting curves with
+  Markdown-compatible storage. GitHub.
+- **vs. Alaya:** CortexGraph implements Ebbinghaus single-curve forgetting;
+  Alaya implements Bjork dual-strength forgetting. The Bjork model is more
+  sophisticated — it distinguishes storage strength (how well-encoded) from
+  retrieval strength (how accessible), enabling spaced-repetition dynamics that
+  single-curve models cannot capture. CortexGraph has no graph overlay,
+  consolidation, or preference learning.
+
+#### PowerMem
+
+- **Type:** Hybrid memory. Vector + FTS + graph with Ebbinghaus forgetting;
+  backed by OceanBase. GitHub.
+- **vs. Alaya:** PowerMem's hybrid retrieval (vector + FTS + graph) mirrors
+  Alaya's three-signal approach. Both implement principled forgetting
+  (PowerMem: Ebbinghaus, Alaya: Bjork). PowerMem is backed by OceanBase
+  (enterprise distributed DB); Alaya uses embedded SQLite. PowerMem targets
+  enterprise deployments; Alaya targets embedded, privacy-first agents.
+
+#### Papr Memory
+
+- **Type:** Multi-database memory. MongoDB + Qdrant + Neo4j; GraphQL API;
+  91% STARK accuracy. GitHub.
+- **vs. Alaya:** Papr Memory requires three external databases (MongoDB +
+  Qdrant + Neo4j) — the most infrastructure-heavy system in this survey.
+  Alaya requires none. Papr's GraphQL API is developer-friendly, but the
+  operational burden of three databases is significant. Alaya trades Papr's
+  scale and query flexibility for zero-ops deployment and full data locality.
 
 ---
 
@@ -771,6 +1155,8 @@ Graph memory is table stakes in 2026. The field has split into three approaches:
 
 ## Where Alaya Sits
 
+### Taxonomic Position
+
 In CoALA terms, Alaya provides:
 - **Episodic memory** (episodes with full context)
 - **Semantic memory** (consolidated knowledge with confidence scores)
@@ -795,18 +1181,131 @@ In Hu et al.'s Forms-Functions-Dynamics taxonomy:
 - **Dynamics:** Active formation (CLS consolidation), evolution (transformation
   lifecycle), principled forgetting (Bjork + RIF)
 
-### Unique Contributions
+### Why Alaya: Unique Value Propositions
 
-| Capability | Alaya | Closest Alternative | Difference |
+After surveying 40+ systems across production, academic, and framework
+categories, Alaya occupies a unique position in the landscape. No other system
+combines all of the following properties:
+
+**1. The only system with a complete cognitive memory lifecycle and zero
+dependencies.**
+
+Every other system with principled memory lifecycle processes (SYNAPSE, LightMem,
+EverMemOS, Mem-alpha) is Python research code requiring LLM infrastructure.
+Every other zero-dependency system (Memvid, Engram) lacks lifecycle processes.
+Alaya is the only system that is simultaneously:
+- Embeddable (Rust library, single SQLite file, no network calls)
+- Cognitively complete (consolidation + forgetting + preference emergence +
+  contradiction resolution)
+
+This combination does not exist anywhere else in the field.
+
+**2. The only system where memory genuinely reshapes through use without LLM
+involvement.**
+
+Most graph-based systems (Zep/Graphiti, HippoRAG, Cognee, Supermemory) build
+static knowledge graphs via LLM extraction — the graph exists only because an
+LLM created it, and it only changes when an LLM updates it. SYNAPSE uses
+spreading activation but does not implement Hebbian weight evolution. Alaya's
+graph is truly dynamic: co-retrieved nodes strengthen their connections (LTP),
+unused connections decay (LTD), and the graph naturally develops small-world
+topology — all without any LLM intervention. This is not a feature; it is a
+fundamental architectural difference. Memory literally becomes easier to
+traverse the more it is used.
+
+**3. The most theoretically grounded forgetting model in any shipping system.**
+
+The field's forgetting implementations fall into three tiers:
+- **No forgetting** (HippoRAG, Memvid, Engram, LangMem, most systems)
+- **Single-curve decay** (MemoryBank's Ebbinghaus, Mem0's exponential, Generative
+  Agents' recency, Supermemory's ad-hoc curves)
+- **Dual-strength forgetting** (Alaya only)
+
+Bjork & Bjork's (1992) dual-strength model distinguishes *storage strength*
+(how well-encoded a memory is) from *retrieval strength* (how accessible it
+currently is). A memory can be deeply stored but temporarily inaccessible — and
+retrieving it restores accessibility while also causing Retrieval-Induced
+Forgetting of competing memories. This enables spaced-repetition-like dynamics
+that single-curve models cannot capture. No other system implements this.
+
+**4. The only system where preferences emerge without LLM extraction.**
+
+Preference learning across the field:
+- **No preferences** (SYNAPSE, HippoRAG, Memvid, LangChain, most systems)
+- **LLM-extracted profiles** (Mem0, Supermemory, Memobase — brittle, expensive,
+  one-shot)
+- **Explicit opinion tracking** (Hindsight — novel but requires LLM)
+- **Emergent crystallization** (Alaya only)
+
+Alaya's vasana/perfuming model accumulates impressions from interactions. When
+enough impressions converge, preferences crystallize — without any LLM call,
+without any explicit extraction prompt. This is cheaper, more robust to LLM
+quality variance, and produces preferences grounded in actual behavioral
+patterns rather than LLM interpretation.
+
+**5. True graceful degradation — every feature works independently.**
+
+No embeddings? BM25-only retrieval still works. No LLM for consolidation?
+Episodes accumulate normally, and the graph still reshapes through retrieval.
+No vector search? FTS5 + graph retrieval still provides multi-signal fusion.
+Every other "advanced" memory system (Mem0, Zep, Letta, Supermemory, HippoRAG)
+fails completely without its LLM dependency. Alaya is the only system that
+provides a useful, functional memory at every capability level — from zero-LLM
+BM25-only to full hybrid retrieval with embeddings.
+
+**6. Rust + single-file + FFI = embeddable in any language, any environment.**
+
+Python dominates the agent memory space. This means:
+- GIL contention in multi-threaded agents
+- Dependency conflicts (PyTorch, ONNX, numpy version hell)
+- No embedding in mobile, edge, or non-Python environments
+- GC pauses during retrieval
+
+Alaya is a Rust library. It compiles to a single binary, exposes C-compatible
+FFI, and runs with zero GC pauses. It can be embedded in Python (via PyO3),
+Node.js (via napi-rs), Go (via CGo), Swift, Kotlin, or any language with C FFI
+support. The memory is a single SQLite file that can be copied, backed up, or
+inspected with standard tools.
+
+The only Rust competitors (Memvid, Cortex-Mem, Motorhead) lack Alaya's cognitive
+depth. The only cognitively deep systems (SYNAPSE, LightMem, Mem-alpha) are
+Python research code.
+
+### Closest Alternatives and Critical Differences
+
+| Capability | Alaya | Closest Alternative | Critical Difference |
 |-----------|-------|-------------------|------------|
-| **Three-store architecture** | Episodic + semantic + implicit | Mem-alpha (core + episodic + semantic) | Nearly identical decomposition; Mem-alpha learns management via RL, Alaya uses cognitive principles |
-| **Hebbian graph** | Dynamic, reshapes through use | SYNAPSE (spreading activation + lateral inhibition) | Both bio-inspired; SYNAPSE adds lateral inhibition, Alaya adds Hebbian LTP/LTD weight evolution |
-| **Bjork forgetting** | Dual-strength decay + RIF suppression | MemoryBank / CortexGraph (Ebbinghaus) | Alaya models storage and retrieval strength independently; Ebbinghaus uses single-curve decay |
-| **Vasana preferences** | Impressions crystallize into preferences | Hindsight (opinion memory with belief evolution) | Alaya's preferences emerge without LLM; Hindsight tracks opinions explicitly with confidence scores |
-| **CLS consolidation** | Episodic -> semantic pipeline | LightMem (sleep-time offline consolidation) | Both inspired by CLS theory; LightMem adds sensory compression stage |
-| **Zero external dependencies** | Single SQLite file, Rust | Memvid (single .mv2 file, Rust) | Both Rust, single-file, zero-dep; Memvid is append-only (no lifecycle), Alaya has full cognitive lifecycle |
-| **LLM-agnostic** | Agent provides via traits, works with NO LLM | Memvid (ONNX local embeddings) | Both work without cloud LLM; Alaya degrades to BM25-only, Memvid uses local ONNX models |
-| **RRF multi-signal fusion** | BM25 + vector + graph | Zep/Graphiti (cosine + BM25 + graph BFS) | Both three-signal + RRF; Zep adds MMR, Alaya adds spreading activation |
+| **Three-store architecture** | Episodic + semantic + implicit | Mem-alpha (core + episodic + semantic) | Nearly identical decomposition; Mem-alpha learns management via RL (requires training infrastructure), Alaya uses cognitive principles (zero training) |
+| **Hebbian graph** | Dynamic, reshapes through use | SYNAPSE (spreading activation + lateral inhibition) | Both bio-inspired; SYNAPSE adds lateral inhibition, Alaya adds Hebbian LTP/LTD weight evolution. Only Alaya's graph genuinely changes topology through use. |
+| **Bjork forgetting** | Dual-strength decay + RIF suppression | MemoryBank / CortexGraph (Ebbinghaus) | Alaya models storage and retrieval strength independently; Ebbinghaus uses single-curve decay. Dual-strength enables spaced-repetition dynamics impossible with single-curve models. |
+| **Vasana preferences** | Impressions crystallize into preferences | Hindsight (opinion memory with belief evolution) | Alaya's preferences emerge without LLM (zero cost, robust); Hindsight tracks opinions explicitly with confidence scores (richer but LLM-dependent) |
+| **CLS consolidation** | Episodic -> semantic pipeline | LightMem (sleep-time offline consolidation) | Both inspired by CLS theory; LightMem adds sensory compression stage. Only Alaya combines consolidation with all other lifecycle processes in a single system. |
+| **Zero dependencies** | Single SQLite file, Rust | Memvid (single .mv2 file, Rust) | Both Rust, single-file, zero-dep; Memvid is append-only with no lifecycle processes — it is a log, not a memory system |
+| **LLM-agnostic** | Agent provides via traits, works with NO LLM | Memvid (ONNX local embeddings) | Both work without cloud LLM; Alaya degrades gracefully to BM25-only, Memvid requires ONNX runtime |
+| **RRF multi-signal fusion** | BM25 + vector + graph | Zep/Graphiti (cosine + BM25 + graph BFS) | Both three-signal + RRF; Zep requires Neo4j infrastructure, Alaya is self-contained |
+| **Contradiction resolution** | Transformation lifecycle | Memoria (exponential weighted average) | Alaya resolves contradictions as part of a complete lifecycle; Memoria addresses contradictions but lacks forgetting and preferences |
+| **Cross-memory learning** | Episodic -> semantic -> implicit | Generative Agents (observation -> reflection) | Alaya's three-way learning (episodes perfume into preferences AND consolidate into knowledge) is unique; Generative Agents only consolidate observations into reflections |
+
+### What Alaya Does Not Do
+
+Intellectual honesty requires acknowledging what Alaya does not provide:
+
+- **Procedural memory** — Voyager's executable skill library and LangMem's
+  prompt updates are capabilities Alaya does not address
+- **Multi-agent memory sharing** — G-Memory's three-tier graph hierarchy for
+  multi-agent coordination is out of scope
+- **Parametric memory** — Second Me's model-weight encoding and MemOS's KV cache
+  persistence are fundamentally different approaches
+- **RL-optimized policies** — Mem-alpha, Memory-R1, and AgeMem may discover
+  management strategies that Alaya's hand-crafted cognitive processes miss
+- **Enterprise-scale concurrent access** — systems backed by Postgres/Neo4j can
+  serve thousands of concurrent users; Alaya's SQLite is single-writer
+- **Sub-linear vector search at scale** — dedicated ANN indexes (HNSW, IVF) are
+  orders of magnitude faster than Alaya's brute-force cosine at 100K+ vectors
+
+These are explicit design tradeoffs, not oversights. Alaya is optimized for the
+personal AI agent use case: one user, one agent, full cognitive memory, zero
+ops, total privacy.
 
 ---
 
