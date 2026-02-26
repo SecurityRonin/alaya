@@ -48,6 +48,13 @@ impl AlayaStore {
 
     /// Store a conversation episode with full context.
     pub fn store_episode(&self, episode: &NewEpisode) -> Result<EpisodeId> {
+        if episode.content.trim().is_empty() {
+            return Err(AlayaError::InvalidInput("episode content must not be empty".into()));
+        }
+        if episode.session_id.trim().is_empty() {
+            return Err(AlayaError::InvalidInput("session_id must not be empty".into()));
+        }
+
         let tx = schema::begin_immediate(&self.conn)?;
 
         let id = store::episodic::store_episode(&tx, episode)?;
@@ -78,6 +85,13 @@ impl AlayaStore {
 
     /// Hybrid retrieval: BM25 + vector + graph activation -> RRF -> rerank.
     pub fn query(&self, q: &Query) -> Result<Vec<ScoredMemory>> {
+        if q.text.trim().is_empty() {
+            return Err(AlayaError::InvalidInput("query text must not be empty".into()));
+        }
+        if q.max_results == 0 {
+            return Err(AlayaError::InvalidInput("max_results must be greater than 0".into()));
+        }
+
         retrieval::pipeline::execute_query(&self.conn, q)
     }
 
@@ -311,6 +325,74 @@ mod tests {
         drop(store);
         let store2 = AlayaStore::open(&path).unwrap();
         assert_eq!(store2.status().unwrap().episode_count, 1);
+    }
+
+    #[test]
+    fn test_store_episode_rejects_empty_content() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        let result = store.store_episode(&NewEpisode {
+            content: "".to_string(),
+            role: Role::User,
+            session_id: "s1".to_string(),
+            timestamp: 1000,
+            context: EpisodeContext::default(),
+            embedding: None,
+        });
+        assert!(result.is_err());
+        assert!(
+            matches!(result.unwrap_err(), AlayaError::InvalidInput(_)),
+            "empty content should return InvalidInput"
+        );
+    }
+
+    #[test]
+    fn test_store_episode_rejects_empty_session_id() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        let result = store.store_episode(&NewEpisode {
+            content: "hello".to_string(),
+            role: Role::User,
+            session_id: "".to_string(),
+            timestamp: 1000,
+            context: EpisodeContext::default(),
+            embedding: None,
+        });
+        assert!(result.is_err());
+        assert!(
+            matches!(result.unwrap_err(), AlayaError::InvalidInput(_)),
+            "empty session_id should return InvalidInput"
+        );
+    }
+
+    #[test]
+    fn test_query_rejects_empty_text() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        let result = store.query(&Query {
+            text: "".to_string(),
+            embedding: None,
+            context: QueryContext::default(),
+            max_results: 5,
+        });
+        assert!(result.is_err());
+        assert!(
+            matches!(result.unwrap_err(), AlayaError::InvalidInput(_)),
+            "empty query text should return InvalidInput"
+        );
+    }
+
+    #[test]
+    fn test_query_rejects_zero_max_results() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        let result = store.query(&Query {
+            text: "hello".to_string(),
+            embedding: None,
+            context: QueryContext::default(),
+            max_results: 0,
+        });
+        assert!(result.is_err());
+        assert!(
+            matches!(result.unwrap_err(), AlayaError::InvalidInput(_)),
+            "zero max_results should return InvalidInput"
+        );
     }
 
     #[test]
