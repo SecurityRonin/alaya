@@ -229,6 +229,44 @@ cognitive structures via a 3D-8Q model (Object x Form x Time).
   Supermemory's TypeScript stack limits embedding in non-JS environments; Alaya's
   Rust is embeddable in any language via FFI.
 
+#### PageIndex (Vectify AI)
+
+- **Citation:** Zhang, M. & Tang, Y. (2025). "PageIndex: Document Index for
+  Vectorless, Reasoning-based RAG." pageindex.ai. MIT License.
+- **Architecture:** Vectorless retrieval system. Replaces vector databases with
+  hierarchical tree indexing inspired by AlphaGo's tree search. Two-step process:
+  (1) generate a Table-of-Contents tree structure from documents with LLM
+  summaries at each node, (2) LLM reasons over the tree to find relevant
+  sections. No chunking — respects natural document structure.
+- **CoALA mapping:** Not a memory system — a retrieval system. No episodic,
+  semantic, or procedural memory. Stateless document navigation.
+- **Storage:** JSON tree index file. No vector database.
+- **Retrieval:** LLM reasoning-based tree traversal. At each level, the LLM
+  evaluates which branch is most relevant to the query. Explainable — produces
+  reasoning traces with section/page references.
+- **LLM dependency:** Required (OpenAI, default gpt-4o). The entire system
+  depends on LLM reasoning for both indexing and retrieval.
+- **Forgetting:** None. Deterministic based on document structure.
+- **Key results:** 98.7% accuracy on FinanceBench (financial document QA).
+  17.9K GitHub stars, 1.3K forks. MCP integration for Claude. Cloud platform
+  (chat.pageindex.ai) and enterprise deployment.
+- **Key context:** Represents a fundamentally different retrieval paradigm —
+  reasoning over structure instead of similarity over embeddings. Most effective
+  for long professional documents (SEC filings, legal contracts) where semantic
+  similarity fails to capture true relevance.
+- **vs. Alaya:** PageIndex is a retrieval system, not a memory system — it has
+  no episodic memory, no learning, no forgetting, no preferences, no graph
+  dynamics. It solves a different problem: expert-level document navigation for
+  structured professional documents. Alaya solves conversational memory with
+  cognitive lifecycle processes. However, PageIndex's tree-based reasoning
+  retrieval is an interesting complement to Alaya's hybrid retrieval — where
+  Alaya uses BM25 + vector + graph spreading activation, PageIndex argues that
+  LLM reasoning over hierarchical structure outperforms vector similarity
+  entirely. For Alaya's use case (short conversational episodes, not 100-page
+  PDFs), vector + BM25 + graph is more appropriate than PageIndex's heavyweight
+  LLM-reasoning-per-query approach. PageIndex also requires an LLM for every
+  retrieval query; Alaya's retrieval is LLM-free.
+
 #### Hindsight (Vectorize)
 
 - **Citation:** Latimer et al. (2025). "Hindsight is 20/20: Building Agent
@@ -981,6 +1019,7 @@ How each system maps to CoALA's memory module taxonomy:
 | **Engram** | Agent-managed | Yes (agent-directed) | No | No | No |
 | **OpenViking** | Yes (L0 context) | Yes (L1 sessions) | Yes (L2 persistent) | No | No |
 | **Supermemory** | Agent-managed | Yes | Yes (graph) | No | Yes (extraction) |
+| **PageIndex** | N/A | No | No | No | No |
 | **Hindsight** | Agent-managed | Yes (experience) | Yes (world + opinion) | No | Yes (reflection) |
 | **Memvid** | Agent-managed | Yes (Smart Frames) | No | No | No |
 | **HippoRAG** | Agent-managed | No | Yes (KG as hippocampus) | No | No |
@@ -1009,6 +1048,7 @@ extraction.
 | **Engram** | SQLite + FTS5 | 0 services | Single Go binary | Fully local |
 | **OpenViking** | VikingDB (virtual filesystem) | 1 service | VikingDB setup | Configurable |
 | **Supermemory** | KG + vector + graph DB | 2-3 services | Docker or cloud | Cloud-dependent |
+| **PageIndex** | JSON tree index | 0 services | pip install | Local (index file) |
 | **Hindsight** | Configurable | 1-2 services | Docker | Configurable |
 | **Cortex-Mem** | Configurable (Rust) | 0-1 services | `cargo install` or Docker | Configurable |
 | **Memvid** | Single `.mv2` file (Rust) | 0 services | Single binary | Fully local |
@@ -1035,6 +1075,7 @@ Mapped to Gao et al.'s taxonomy (Naive / Advanced / Modular RAG):
 | **Engram** | FTS5 | No | No | N/A | N/A | Naive |
 | **OpenViking** | No | Yes (VikingDB) | No | Directory positioning | Hierarchical | Advanced |
 | **Supermemory** | No | Yes | Yes (graph) | Not specified | Yes | Advanced |
+| **PageIndex** | No | No | Tree traversal (LLM reasoning) | LLM reasoning scores | LLM-based | Modular (reasoning-based) |
 | **Hindsight** | No | Yes | No | Tempr (temporal priming) | Cara (adaptive) | Advanced |
 | **Memvid** | Tantivy FTS | HNSW | No | Not specified | Chronological | Advanced |
 | **HippoRAG** | No | Yes | Personalized PageRank | PPR scores | None | Modular |
@@ -1066,6 +1107,7 @@ axis:
 | **Engram** | Agent-directed save | Session summaries on end | Not built-in | Not built-in | Not built-in |
 | **OpenViking** | Virtual file write | Tiered L0 -> L1 -> L2 | Implicit (tiered deprioritization) | Not built-in | Not built-in |
 | **Supermemory** | LLM extraction | Not specified | Decay curves + expiry | Not specified | LLM-extracted |
+| **PageIndex** | LLM tree indexing | N/A (stateless) | None | N/A | N/A |
 | **Hindsight** | LLM extraction | Tempr (temporal priming) | Belief confidence evolution | Not specified | Opinion memory (novel) |
 | **Memvid** | Append-only frames | Not built-in | None (immutable) | Not built-in | Not built-in |
 | **HippoRAG** | LLM KG extraction | Not built-in | Not built-in | Not built-in | Not built-in |
