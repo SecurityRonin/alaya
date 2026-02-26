@@ -17,6 +17,20 @@ pub fn open_memory_db() -> Result<Connection> {
     Ok(conn)
 }
 
+/// Start a write transaction with IMMEDIATE locking.
+/// This prevents SQLITE_BUSY errors under concurrent readers by acquiring
+/// the write lock at BEGIN rather than at first write statement.
+///
+/// Uses `new_unchecked` because `AlayaStore` methods take `&self`, not `&mut self`.
+/// Safety from overlapping transactions is guaranteed at the application level:
+/// each write method opens, uses, and commits a single transaction.
+pub(crate) fn begin_immediate(conn: &Connection) -> Result<rusqlite::Transaction<'_>> {
+    Ok(rusqlite::Transaction::new_unchecked(
+        conn,
+        rusqlite::TransactionBehavior::Immediate,
+    )?)
+}
+
 fn init_db(conn: &Connection) -> Result<()> {
     conn.execute_batch("PRAGMA journal_mode = WAL;")?;
     conn.execute_batch("PRAGMA foreign_keys = ON;")?;
@@ -244,5 +258,41 @@ mod tests {
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .unwrap();
         assert_eq!(version, 1, "schema version should be 1 after init");
+    }
+
+    #[test]
+    fn test_begin_immediate_transaction() {
+        let conn = open_memory_db().unwrap();
+        let tx = begin_immediate(&conn).unwrap();
+        tx.execute(
+            "INSERT INTO episodes (content, role, session_id, timestamp) VALUES (?1, ?2, ?3, ?4)",
+            ("test", "user", "s1", &1000i64),
+        )
+        .unwrap();
+        tx.commit().unwrap();
+
+        let count: i64 = conn
+            .query_row("SELECT count(*) FROM episodes", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn test_immediate_transaction_rollback_on_drop() {
+        let conn = open_memory_db().unwrap();
+        {
+            let tx = begin_immediate(&conn).unwrap();
+            tx.execute(
+                "INSERT INTO episodes (content, role, session_id, timestamp) VALUES (?1, ?2, ?3, ?4)",
+                ("test", "user", "s1", &1000i64),
+            )
+            .unwrap();
+            // tx drops here without commit — should rollback
+        }
+
+        let count: i64 = conn
+            .query_row("SELECT count(*) FROM episodes", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count, 0, "uncommitted transaction should rollback on drop");
     }
 }

@@ -48,20 +48,19 @@ impl AlayaStore {
 
     /// Store a conversation episode with full context.
     pub fn store_episode(&self, episode: &NewEpisode) -> Result<EpisodeId> {
-        let id = store::episodic::store_episode(&self.conn, episode)?;
+        let tx = schema::begin_immediate(&self.conn)?;
 
-        // Store embedding if provided
+        let id = store::episodic::store_episode(&tx, episode)?;
+
         if let Some(ref emb) = episode.embedding {
-            store::embeddings::store_embedding(&self.conn, "episode", id.0, emb, "")?;
+            store::embeddings::store_embedding(&tx, "episode", id.0, emb, "")?;
         }
 
-        // Initialize node strength
-        store::strengths::init_strength(&self.conn, NodeRef::Episode(id))?;
+        store::strengths::init_strength(&tx, NodeRef::Episode(id))?;
 
-        // Create temporal link to preceding episode
         if let Some(prev) = episode.context.preceding_episode {
             graph::links::create_link(
-                &self.conn,
+                &tx,
                 NodeRef::Episode(prev),
                 NodeRef::Episode(id),
                 LinkType::Temporal,
@@ -69,6 +68,7 @@ impl AlayaStore {
             )?;
         }
 
+        tx.commit()?;
         Ok(id)
     }
 
@@ -150,7 +150,10 @@ impl AlayaStore {
 
     /// Run consolidation: episodic -> semantic (CLS replay).
     pub fn consolidate(&self, provider: &dyn ConsolidationProvider) -> Result<ConsolidationReport> {
-        lifecycle::consolidation::consolidate(&self.conn, provider)
+        let tx = schema::begin_immediate(&self.conn)?;
+        let report = lifecycle::consolidation::consolidate(&tx, provider)?;
+        tx.commit()?;
+        Ok(report)
     }
 
     /// Run perfuming: extract impressions, crystallize preferences (vasana).
@@ -159,17 +162,26 @@ impl AlayaStore {
         interaction: &Interaction,
         provider: &dyn ConsolidationProvider,
     ) -> Result<PerfumingReport> {
-        lifecycle::perfuming::perfume(&self.conn, interaction, provider)
+        let tx = schema::begin_immediate(&self.conn)?;
+        let report = lifecycle::perfuming::perfume(&tx, interaction, provider)?;
+        tx.commit()?;
+        Ok(report)
     }
 
     /// Run transformation: dedup, prune, decay (asraya-paravrtti).
     pub fn transform(&self) -> Result<TransformationReport> {
-        lifecycle::transformation::transform(&self.conn)
+        let tx = schema::begin_immediate(&self.conn)?;
+        let report = lifecycle::transformation::transform(&tx)?;
+        tx.commit()?;
+        Ok(report)
     }
 
     /// Run forgetting: decay retrieval strengths, archive weak nodes (Bjork).
     pub fn forget(&self) -> Result<ForgettingReport> {
-        lifecycle::forgetting::forget(&self.conn)
+        let tx = schema::begin_immediate(&self.conn)?;
+        let report = lifecycle::forgetting::forget(&tx)?;
+        tx.commit()?;
+        Ok(report)
     }
 
     // -----------------------------------------------------------------------
@@ -190,21 +202,22 @@ impl AlayaStore {
 
     /// Purge data matching the filter.
     pub fn purge(&self, filter: PurgeFilter) -> Result<PurgeReport> {
+        let tx = schema::begin_immediate(&self.conn)?;
         let mut report = PurgeReport::default();
         match filter {
             PurgeFilter::Session(ref session_id) => {
-                let eps = store::episodic::get_episodes_by_session(&self.conn, session_id)?;
+                let eps = store::episodic::get_episodes_by_session(&tx, session_id)?;
                 let ids: Vec<EpisodeId> = eps.iter().map(|e| e.id).collect();
-                report.episodes_deleted = store::episodic::delete_episodes(&self.conn, &ids)? as u32;
+                report.episodes_deleted = store::episodic::delete_episodes(&tx, &ids)? as u32;
             }
             PurgeFilter::OlderThan(ts) => {
-                report.episodes_deleted = self.conn.execute(
+                report.episodes_deleted = tx.execute(
                     "DELETE FROM episodes WHERE timestamp < ?1",
                     [ts],
                 )? as u32;
             }
             PurgeFilter::All => {
-                self.conn.execute_batch(
+                tx.execute_batch(
                     "DELETE FROM episodes;
                      DELETE FROM semantic_nodes;
                      DELETE FROM impressions;
@@ -215,6 +228,7 @@ impl AlayaStore {
                 )?;
             }
         }
+        tx.commit()?;
         Ok(report)
     }
 }
@@ -297,5 +311,26 @@ mod tests {
         drop(store);
         let store2 = AlayaStore::open(&path).unwrap();
         assert_eq!(store2.status().unwrap().episode_count, 1);
+    }
+
+    #[test]
+    fn test_store_episode_with_embedding_is_atomic() {
+        let store = AlayaStore::open_in_memory().unwrap();
+
+        let id = store
+            .store_episode(&NewEpisode {
+                content: "atomic test".to_string(),
+                role: Role::User,
+                session_id: "s1".to_string(),
+                timestamp: 1000,
+                context: EpisodeContext::default(),
+                embedding: Some(vec![1.0, 0.0, 0.0]),
+            })
+            .unwrap();
+
+        let status = store.status().unwrap();
+        assert_eq!(status.episode_count, 1);
+        assert_eq!(status.embedding_count, 1);
+        assert!(id.0 > 0);
     }
 }
