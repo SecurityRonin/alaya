@@ -1,6 +1,7 @@
 use thiserror::Error;
 
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum AlayaError {
     #[error("database error: {0}")]
     Db(#[from] rusqlite::Error),

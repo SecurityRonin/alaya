@@ -24,6 +24,7 @@ pub struct LinkId(pub i64);
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum NodeRef {
     Episode(EpisodeId),
     Semantic(NodeId),
@@ -63,6 +64,7 @@ impl NodeRef {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[non_exhaustive]
 pub enum Role {
     User,
     Assistant,
@@ -90,6 +92,7 @@ impl Role {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[non_exhaustive]
 pub enum SemanticType {
     Fact,
     Relationship,
@@ -120,6 +123,7 @@ impl SemanticType {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[non_exhaustive]
 pub enum LinkType {
     Temporal,
     Topical,
@@ -327,6 +331,7 @@ pub struct KnowledgeFilter {
 }
 
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum PurgeFilter {
     /// Delete everything for this session
     Session(String),
