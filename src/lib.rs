@@ -436,6 +436,7 @@ impl AlayaStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::provider::MockProvider;
 
     #[test]
     fn test_full_lifecycle() {
@@ -601,4 +602,407 @@ mod tests {
         assert_eq!(status.embedding_count, 1);
         assert!(id.0 > 0);
     }
+
+    // -----------------------------------------------------------------------
+    // Task 5: API-level tests for lib.rs public interface
+    // -----------------------------------------------------------------------
+
+    /// Helper: create a simple interaction in a given domain
+    fn make_interaction(text: &str, session: &str, ts: i64) -> Interaction {
+        Interaction {
+            text: text.to_string(),
+            role: Role::User,
+            session_id: session.to_string(),
+            timestamp: ts,
+            context: EpisodeContext::default(),
+        }
+    }
+
+    /// Helper: create a simple new episode
+    fn make_new_episode(content: &str, session: &str, ts: i64) -> NewEpisode {
+        NewEpisode {
+            content: content.to_string(),
+            role: Role::User,
+            session_id: session.to_string(),
+            timestamp: ts,
+            context: EpisodeContext::default(),
+            embedding: None,
+        }
+    }
+
+    #[test]
+    fn test_preferences_with_domain_filter() {
+        let store = AlayaStore::open_in_memory().unwrap();
+
+        // MockProvider returns 1 impression in domain "style" per perfume call
+        let provider = MockProvider::with_impressions(vec![
+            NewImpression {
+                domain: "style".to_string(),
+                observation: "prefers dark mode".to_string(),
+                valence: 1.0,
+            },
+        ]);
+
+        // Perfume 6 times to exceed CRYSTALLIZATION_THRESHOLD (5)
+        for i in 0..6 {
+            let interaction = make_interaction(
+                &format!("style interaction {}", i),
+                "s1",
+                1000 + i * 100,
+            );
+            store.perfume(&interaction, &provider).unwrap();
+        }
+
+        // Preferences for "style" domain should be non-empty
+        let style_prefs = store.preferences(Some("style")).unwrap();
+        assert!(!style_prefs.is_empty(), "should have crystallized a style preference");
+
+        // Preferences for a nonexistent domain should be empty
+        let none_prefs = store.preferences(Some("nonexistent")).unwrap();
+        assert!(none_prefs.is_empty(), "nonexistent domain should have no preferences");
+    }
+
+    #[test]
+    fn test_preferences_without_filter() {
+        let store = AlayaStore::open_in_memory().unwrap();
+
+        let provider = MockProvider::with_impressions(vec![
+            NewImpression {
+                domain: "style".to_string(),
+                observation: "prefers bullet points".to_string(),
+                valence: 0.8,
+            },
+        ]);
+
+        for i in 0..6 {
+            let interaction = make_interaction(
+                &format!("bullet interaction {}", i),
+                "s1",
+                2000 + i * 100,
+            );
+            store.perfume(&interaction, &provider).unwrap();
+        }
+
+        // No domain filter — should return all preferences
+        let all_prefs = store.preferences(None).unwrap();
+        assert!(!all_prefs.is_empty(), "preferences(None) should return all crystallized preferences");
+    }
+
+    #[test]
+    fn test_knowledge_with_type_filter() {
+        let store = AlayaStore::open_in_memory().unwrap();
+
+        // Store 5 episodes (enough for consolidation, which requires >= 3 unconsolidated)
+        let mut ep_ids = Vec::new();
+        for i in 0..5 {
+            let id = store.store_episode(&make_new_episode(
+                &format!("knowledge episode {}", i),
+                "s1",
+                1000 + i * 100,
+            )).unwrap();
+            ep_ids.push(id);
+        }
+
+        // MockProvider returns nodes of type Fact and Relationship
+        let provider = MockProvider::with_knowledge(vec![
+            NewSemanticNode {
+                content: "User likes Rust".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.9,
+                source_episodes: ep_ids.clone(),
+                embedding: None,
+            },
+            NewSemanticNode {
+                content: "User is friends with Alice".to_string(),
+                node_type: SemanticType::Relationship,
+                confidence: 0.8,
+                source_episodes: ep_ids,
+                embedding: None,
+            },
+        ]);
+
+        let report = store.consolidate(&provider).unwrap();
+        assert_eq!(report.nodes_created, 2);
+
+        // Filter for Facts only
+        let facts = store.knowledge(Some(KnowledgeFilter {
+            node_type: Some(SemanticType::Fact),
+            ..Default::default()
+        })).unwrap();
+        assert!(!facts.is_empty(), "should have at least one Fact");
+        for f in &facts {
+            assert_eq!(f.node_type, SemanticType::Fact);
+        }
+
+        // Filter for Relationship only
+        let rels = store.knowledge(Some(KnowledgeFilter {
+            node_type: Some(SemanticType::Relationship),
+            ..Default::default()
+        })).unwrap();
+        assert!(!rels.is_empty(), "should have at least one Relationship");
+        for r in &rels {
+            assert_eq!(r.node_type, SemanticType::Relationship);
+        }
+    }
+
+    #[test]
+    fn test_knowledge_with_min_confidence() {
+        let store = AlayaStore::open_in_memory().unwrap();
+
+        let mut ep_ids = Vec::new();
+        for i in 0..5 {
+            let id = store.store_episode(&make_new_episode(
+                &format!("confidence episode {}", i),
+                "s1",
+                1000 + i * 100,
+            )).unwrap();
+            ep_ids.push(id);
+        }
+
+        let provider = MockProvider::with_knowledge(vec![
+            NewSemanticNode {
+                content: "High confidence fact".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.9,
+                source_episodes: ep_ids.clone(),
+                embedding: None,
+            },
+            NewSemanticNode {
+                content: "Low confidence fact".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.3,
+                source_episodes: ep_ids,
+                embedding: None,
+            },
+        ]);
+
+        store.consolidate(&provider).unwrap();
+
+        // Filter with min_confidence 0.7 (no node_type filter => goes through the None branch)
+        let filtered = store.knowledge(Some(KnowledgeFilter {
+            min_confidence: Some(0.7),
+            ..Default::default()
+        })).unwrap();
+
+        assert!(!filtered.is_empty(), "should have at least one node above 0.7 confidence");
+        for node in &filtered {
+            assert!(
+                node.confidence >= 0.7,
+                "node confidence {} should be >= 0.7",
+                node.confidence
+            );
+        }
+    }
+
+    #[test]
+    fn test_knowledge_with_limit() {
+        let store = AlayaStore::open_in_memory().unwrap();
+
+        let mut ep_ids = Vec::new();
+        for i in 0..5 {
+            let id = store.store_episode(&make_new_episode(
+                &format!("limit episode {}", i),
+                "s1",
+                1000 + i * 100,
+            )).unwrap();
+            ep_ids.push(id);
+        }
+
+        let provider = MockProvider::with_knowledge(vec![
+            NewSemanticNode {
+                content: "Node A".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.9,
+                source_episodes: ep_ids.clone(),
+                embedding: None,
+            },
+            NewSemanticNode {
+                content: "Node B".to_string(),
+                node_type: SemanticType::Concept,
+                confidence: 0.8,
+                source_episodes: ep_ids.clone(),
+                embedding: None,
+            },
+            NewSemanticNode {
+                content: "Node C".to_string(),
+                node_type: SemanticType::Event,
+                confidence: 0.7,
+                source_episodes: ep_ids,
+                embedding: None,
+            },
+        ]);
+
+        store.consolidate(&provider).unwrap();
+
+        // Request limit of 1 (no node_type filter)
+        let limited = store.knowledge(Some(KnowledgeFilter {
+            limit: Some(1),
+            ..Default::default()
+        })).unwrap();
+        assert_eq!(limited.len(), 1, "limit(1) should return exactly 1 node");
+    }
+
+    #[test]
+    fn test_neighbors_with_links() {
+        let store = AlayaStore::open_in_memory().unwrap();
+
+        // Store 3+ episodes with preceding_episode to create temporal links
+        let id1 = store.store_episode(&make_new_episode("first msg", "s1", 1000)).unwrap();
+
+        let mut ep2 = make_new_episode("second msg", "s1", 2000);
+        ep2.context.preceding_episode = Some(id1);
+        let id2 = store.store_episode(&ep2).unwrap();
+
+        let mut ep3 = make_new_episode("third msg", "s1", 3000);
+        ep3.context.preceding_episode = Some(id2);
+        let _id3 = store.store_episode(&ep3).unwrap();
+
+        // Spread activation from the first episode with depth 2
+        let neighbors = store.neighbors(NodeRef::Episode(id1), 2).unwrap();
+        assert!(!neighbors.is_empty(), "episode with temporal links should have neighbors");
+    }
+
+    #[test]
+    fn test_neighbors_without_links() {
+        let store = AlayaStore::open_in_memory().unwrap();
+
+        // Store a single episode with no links
+        let id = store.store_episode(&make_new_episode("isolated msg", "s1", 1000)).unwrap();
+
+        let neighbors = store.neighbors(NodeRef::Episode(id), 2).unwrap();
+        assert!(neighbors.is_empty(), "isolated node should have no neighbors");
+    }
+
+    #[test]
+    fn test_perfume_dedicated() {
+        let store = AlayaStore::open_in_memory().unwrap();
+
+        // MockProvider returns 2 impressions per perfume call
+        let provider = MockProvider::with_impressions(vec![
+            NewImpression {
+                domain: "tone".to_string(),
+                observation: "prefers formal tone".to_string(),
+                valence: 0.9,
+            },
+            NewImpression {
+                domain: "format".to_string(),
+                observation: "prefers markdown".to_string(),
+                valence: 0.7,
+            },
+        ]);
+
+        let interaction = make_interaction("Please use formal markdown", "s1", 1000);
+        let report = store.perfume(&interaction, &provider).unwrap();
+
+        assert_eq!(report.impressions_stored, 2, "should store both impressions");
+        let status = store.status().unwrap();
+        assert_eq!(status.impression_count, 2);
+    }
+
+    #[test]
+    fn test_transform_dedicated() {
+        let store = AlayaStore::open_in_memory().unwrap();
+
+        // Store two episodes to have valid node refs for the link
+        store.store_episode(&make_new_episode("ep1", "s1", 1000)).unwrap();
+        store.store_episode(&make_new_episode("ep2", "s1", 2000)).unwrap();
+
+        // Create a weak link directly via the graph module (weight 0.01, below prune threshold of 0.02)
+        graph::links::create_link(
+            &store.conn,
+            NodeRef::Episode(EpisodeId(1)),
+            NodeRef::Episode(EpisodeId(2)),
+            LinkType::Topical,
+            0.01,
+        ).unwrap();
+
+        assert_eq!(store.status().unwrap().link_count, 1);
+
+        let report = store.transform().unwrap();
+        assert!(report.links_pruned > 0, "weak link should have been pruned");
+        assert_eq!(store.status().unwrap().link_count, 0);
+    }
+
+    #[test]
+    fn test_forget_dedicated() {
+        let store = AlayaStore::open_in_memory().unwrap();
+
+        // Store episodes (store_episode auto-initializes strength with retrieval_strength = 1.0)
+        let id1 = store.store_episode(&make_new_episode("remember me", "s1", 1000)).unwrap();
+        let id2 = store.store_episode(&make_new_episode("remember me too", "s1", 2000)).unwrap();
+
+        // Check initial retrieval strength
+        let s1_before = store::strengths::get_strength(&store.conn, NodeRef::Episode(id1)).unwrap();
+        let s2_before = store::strengths::get_strength(&store.conn, NodeRef::Episode(id2)).unwrap();
+        assert!((s1_before.retrieval_strength - 1.0).abs() < 0.01);
+        assert!((s2_before.retrieval_strength - 1.0).abs() < 0.01);
+
+        // Run forget multiple times to accumulate decay
+        for _ in 0..5 {
+            store.forget().unwrap();
+        }
+
+        let s1_after = store::strengths::get_strength(&store.conn, NodeRef::Episode(id1)).unwrap();
+        let s2_after = store::strengths::get_strength(&store.conn, NodeRef::Episode(id2)).unwrap();
+
+        assert!(
+            s1_after.retrieval_strength < s1_before.retrieval_strength,
+            "retrieval strength should decay: {} -> {}",
+            s1_before.retrieval_strength,
+            s1_after.retrieval_strength,
+        );
+        assert!(
+            s2_after.retrieval_strength < s2_before.retrieval_strength,
+            "retrieval strength should decay: {} -> {}",
+            s2_before.retrieval_strength,
+            s2_after.retrieval_strength,
+        );
+    }
+
+    #[test]
+    fn test_purge_session() {
+        let store = AlayaStore::open_in_memory().unwrap();
+
+        // Store episodes in session "s1"
+        store.store_episode(&make_new_episode("s1 msg1", "s1", 1000)).unwrap();
+        store.store_episode(&make_new_episode("s1 msg2", "s1", 2000)).unwrap();
+
+        // Store episodes in session "s2"
+        store.store_episode(&make_new_episode("s2 msg1", "s2", 3000)).unwrap();
+
+        assert_eq!(store.status().unwrap().episode_count, 3);
+
+        // Purge session "s1"
+        let report = store.purge(PurgeFilter::Session("s1".to_string())).unwrap();
+        assert_eq!(report.episodes_deleted, 2);
+
+        // s1 episodes gone, s2 remain
+        assert_eq!(store.status().unwrap().episode_count, 1);
+
+        // Verify the remaining episode is from s2
+        let results = store.query(&Query::simple("s2 msg1")).unwrap();
+        assert!(!results.is_empty(), "s2 episodes should still be queryable");
+    }
+
+    #[test]
+    fn test_purge_older_than() {
+        let store = AlayaStore::open_in_memory().unwrap();
+
+        // Store episodes with timestamps 1000 and 2000
+        store.store_episode(&make_new_episode("old episode", "s1", 1000)).unwrap();
+        store.store_episode(&make_new_episode("new episode", "s1", 2000)).unwrap();
+
+        assert_eq!(store.status().unwrap().episode_count, 2);
+
+        // Purge episodes older than 1500
+        let report = store.purge(PurgeFilter::OlderThan(1500)).unwrap();
+        assert_eq!(report.episodes_deleted, 1, "should delete the episode at ts=1000");
+
+        assert_eq!(store.status().unwrap().episode_count, 1, "only the newer episode should remain");
+
+        // Verify the remaining episode is the newer one
+        let results = store.query(&Query::simple("new episode")).unwrap();
+        assert!(!results.is_empty(), "the newer episode should still be queryable");
+    }
+
 }
