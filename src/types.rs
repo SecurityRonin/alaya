@@ -413,3 +413,94 @@ pub struct Interaction {
     pub timestamp: i64,
     pub context: EpisodeContext,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_node_ref_episode_roundtrip() {
+        let nr = NodeRef::Episode(EpisodeId(42));
+        assert_eq!(nr.type_str(), "episode");
+        assert_eq!(nr.id(), 42);
+        assert_eq!(NodeRef::from_parts("episode", 42), Some(nr));
+    }
+
+    #[test]
+    fn test_node_ref_semantic_roundtrip() {
+        let nr = NodeRef::Semantic(NodeId(7));
+        assert_eq!(nr.type_str(), "semantic");
+        assert_eq!(nr.id(), 7);
+        assert_eq!(NodeRef::from_parts("semantic", 7), Some(nr));
+    }
+
+    #[test]
+    fn test_node_ref_preference_roundtrip() {
+        let nr = NodeRef::Preference(PreferenceId(99));
+        assert_eq!(nr.type_str(), "preference");
+        assert_eq!(nr.id(), 99);
+        assert_eq!(NodeRef::from_parts("preference", 99), Some(nr));
+    }
+
+    #[test]
+    fn test_node_ref_from_parts_invalid() {
+        assert_eq!(NodeRef::from_parts("unknown", 1), None);
+        assert_eq!(NodeRef::from_parts("", 0), None);
+    }
+
+    #[test]
+    fn test_role_roundtrip() {
+        for (role, s) in [(Role::User, "user"), (Role::Assistant, "assistant"), (Role::System, "system")] {
+            assert_eq!(role.as_str(), s);
+            assert_eq!(Role::from_str(s), Some(role));
+        }
+        assert_eq!(Role::from_str("invalid"), None);
+    }
+
+    #[test]
+    fn test_semantic_type_roundtrip() {
+        for (st, s) in [
+            (SemanticType::Fact, "fact"),
+            (SemanticType::Relationship, "relationship"),
+            (SemanticType::Event, "event"),
+            (SemanticType::Concept, "concept"),
+        ] {
+            assert_eq!(st.as_str(), s);
+            assert_eq!(SemanticType::from_str(s), Some(st));
+        }
+        assert_eq!(SemanticType::from_str("bogus"), None);
+    }
+
+    #[test]
+    fn test_link_type_roundtrip() {
+        for (lt, s) in [
+            (LinkType::Temporal, "temporal"),
+            (LinkType::Topical, "topical"),
+            (LinkType::Entity, "entity"),
+            (LinkType::Causal, "causal"),
+            (LinkType::CoRetrieval, "co_retrieval"),
+        ] {
+            assert_eq!(lt.as_str(), s);
+            assert_eq!(LinkType::from_str(s), Some(lt));
+        }
+        assert_eq!(LinkType::from_str("unknown"), None);
+    }
+
+    #[test]
+    fn test_query_simple_defaults() {
+        let q = Query::simple("hello world");
+        assert_eq!(q.text, "hello world");
+        assert_eq!(q.max_results, 5);
+        assert!(q.embedding.is_none());
+    }
+
+    #[test]
+    fn test_episode_context_default() {
+        let ctx = EpisodeContext::default();
+        assert!(ctx.topics.is_empty());
+        assert_eq!(ctx.sentiment, 0.0);
+        assert_eq!(ctx.conversation_turn, 0);
+        assert!(ctx.mentioned_entities.is_empty());
+        assert!(ctx.preceding_episode.is_none());
+    }
+}
