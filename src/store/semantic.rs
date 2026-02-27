@@ -136,4 +136,122 @@ mod tests {
         let node = get_semantic_node(&conn, id).unwrap();
         assert_eq!(node.corroboration_count, 2);
     }
+
+    #[test]
+    fn test_find_by_type() {
+        let conn = open_memory_db().unwrap();
+        store_semantic_node(&conn, &NewSemanticNode {
+            content: "high confidence fact".to_string(),
+            node_type: SemanticType::Fact,
+            confidence: 0.9,
+            source_episodes: vec![],
+            embedding: None,
+        }).unwrap();
+        store_semantic_node(&conn, &NewSemanticNode {
+            content: "low confidence fact".to_string(),
+            node_type: SemanticType::Fact,
+            confidence: 0.3,
+            source_episodes: vec![],
+            embedding: None,
+        }).unwrap();
+        store_semantic_node(&conn, &NewSemanticNode {
+            content: "a relationship".to_string(),
+            node_type: SemanticType::Relationship,
+            confidence: 0.7,
+            source_episodes: vec![],
+            embedding: None,
+        }).unwrap();
+
+        // Filter by Fact type
+        let facts = find_by_type(&conn, SemanticType::Fact, 10).unwrap();
+        assert_eq!(facts.len(), 2);
+        // Should be ordered by confidence DESC
+        assert!(facts[0].confidence >= facts[1].confidence);
+
+        // Filter by Relationship type
+        let rels = find_by_type(&conn, SemanticType::Relationship, 10).unwrap();
+        assert_eq!(rels.len(), 1);
+
+        // No events stored
+        let events = find_by_type(&conn, SemanticType::Event, 10).unwrap();
+        assert!(events.is_empty());
+
+        // Test limit
+        let limited = find_by_type(&conn, SemanticType::Fact, 1).unwrap();
+        assert_eq!(limited.len(), 1);
+        assert_eq!(limited[0].content, "high confidence fact");
+    }
+
+    #[test]
+    fn test_delete_node_cascades() {
+        let conn = open_memory_db().unwrap();
+        let id = store_semantic_node(&conn, &NewSemanticNode {
+            content: "to delete".to_string(),
+            node_type: SemanticType::Fact,
+            confidence: 0.5,
+            source_episodes: vec![],
+            embedding: Some(vec![1.0, 0.0, 0.0]),
+        }).unwrap();
+
+        // Create a link referencing this node
+        use crate::graph::links;
+        use crate::types::{NodeRef, LinkType, EpisodeId};
+        links::create_link(
+            &conn,
+            NodeRef::Semantic(id),
+            NodeRef::Episode(EpisodeId(1)),
+            LinkType::Causal,
+            0.7,
+        ).unwrap();
+
+        // Init strength
+        crate::store::strengths::init_strength(&conn, NodeRef::Semantic(id)).unwrap();
+
+        // Verify everything exists
+        assert_eq!(count_nodes(&conn).unwrap(), 1);
+        assert_eq!(crate::store::embeddings::count_embeddings(&conn).unwrap(), 1);
+        assert_eq!(crate::graph::links::count_links(&conn).unwrap(), 1);
+
+        // Delete
+        delete_node(&conn, id).unwrap();
+
+        // Verify cascade
+        assert_eq!(count_nodes(&conn).unwrap(), 0);
+        assert_eq!(crate::store::embeddings::count_embeddings(&conn).unwrap(), 0);
+        assert_eq!(crate::graph::links::count_links(&conn).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_get_semantic_node_not_found() {
+        let conn = open_memory_db().unwrap();
+        let result = get_semantic_node(&conn, NodeId(999));
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), crate::error::AlayaError::NotFound(_)));
+    }
+
+    #[test]
+    fn test_count_nodes() {
+        let conn = open_memory_db().unwrap();
+        assert_eq!(count_nodes(&conn).unwrap(), 0);
+
+        let id = store_semantic_node(&conn, &NewSemanticNode {
+            content: "a fact".to_string(),
+            node_type: SemanticType::Fact,
+            confidence: 0.5,
+            source_episodes: vec![],
+            embedding: None,
+        }).unwrap();
+        assert_eq!(count_nodes(&conn).unwrap(), 1);
+
+        delete_node(&conn, id).unwrap();
+        assert_eq!(count_nodes(&conn).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_update_corroboration_not_found() {
+        let conn = open_memory_db().unwrap();
+        let result = update_corroboration(&conn, NodeId(999));
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), crate::error::AlayaError::NotFound(_)));
+    }
 }

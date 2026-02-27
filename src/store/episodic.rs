@@ -174,4 +174,68 @@ mod tests {
         delete_episodes(&conn, &[id1, id2]).unwrap();
         assert_eq!(count_episodes(&conn).unwrap(), 0);
     }
+
+    #[test]
+    fn test_get_recent_episodes_ordering() {
+        let conn = open_memory_db().unwrap();
+        store_episode(&conn, &make_episode("old", 1000)).unwrap();
+        store_episode(&conn, &make_episode("mid", 2000)).unwrap();
+        store_episode(&conn, &make_episode("new", 3000)).unwrap();
+
+        let recent = get_recent_episodes(&conn, 2).unwrap();
+        assert_eq!(recent.len(), 2);
+        assert_eq!(recent[0].content, "new");  // Most recent first
+        assert_eq!(recent[1].content, "mid");
+    }
+
+    #[test]
+    fn test_get_recent_episodes_empty() {
+        let conn = open_memory_db().unwrap();
+        let recent = get_recent_episodes(&conn, 10).unwrap();
+        assert!(recent.is_empty());
+    }
+
+    #[test]
+    fn test_get_unconsolidated_episodes() {
+        let conn = open_memory_db().unwrap();
+        // Store 3 episodes
+        let id1 = store_episode(&conn, &make_episode("a", 1000)).unwrap();
+        let _id2 = store_episode(&conn, &make_episode("b", 2000)).unwrap();
+        let _id3 = store_episode(&conn, &make_episode("c", 3000)).unwrap();
+
+        // All 3 should be unconsolidated (no semantic links)
+        let uncons = get_unconsolidated_episodes(&conn, 10).unwrap();
+        assert_eq!(uncons.len(), 3);
+
+        // Link episode 1 to a semantic node via the graph
+        use crate::graph::links;
+        use crate::types::{NodeRef, NodeId, LinkType};
+        links::create_link(
+            &conn,
+            NodeRef::Semantic(NodeId(1)),
+            NodeRef::Episode(id1),
+            LinkType::Causal,
+            0.7,
+        ).unwrap();
+
+        // Now episode 1 should be excluded
+        let uncons = get_unconsolidated_episodes(&conn, 10).unwrap();
+        assert_eq!(uncons.len(), 2);
+    }
+
+    #[test]
+    fn test_get_episode_not_found() {
+        let conn = open_memory_db().unwrap();
+        let result = get_episode(&conn, EpisodeId(999));
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(matches!(err, crate::error::AlayaError::NotFound(_)));
+    }
+
+    #[test]
+    fn test_delete_episodes_empty_slice() {
+        let conn = open_memory_db().unwrap();
+        let count = delete_episodes(&conn, &[]).unwrap();
+        assert_eq!(count, 0);
+    }
 }
