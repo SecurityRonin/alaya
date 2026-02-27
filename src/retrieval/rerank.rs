@@ -82,4 +82,103 @@ mod tests {
         let sim = jaccard(&a, &b);
         assert!((sim - 1.0 / 3.0).abs() < 0.01);
     }
+
+    #[test]
+    fn test_context_similarity_full_match() {
+        let candidate = EpisodeContext {
+            topics: vec!["rust".to_string(), "async".to_string()],
+            sentiment: 0.5,
+            conversation_turn: 0,
+            mentioned_entities: vec!["tokio".to_string()],
+            preceding_episode: None,
+        };
+        let query = QueryContext {
+            topics: vec!["rust".to_string(), "async".to_string()],
+            sentiment: 0.5,
+            mentioned_entities: vec!["tokio".to_string()],
+            current_timestamp: None,
+        };
+        let sim = context_similarity(&candidate, &query);
+        // topic_sim=1.0, entity_sim=1.0, sentiment_sim=1.0
+        // 1.0*0.5 + 1.0*0.25 + 1.0*0.25 = 1.0
+        assert!((sim - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_context_similarity_no_match() {
+        let candidate = EpisodeContext {
+            topics: vec!["python".to_string()],
+            sentiment: -1.0,
+            conversation_turn: 0,
+            mentioned_entities: vec!["django".to_string()],
+            preceding_episode: None,
+        };
+        let query = QueryContext {
+            topics: vec!["rust".to_string()],
+            sentiment: 1.0,
+            mentioned_entities: vec!["tokio".to_string()],
+            current_timestamp: None,
+        };
+        let sim = context_similarity(&candidate, &query);
+        // topic_sim=0, entity_sim=0, sentiment_sim=1.0-(2.0/2.0)=0.0
+        // 0*0.5 + 0*0.25 + 0*0.25 = 0.0
+        assert!(sim < 0.01);
+    }
+
+    #[test]
+    fn test_context_similarity_empty_contexts() {
+        let candidate = EpisodeContext::default();
+        let query = QueryContext::default();
+        let sim = context_similarity(&candidate, &query);
+        // jaccard(empty, empty) = 0.0 for both topics and entities
+        // sentiment_sim = 1.0 - (0.0 / 2.0) = 1.0
+        // 0*0.5 + 0*0.25 + 1.0*0.25 = 0.25
+        assert!((sim - 0.25).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_rerank_empty_candidates() {
+        let result = rerank(vec![], &QueryContext::default(), 1000, 5);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_rerank_ordering_and_truncation() {
+        let candidates = vec![
+            (NodeRef::Episode(EpisodeId(1)), 0.5, "low score".to_string(), Some(Role::User), 900, EpisodeContext::default()),
+            (NodeRef::Episode(EpisodeId(2)), 0.9, "high score".to_string(), Some(Role::User), 950, EpisodeContext::default()),
+            (NodeRef::Episode(EpisodeId(3)), 0.7, "mid score".to_string(), Some(Role::User), 800, EpisodeContext::default()),
+        ];
+        let result = rerank(candidates, &QueryContext::default(), 1000, 2);
+        assert_eq!(result.len(), 2); // truncated to max_results=2
+        assert!(result[0].score >= result[1].score); // ordered DESC
+    }
+
+    #[test]
+    fn test_recency_decay_same_time() {
+        let now = 1000000;
+        let decay = recency_decay(now, now);
+        assert!((decay - 1.0).abs() < 0.01, "no time passed => no decay");
+    }
+
+    #[test]
+    fn test_jaccard_empty_sets() {
+        let a: Vec<String> = vec![];
+        let b: Vec<String> = vec![];
+        assert_eq!(jaccard(&a, &b), 0.0);
+    }
+
+    #[test]
+    fn test_jaccard_identical() {
+        let a = vec!["rust".to_string(), "async".to_string()];
+        let b = vec!["rust".to_string(), "async".to_string()];
+        assert!((jaccard(&a, &b) - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_jaccard_disjoint() {
+        let a = vec!["rust".to_string()];
+        let b = vec!["python".to_string()];
+        assert_eq!(jaccard(&a, &b), 0.0);
+    }
 }

@@ -161,4 +161,81 @@ mod tests {
         prune_weak_links(&conn, 0.05).unwrap();
         assert_eq!(count_links(&conn).unwrap(), 0);
     }
+
+    #[test]
+    fn test_decay_links() {
+        let conn = open_memory_db().unwrap();
+        let a = NodeRef::Episode(EpisodeId(1));
+        let b = NodeRef::Episode(EpisodeId(2));
+        create_link(&conn, a, b, LinkType::Temporal, 0.5).unwrap();
+
+        let before = get_links_from(&conn, a).unwrap()[0].forward_weight;
+        decay_links(&conn, 0.9).unwrap();
+        let after = get_links_from(&conn, a).unwrap()[0].forward_weight;
+
+        assert!(after < before, "weight should decrease after decay");
+        assert!((after - before * 0.9).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_decay_links_skips_very_weak() {
+        let conn = open_memory_db().unwrap();
+        let a = NodeRef::Episode(EpisodeId(1));
+        let b = NodeRef::Episode(EpisodeId(2));
+        create_link(&conn, a, b, LinkType::Temporal, 0.005).unwrap();
+
+        // Link weight is 0.005, which is below 0.01 threshold
+        let decayed = decay_links(&conn, 0.9).unwrap();
+        // The link has forward=0.005 and backward=0.0025
+        // Both are below 0.01, so the WHERE clause (forward > 0.01 OR backward > 0.01) should exclude it
+        assert_eq!(decayed, 0);
+    }
+
+    #[test]
+    fn test_co_retrieval_creates_new_link() {
+        let conn = open_memory_db().unwrap();
+        let a = NodeRef::Episode(EpisodeId(1));
+        let b = NodeRef::Episode(EpisodeId(2));
+
+        // No existing link between a and b
+        assert_eq!(count_links(&conn).unwrap(), 0);
+
+        // Co-retrieval should create a new CoRetrieval link
+        on_co_retrieval(&conn, a, b).unwrap();
+        assert_eq!(count_links(&conn).unwrap(), 1);
+
+        let links = get_links_from(&conn, a).unwrap();
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].link_type, LinkType::CoRetrieval);
+    }
+
+    #[test]
+    fn test_count_links() {
+        let conn = open_memory_db().unwrap();
+        assert_eq!(count_links(&conn).unwrap(), 0);
+
+        create_link(&conn, NodeRef::Episode(EpisodeId(1)), NodeRef::Episode(EpisodeId(2)), LinkType::Temporal, 0.5).unwrap();
+        assert_eq!(count_links(&conn).unwrap(), 1);
+
+        create_link(&conn, NodeRef::Episode(EpisodeId(2)), NodeRef::Episode(EpisodeId(3)), LinkType::Temporal, 0.5).unwrap();
+        assert_eq!(count_links(&conn).unwrap(), 2);
+    }
+
+    #[test]
+    fn test_create_link_duplicate_is_ignored() {
+        let conn = open_memory_db().unwrap();
+        let a = NodeRef::Episode(EpisodeId(1));
+        let b = NodeRef::Episode(EpisodeId(2));
+
+        let id1 = create_link(&conn, a, b, LinkType::Temporal, 0.5).unwrap();
+        let id2 = create_link(&conn, a, b, LinkType::Temporal, 0.8).unwrap();
+
+        // Same link ID (INSERT OR IGNORE)
+        assert_eq!(id1, id2);
+        assert_eq!(count_links(&conn).unwrap(), 1);
+
+        // Weight should remain original (0.5), not updated to 0.8
+        let links = get_links_from(&conn, a).unwrap();
+        assert!((links[0].forward_weight - 0.5).abs() < 0.01);
+    }
 }

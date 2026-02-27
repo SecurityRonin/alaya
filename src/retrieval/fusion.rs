@@ -65,4 +65,21 @@ mod tests {
         // Both at rank 0, so equal RRF scores
         assert!((merged[0].1 - merged[1].1).abs() < 1e-10);
     }
+
+    #[test]
+    fn test_rrf_empty_sets() {
+        let sets: Vec<Vec<(NodeRef, f64)>> = vec![];
+        let result = rrf_merge(&sets, 60);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_rrf_single_item() {
+        let sets = vec![
+            vec![(NodeRef::Episode(EpisodeId(1)), 1.0)],
+        ];
+        let result = rrf_merge(&sets, 60);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].0, NodeRef::Episode(EpisodeId(1)));
+    }
 }
