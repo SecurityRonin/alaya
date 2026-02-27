@@ -10,18 +10,20 @@ and prompt assembly.
 
 ## Why Alaya?
 
-Most AI memory systems are Python libraries that require external infrastructure
-(Postgres, Neo4j, Redis, Pinecone) and are tightly coupled to specific LLM
-providers. Alaya takes a different approach.
+Most AI memory systems treat memory as a retrieval problem — store vectors,
+fetch the nearest ones. Alaya treats memory as a *process*: memories strengthen
+through co-retrieval, weaken through disuse, consolidate from episodes into
+knowledge, and crystallize into preferences. The graph reshapes itself through
+use, like a biological memory system.
 
 **Key differentiators:**
 
-- **Single-file deployment** — one SQLite database, no external services
-- **Rust** — embed in any language via FFI, or use natively with zero GC pauses
-- **LLM-agnostic** — no hardcoded provider; the agent supplies embeddings and consolidation logic via traits
-- **No network calls** — fully local, privacy by architecture
 - **Memory as process** — Hebbian graph reshaping, adaptive forgetting, and preference crystallization make memory a living system, not a static store
 - **Principled foundations** — architecture grounded in CLS theory, Bjork forgetting, spreading activation, and Yogacara psychology, not ad-hoc heuristics
+- **LLM-agnostic** — no hardcoded provider; the agent supplies embeddings and consolidation logic via traits
+- **Graceful degradation** — no embeddings? BM25-only retrieval. No LLM? Episodes accumulate. Every feature works independently
+- **Zero infrastructure** — one SQLite file, no external services, no network calls
+- **Embeddable** — Rust with C FFI; runs anywhere with no runtime overhead
 
 ### Comparison with Alternatives
 
