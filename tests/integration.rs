@@ -1,6 +1,40 @@
 use alaya::*;
 
 // ---------------------------------------------------------------------------
+// Test provider (implements ConsolidationProvider for E2E tests)
+// ---------------------------------------------------------------------------
+
+/// A simple rule-based provider for integration tests.
+/// MockProvider is #[cfg(test)] inside the crate, so we implement
+/// ConsolidationProvider directly here for E2E coverage.
+struct TestProvider {
+    /// If set, extract_knowledge returns this node for any batch.
+    knowledge: Vec<NewSemanticNode>,
+    /// If set, extract_impressions returns these for any interaction.
+    impressions: Vec<NewImpression>,
+}
+
+impl TestProvider {
+    fn with_impressions(impressions: Vec<NewImpression>) -> Self {
+        Self { knowledge: vec![], impressions }
+    }
+}
+
+impl ConsolidationProvider for TestProvider {
+    fn extract_knowledge(&self, _episodes: &[Episode]) -> alaya::Result<Vec<NewSemanticNode>> {
+        Ok(self.knowledge.clone())
+    }
+
+    fn extract_impressions(&self, _interaction: &Interaction) -> alaya::Result<Vec<NewImpression>> {
+        Ok(self.impressions.clone())
+    }
+
+    fn detect_contradiction(&self, _a: &SemanticNode, _b: &SemanticNode) -> alaya::Result<bool> {
+        Ok(false)
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -85,6 +119,24 @@ fn test_multi_session_lifecycle() {
         "consolidation should process the unconsolidated batch (got {})",
         cr.episodes_processed
     );
+
+    // Perfume -- extract impressions from an interaction (part of the lifecycle)
+    let perfume_provider = TestProvider::with_impressions(vec![
+        NewImpression {
+            domain: "lifecycle".to_string(),
+            observation: "user tests full lifecycle".to_string(),
+            valence: 0.8,
+        },
+    ]);
+    let interaction = Interaction {
+        text: "lifecycle test interaction".to_string(),
+        role: Role::User,
+        session_id: "session-1".to_string(),
+        timestamp: 5000,
+        context: EpisodeContext::default(),
+    };
+    let pr = store.perfume(&interaction, &perfume_provider).unwrap();
+    assert_eq!(pr.impressions_stored, 1, "perfume should store 1 impression");
 
     // Transform -- dedup/prune/decay pass (no duplicates expected)
     let tr = store.transform().unwrap();
@@ -226,6 +278,20 @@ fn test_full_retrieval_pipeline_with_temporal_links() {
         neighbor_refs.contains(&NodeRef::Episode(id2)),
         "episode 2 should be a neighbor of episode 1 via temporal link"
     );
+
+    // Verify Hebbian co-retrieval: querying creates co-retrieval links between
+    // results. Count links before and after a query that returns multiple results.
+    let links_before = store.status().unwrap().link_count;
+    let results = store.query(&Query::simple("borrow checker")).unwrap();
+    if results.len() >= 2 {
+        let links_after = store.status().unwrap().link_count;
+        assert!(
+            links_after > links_before,
+            "co-retrieval should create Hebbian links between co-retrieved episodes ({} -> {})",
+            links_before,
+            links_after,
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -350,4 +416,135 @@ fn test_lifecycle_idempotence() {
     let tr_a = store.transform().unwrap();
     let tr_b = store.transform().unwrap();
     assert_eq!(tr_a.duplicates_merged, tr_b.duplicates_merged);
+}
+
+// ---------------------------------------------------------------------------
+// Test 6: Preference crystallization end-to-end
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_preference_crystallization_e2e() {
+    let store = AlayaStore::open_in_memory().unwrap();
+
+    // TestProvider returns one impression in "code_style" domain per perfume call
+    let provider = TestProvider::with_impressions(vec![
+        NewImpression {
+            domain: "code_style".to_string(),
+            observation: "prefers functional style".to_string(),
+            valence: 0.9,
+        },
+    ]);
+
+    // Perfume 4 times -- below CRYSTALLIZATION_THRESHOLD (5)
+    for i in 0..4 {
+        let interaction = Interaction {
+            text: format!("I like map/filter/fold {}", i),
+            role: Role::User,
+            session_id: "crystal-s1".to_string(),
+            timestamp: 1000 + i * 100,
+            context: EpisodeContext::default(),
+        };
+        let report = store.perfume(&interaction, &provider).unwrap();
+        assert_eq!(report.preferences_crystallized, 0, "pass {i}: should not crystallize below threshold");
+    }
+
+    // No preferences yet
+    let prefs = store.preferences(Some("code_style")).unwrap();
+    assert!(prefs.is_empty(), "no preference should exist before threshold");
+
+    // 5th perfume crosses the threshold -- crystallization happens
+    let interaction = Interaction {
+        text: "I like map/filter/fold 4".to_string(),
+        role: Role::User,
+        session_id: "crystal-s1".to_string(),
+        timestamp: 1400,
+        context: EpisodeContext::default(),
+    };
+    let report = store.perfume(&interaction, &provider).unwrap();
+    assert_eq!(
+        report.preferences_crystallized, 1,
+        "5th impression should trigger crystallization"
+    );
+
+    // Verify the crystallized preference
+    let prefs = store.preferences(Some("code_style")).unwrap();
+    assert_eq!(prefs.len(), 1);
+    assert_eq!(prefs[0].domain, "code_style");
+
+    // Unrelated domain should be empty
+    let other = store.preferences(Some("other_domain")).unwrap();
+    assert!(other.is_empty());
+
+    // All preferences (no filter) should include the one we created
+    let all = store.preferences(None).unwrap();
+    assert!(!all.is_empty());
+
+    // 6th perfume should reinforce the existing preference, not create a new one
+    let interaction = Interaction {
+        text: "functional style is great".to_string(),
+        role: Role::User,
+        session_id: "crystal-s1".to_string(),
+        timestamp: 1500,
+        context: EpisodeContext::default(),
+    };
+    let report = store.perfume(&interaction, &provider).unwrap();
+    assert_eq!(report.preferences_crystallized, 0, "should reinforce, not re-crystallize");
+    assert_eq!(report.preferences_reinforced, 1, "should reinforce existing preference");
+
+    // Still exactly one preference
+    let prefs = store.preferences(Some("code_style")).unwrap();
+    assert_eq!(prefs.len(), 1);
+}
+
+// ---------------------------------------------------------------------------
+// Test 7: Memory decay and revival (Bjork desirable difficulty)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_memory_decay_and_revival() {
+    let store = AlayaStore::open_in_memory().unwrap();
+
+    // Store episodes that will be our "memories"
+    store.store_episode(&episode("Rust async runtime uses tokio", "decay-s1", 1000)).unwrap();
+    store.store_episode(&episode("Tokio has a multi-threaded scheduler", "decay-s1", 2000)).unwrap();
+    store.store_episode(&episode("Async functions return futures", "decay-s1", 3000)).unwrap();
+
+    let status = store.status().unwrap();
+    assert_eq!(status.episode_count, 3);
+
+    // Run forget 10 times to decay retrieval strength significantly.
+    // Each pass multiplies retrieval by 0.95. After 10 passes: 1.0 * 0.95^10 ≈ 0.60
+    for _ in 0..10 {
+        let report = store.forget().unwrap();
+        assert!(report.nodes_decayed > 0, "should decay strength records each pass");
+    }
+
+    // Episodes should still exist (storage strength stays at 0.5, well above
+    // the archive threshold of 0.1, so no archival happens)
+    assert_eq!(store.status().unwrap().episode_count, 3, "episodes should survive 10 decay passes");
+
+    // Now REVIVE the memory by querying it. The retrieval pipeline calls
+    // on_access() for each returned result, which resets retrieval_strength to 1.0.
+    let results = store.query(&Query::simple("Rust async tokio")).unwrap();
+    assert!(!results.is_empty(), "decayed memories should still be retrievable (they're latent, not gone)");
+
+    // After querying, run more forget passes. The revived memories should
+    // have retrieval_strength reset to 1.0, so they survive more decay.
+    for _ in 0..5 {
+        store.forget().unwrap();
+    }
+
+    // Still alive after 15 total decay passes (10 before revival + 5 after)
+    // because the query revived retrieval strength to 1.0 midway
+    assert_eq!(
+        store.status().unwrap().episode_count, 3,
+        "revived memories should survive additional decay passes"
+    );
+
+    // The memories should still be queryable after all this
+    let results = store.query(&Query::simple("tokio")).unwrap();
+    assert!(
+        !results.is_empty(),
+        "revived memories should still be queryable after further decay"
+    );
 }

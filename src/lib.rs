@@ -1005,4 +1005,76 @@ mod tests {
         assert!(!results.is_empty(), "the newer episode should still be queryable");
     }
 
+    #[test]
+    fn test_neighbors_depth_zero() {
+        let store = AlayaStore::open_in_memory().unwrap();
+
+        // Create a chain with temporal links
+        let id1 = store.store_episode(&make_new_episode("first msg", "s1", 1000)).unwrap();
+        let mut ep2 = make_new_episode("second msg", "s1", 2000);
+        ep2.context.preceding_episode = Some(id1);
+        store.store_episode(&ep2).unwrap();
+
+        // depth=0 means zero hops -- should find no neighbors
+        let neighbors = store.neighbors(NodeRef::Episode(id1), 0).unwrap();
+        assert!(neighbors.is_empty(), "depth=0 should return no neighbors");
+    }
+
+    #[test]
+    fn test_forget_archives_weak_nodes() {
+        let store = AlayaStore::open_in_memory().unwrap();
+
+        let id = store.store_episode(&make_new_episode("archival test", "s1", 1000)).unwrap();
+        assert_eq!(store.status().unwrap().episode_count, 1);
+
+        // Directly set storage_strength below the archive threshold (0.1).
+        // init_strength sets storage=0.5, which never decreases through normal
+        // forget() cycles, so we must set it manually to test the archival path.
+        store.conn.execute(
+            "UPDATE node_strengths SET storage_strength = 0.05, retrieval_strength = 0.01 WHERE node_id = ?1",
+            [id.0],
+        ).unwrap();
+
+        // A single forget pass should now archive this node
+        let report = store.forget().unwrap();
+        assert!(report.nodes_archived > 0, "node with low storage+retrieval should be archived");
+        assert_eq!(store.status().unwrap().episode_count, 0, "archived episode should be deleted");
+    }
+
+    #[test]
+    fn test_perfume_crystallization_dedicated() {
+        let store = AlayaStore::open_in_memory().unwrap();
+
+        let provider = MockProvider::with_impressions(vec![
+            NewImpression {
+                domain: "verbosity".to_string(),
+                observation: "prefers concise answers".to_string(),
+                valence: 0.9,
+            },
+        ]);
+
+        // Perfume below threshold -- no crystallization
+        for i in 0..4 {
+            let interaction = make_interaction(&format!("msg {}", i), "s1", 1000 + i * 100);
+            let report = store.perfume(&interaction, &provider).unwrap();
+            assert_eq!(report.preferences_crystallized, 0, "should not crystallize below threshold");
+        }
+        assert!(store.preferences(Some("verbosity")).unwrap().is_empty());
+
+        // Perfume past threshold (5th impression triggers crystallization)
+        let interaction = make_interaction("msg 4", "s1", 1400);
+        let report = store.perfume(&interaction, &provider).unwrap();
+        assert_eq!(report.preferences_crystallized, 1, "5th impression should trigger crystallization");
+
+        let prefs = store.preferences(Some("verbosity")).unwrap();
+        assert_eq!(prefs.len(), 1);
+        assert_eq!(prefs[0].domain, "verbosity");
+
+        // 6th perfume should reinforce, not crystallize again
+        let interaction = make_interaction("msg 5", "s1", 1500);
+        let report = store.perfume(&interaction, &provider).unwrap();
+        assert_eq!(report.preferences_crystallized, 0);
+        assert_eq!(report.preferences_reinforced, 1, "should reinforce existing preference");
+    }
+
 }
