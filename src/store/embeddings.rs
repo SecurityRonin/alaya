@@ -173,4 +173,80 @@ mod tests {
         // First result should be the most similar
         assert_eq!(results[0].0, NodeRef::Episode(EpisodeId(1)));
     }
+
+    #[test]
+    fn test_get_embedding_found() {
+        let conn = open_memory_db().unwrap();
+        store_embedding(&conn, "episode", 1, &[1.0, 2.0, 3.0], "test").unwrap();
+
+        let result = get_embedding(&conn, "episode", 1).unwrap();
+        assert!(result.is_some());
+        let emb = result.unwrap();
+        assert_eq!(emb, vec![1.0, 2.0, 3.0]);
+    }
+
+    #[test]
+    fn test_get_embedding_not_found() {
+        let conn = open_memory_db().unwrap();
+        let result = get_embedding(&conn, "episode", 999).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_get_unembedded_episodes() {
+        let conn = open_memory_db().unwrap();
+        // Store 3 episodes
+        use crate::store::episodic;
+        use crate::types::{NewEpisode, Role, EpisodeContext};
+        for i in 1..=3 {
+            episodic::store_episode(&conn, &NewEpisode {
+                content: format!("ep {}", i),
+                role: Role::User,
+                session_id: "s1".to_string(),
+                timestamp: 1000 * i,
+                context: EpisodeContext::default(),
+                embedding: None,
+            }).unwrap();
+        }
+
+        // All 3 should be unembedded
+        let unembedded = get_unembedded_episodes(&conn, 10).unwrap();
+        assert_eq!(unembedded.len(), 3);
+
+        // Embed episode 1
+        store_embedding(&conn, "episode", 1, &[1.0, 0.0], "test").unwrap();
+
+        // Now only 2 should be unembedded
+        let unembedded = get_unembedded_episodes(&conn, 10).unwrap();
+        assert_eq!(unembedded.len(), 2);
+    }
+
+    #[test]
+    fn test_cosine_similarity_different_lengths() {
+        let a = vec![1.0, 0.0];
+        let b = vec![1.0, 0.0, 0.0];
+        assert_eq!(cosine_similarity(&a, &b), 0.0);
+    }
+
+    #[test]
+    fn test_cosine_similarity_zero_vector() {
+        let a = vec![0.0, 0.0, 0.0];
+        let b = vec![1.0, 0.0, 0.0];
+        assert_eq!(cosine_similarity(&a, &b), 0.0);
+    }
+
+    #[test]
+    fn test_cosine_similarity_empty() {
+        let a: Vec<f32> = vec![];
+        let b: Vec<f32> = vec![];
+        assert_eq!(cosine_similarity(&a, &b), 0.0);
+    }
+
+    #[test]
+    fn test_count_embeddings() {
+        let conn = open_memory_db().unwrap();
+        assert_eq!(count_embeddings(&conn).unwrap(), 0);
+        store_embedding(&conn, "episode", 1, &[1.0], "test").unwrap();
+        assert_eq!(count_embeddings(&conn).unwrap(), 1);
+    }
 }

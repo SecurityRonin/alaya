@@ -142,4 +142,76 @@ mod tests {
         let s = get_strength(&conn, node).unwrap();
         assert!(s.retrieval_strength < 0.5);
     }
+
+    #[test]
+    fn test_boost_retrieval() {
+        let conn = open_memory_db().unwrap();
+        let node = NodeRef::Episode(EpisodeId(1));
+        init_strength(&conn, node).unwrap();
+
+        // Suppress first to get below 1.0
+        suppress_retrieval(&conn, node, 0.5).unwrap();
+        let before = get_strength(&conn, node).unwrap();
+        assert!((before.retrieval_strength - 0.5).abs() < 0.01);
+
+        // Boost
+        boost_retrieval(&conn, node, 1.5).unwrap();
+        let after = get_strength(&conn, node).unwrap();
+        assert!(after.retrieval_strength > before.retrieval_strength);
+        // Should be clamped at 1.0 (MIN(1.0, 0.5 * 1.5) = 0.75)
+        assert!((after.retrieval_strength - 0.75).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_boost_retrieval_clamps_at_one() {
+        let conn = open_memory_db().unwrap();
+        let node = NodeRef::Episode(EpisodeId(1));
+        init_strength(&conn, node).unwrap();
+
+        // Retrieval starts at 1.0, boosting by 2.0 should still clamp to 1.0
+        boost_retrieval(&conn, node, 2.0).unwrap();
+        let s = get_strength(&conn, node).unwrap();
+        assert!((s.retrieval_strength - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_find_archivable() {
+        let conn = open_memory_db().unwrap();
+        let node1 = NodeRef::Episode(EpisodeId(1));
+        let node2 = NodeRef::Episode(EpisodeId(2));
+
+        init_strength(&conn, node1).unwrap();
+        init_strength(&conn, node2).unwrap();
+
+        // Suppress node1's retrieval strength dramatically
+        suppress_retrieval(&conn, node1, 0.01).unwrap();
+        // Also reduce storage strength by direct SQL
+        conn.execute(
+            "UPDATE node_strengths SET storage_strength = 0.05 WHERE node_id = 1",
+            [],
+        ).unwrap();
+
+        let archivable = find_archivable(&conn, 0.1, 0.05).unwrap();
+        // node1 has storage=0.05 < 0.1 AND retrieval=0.01 < 0.05 => archivable
+        assert_eq!(archivable.len(), 1);
+        assert_eq!(archivable[0], node1);
+    }
+
+    #[test]
+    fn test_find_archivable_empty() {
+        let conn = open_memory_db().unwrap();
+        let archivable = find_archivable(&conn, 0.1, 0.05).unwrap();
+        assert!(archivable.is_empty());
+    }
+
+    #[test]
+    fn test_get_strength_default_for_untracked() {
+        let conn = open_memory_db().unwrap();
+        let node = NodeRef::Episode(EpisodeId(999));
+        let s = get_strength(&conn, node).unwrap();
+        // Default strength for untracked node
+        assert_eq!(s.access_count, 0);
+        assert!((s.storage_strength - 0.5).abs() < 0.01);
+        assert!((s.retrieval_strength - 0.5).abs() < 0.01);
+    }
 }

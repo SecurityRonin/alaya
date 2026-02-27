@@ -179,4 +179,128 @@ mod tests {
         assert_eq!(prefs[0].evidence_count, 3);
         assert!(prefs[0].confidence > 0.7);
     }
+
+    #[test]
+    fn test_count_impressions_by_domain() {
+        let conn = open_memory_db().unwrap();
+        store_impression(&conn, &NewImpression {
+            domain: "style".to_string(),
+            observation: "concise".to_string(),
+            valence: 0.8,
+        }).unwrap();
+        store_impression(&conn, &NewImpression {
+            domain: "style".to_string(),
+            observation: "brief".to_string(),
+            valence: 0.7,
+        }).unwrap();
+        store_impression(&conn, &NewImpression {
+            domain: "other".to_string(),
+            observation: "something".to_string(),
+            valence: 0.5,
+        }).unwrap();
+
+        assert_eq!(count_impressions_by_domain(&conn, "style").unwrap(), 2);
+        assert_eq!(count_impressions_by_domain(&conn, "other").unwrap(), 1);
+        assert_eq!(count_impressions_by_domain(&conn, "nonexistent").unwrap(), 0);
+    }
+
+    #[test]
+    fn test_decay_preferences() {
+        let conn = open_memory_db().unwrap();
+        // Store a preference with confidence 0.8
+        store_preference(&conn, "style", "concise", 0.8).unwrap();
+
+        // Decay with a half_life that is shorter than the age
+        // Since the preference was just created (now), we need to
+        // pass a "now" value far in the future to trigger decay
+        let future = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64 + 100_000; // ~27 hours later
+
+        let decayed = decay_preferences(&conn, future, 3600).unwrap(); // half_life = 1 hour
+        assert_eq!(decayed, 1);
+
+        let prefs = get_preferences(&conn, Some("style")).unwrap();
+        assert!(prefs[0].confidence < 0.8, "confidence should have decayed");
+    }
+
+    #[test]
+    fn test_decay_preferences_skips_fresh() {
+        let conn = open_memory_db().unwrap();
+        store_preference(&conn, "style", "concise", 0.8).unwrap();
+
+        // Decay with "now" = actual now; half_life is large
+        // Since (now - last_reinforced) < half_life, no decay should happen
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+
+        let decayed = decay_preferences(&conn, now, 999_999_999).unwrap();
+        assert_eq!(decayed, 0);
+    }
+
+    #[test]
+    fn test_prune_weak_preferences() {
+        let conn = open_memory_db().unwrap();
+        store_preference(&conn, "style", "concise", 0.8).unwrap();
+        store_preference(&conn, "other", "weak", 0.02).unwrap();
+
+        let pruned = prune_weak_preferences(&conn, 0.05).unwrap();
+        assert_eq!(pruned, 1);
+
+        let remaining = get_preferences(&conn, None).unwrap();
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].preference, "concise");
+    }
+
+    #[test]
+    fn test_prune_old_impressions() {
+        let conn = open_memory_db().unwrap();
+        // Store impressions (they get current timestamp)
+        store_impression(&conn, &NewImpression {
+            domain: "style".to_string(),
+            observation: "recent".to_string(),
+            valence: 0.8,
+        }).unwrap();
+
+        // With a very large max_age, nothing should be pruned
+        let pruned = prune_old_impressions(&conn, 999_999_999).unwrap();
+        assert_eq!(pruned, 0);
+
+        // With a max_age of 0 seconds, everything older than "now" should be pruned
+        // But since the impression was just created, it might be exactly "now"
+        // Let's just verify the function doesn't error
+        let _pruned = prune_old_impressions(&conn, 1).unwrap();
+    }
+
+    #[test]
+    fn test_get_preferences_all_domains() {
+        let conn = open_memory_db().unwrap();
+        store_preference(&conn, "style", "concise", 0.8).unwrap();
+        store_preference(&conn, "code", "modular", 0.7).unwrap();
+
+        let all = get_preferences(&conn, None).unwrap();
+        assert_eq!(all.len(), 2);
+        // Should be ordered by confidence DESC
+        assert!(all[0].confidence >= all[1].confidence);
+    }
+
+    #[test]
+    fn test_count_impressions_and_preferences() {
+        let conn = open_memory_db().unwrap();
+        assert_eq!(count_impressions(&conn).unwrap(), 0);
+        assert_eq!(count_preferences(&conn).unwrap(), 0);
+
+        store_impression(&conn, &NewImpression {
+            domain: "a".to_string(),
+            observation: "b".to_string(),
+            valence: 0.5,
+        }).unwrap();
+        assert_eq!(count_impressions(&conn).unwrap(), 1);
+
+        store_preference(&conn, "a", "b", 0.5).unwrap();
+        assert_eq!(count_preferences(&conn).unwrap(), 1);
+    }
 }
