@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent Memory Landscape — Alaya</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; background: #0d1117; color: #c9d1d9; overflow: hidden; }
+#container { display: flex; height: 100vh; }
+#sidebar { width: 280px; background: #161b22; border-right: 1px solid #30363d; padding: 16px; overflow-y: auto; flex-shrink: 0; }
+#sidebar h1 { font-size: 16px; margin-bottom: 4px; color: #f0f6fc; }
+#sidebar .subtitle { font-size: 11px; color: #8b949e; margin-bottom: 16px; }
+#sidebar h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; margin: 16px 0 8px 0; }
+.filter-group { margin-bottom: 12px; }
+.filter-group label { display: flex; align-items: center; gap: 6px; font-size: 13px; padding: 3px 0; cursor: pointer; }
+.filter-group label:hover { color: #f0f6fc; }
+.filter-group input[type="checkbox"] { accent-color: #58a6ff; }
+.legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 2px 0; }
+.legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+#graph { flex: 1; position: relative; }
+svg { width: 100%; height: 100%; }
+.node circle { cursor: pointer; stroke-width: 2; }
+.node text { font-size: 10px; fill: #c9d1d9; pointer-events: none; }
+.link { stroke-opacity: 0.15; }
+.tooltip { position: absolute; background: #1c2128; border: 1px solid #30363d; border-radius: 8px; padding: 12px; font-size: 12px; pointer-events: none; opacity: 0; transition: opacity 0.15s; max-width: 320px; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+.tooltip h3 { font-size: 14px; color: #f0f6fc; margin-bottom: 6px; }
+.tooltip .tag { display: inline-block; background: #30363d; border-radius: 3px; padding: 1px 6px; margin: 1px 2px; font-size: 10px; }
+.tooltip .tag.yes { background: #1f6f2b; color: #56d364; }
+.tooltip .tag.no { background: #5a1e1e; color: #f85149; }
+.tooltip .meta { color: #8b949e; margin-top: 6px; font-size: 11px; }
+#search { width: 100%; padding: 6px 10px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #c9d1d9; font-size: 13px; margin-bottom: 12px; }
+#search:focus { outline: none; border-color: #58a6ff; }
+#search::placeholder { color: #484f58; }
+</style>
+</head>
+<body>
+<div id="container">
+<div id="sidebar">
+<h1>AI Agent Memory Landscape</h1>
+<div class="subtitle">Interactive map of memory systems compared in Alaya's docs</div>
+<input type="text" id="search" placeholder="Search systems...">
+<h2>Categories</h2>
+<div class="filter-group" id="cat-filters"></div>
+<h2>Features</h2>
+<div class="filter-group" id="feat-filters"></div>
+<h2>Legend</h2>
+<div id="legend"></div>
+<div style="margin-top:20px;font-size:11px;color:#484f58">
+Drag to pan. Scroll to zoom. Click nodes for details. Node size = adoption level.
+</div>
+</div>
+<div id="graph">
+<div class="tooltip" id="tooltip"></div>
+</div>
+</div>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+const CATEGORIES = {
+  "Dedicated": "#58a6ff",
+  "Framework": "#3fb950",
+  "Coding Agent": "#d2a8ff",
+  "File-Based": "#f0883e",
+  "Research": "#f778ba",
+  "Vector DB": "#8b949e"
+};
+
+const SYSTEMS = [
+  // Dedicated
+  {id:"Alaya",cat:"Dedicated",lang:"Rust",stars:0,graph:true,forgetting:true,prefs:true,hybrid:true,multistore:true,desc:"Three-store (episodic, semantic, implicit) with Hebbian graph, BM25+vector+graph RRF, Bjork forgetting, vasana preferences. SQLite, zero infra."},
+  {id:"Vestige",cat:"Dedicated",lang:"Rust",stars:100,graph:true,forgetting:true,prefs:true,hybrid:true,multistore:true,desc:"FSRS-6 spaced repetition, spreading activation, 7-stage cognitive search, prediction error gating. SQLCipher SQLite, local Nomic+Qwen3."},
+  {id:"MemOS",cat:"Dedicated",lang:"Python",stars:5900,graph:true,forgetting:true,prefs:true,hybrid:true,multistore:true,desc:"Memory Operating System. Multi-type (episodic, semantic, procedural, preference, skill). MemCubes for isolation. BM25+graph+mixture."},
+  {id:"EverMemOS",cat:"Dedicated",lang:"Python",stars:200,graph:true,forgetting:true,prefs:true,hybrid:true,multistore:true,desc:"Engram lifecycle: traces→scenes→reconstruction. 93% LoCoMo SOTA. Foresight signals for temporal relevance."},
+  {id:"OpenMemory",cat:"Dedicated",lang:"Python",stars:3200,graph:true,forgetting:true,prefs:true,hybrid:true,multistore:true,desc:"5-sector: episodic, semantic, procedural, emotional, reflective. Temporal KG + waypoint graph. Sector-specific decay."},
+  {id:"mem0",cat:"Dedicated",lang:"Python",stars:25000,graph:true,forgetting:true,prefs:true,hybrid:true,multistore:true,desc:"Tiered + optional graph (Mem0g). 26% accuracy improvement over OpenAI memory on LOCOMO. Requires 2-3 external services."},
+  {id:"Zep / Graphiti",cat:"Dedicated",lang:"Python",stars:3000,graph:true,forgetting:true,prefs:true,hybrid:true,multistore:true,desc:"Temporal knowledge graph. Cosine+BM25+graph+RRF. Neo4j+Lucene backend."},
+  {id:"Supermemory",cat:"Dedicated",lang:"TypeScript",stars:5000,graph:true,forgetting:true,prefs:true,hybrid:true,multistore:false,desc:"Graph + vector with decay curves and expiry. KG + vector + graph DB."},
+  {id:"Neo4j Agent Memory",cat:"Dedicated",lang:"Python",stars:200,graph:true,forgetting:false,prefs:true,hybrid:true,multistore:true,desc:"Neo4j Labs. 3-type (short-term, long-term, reasoning). POLE+O entity model. Multi-stage extraction."},
+  {id:"Hindsight",cat:"Dedicated",lang:"Python",stars:500,graph:false,forgetting:true,prefs:true,hybrid:true,multistore:true,desc:"Four networks: world, experience, opinion, observation. Novel opinion memory."},
+  {id:"MemoryOS",cat:"Dedicated",lang:"Python",stars:300,graph:false,forgetting:true,prefs:true,hybrid:true,multistore:true,desc:"Three-tier OS hierarchy. FIFO+paging forgetting."},
+  {id:"Memary",cat:"Dedicated",lang:"Python",stars:300,graph:true,forgetting:true,prefs:true,hybrid:true,multistore:false,desc:"Neo4j KG with entity tracking, depth ranking, multi-hop reasoning, compression."},
+  {id:"OpenClaw Redis",cat:"Dedicated",lang:"TS/Python",stars:4,graph:false,forgetting:true,prefs:true,hybrid:false,multistore:true,desc:"Redis Stack (JSON+Search+Vector). Two-tier working+long-term. Recency boosting. GDPR deletion. LLM extraction strategies."},
+  {id:"Cognee",cat:"Dedicated",lang:"Python",stars:2000,graph:true,forgetting:false,prefs:true,hybrid:true,multistore:false,desc:"Vector + graph knowledge engine. Neo4j + vectors."},
+  {id:"MCP Memory Service",cat:"Dedicated",lang:"Python",stars:1400,graph:true,forgetting:false,prefs:false,hybrid:true,multistore:false,desc:"KG with D3.js visualization, 75 memory types, 5ms retrieval. Cloudflare sync."},
+  {id:"Redis Memory",cat:"Dedicated",lang:"Python",stars:500,graph:false,forgetting:false,prefs:false,hybrid:true,multistore:false,desc:"Topics + entities + HNSW. Redis backends."},
+  {id:"Memobase",cat:"Dedicated",lang:"Python",stars:200,graph:false,forgetting:false,prefs:true,hybrid:false,multistore:false,desc:"User profile-based. SQL operations, sub-100ms. Fixed 3 LLM calls per batch."},
+  {id:"Cortex-Mem",cat:"Dedicated",lang:"Rust",stars:100,graph:false,forgetting:false,prefs:false,hybrid:false,multistore:false,desc:"Extracted facts with dedup. Configurable storage."},
+  {id:"Memvid",cat:"Dedicated",lang:"Rust",stars:300,graph:false,forgetting:false,prefs:false,hybrid:true,multistore:false,desc:"Append-only Smart Frames. Tantivy FTS + HNSW. Single .mv2 file."},
+  {id:"Memonto",cat:"Dedicated",lang:"Python",stars:100,graph:true,forgetting:false,prefs:false,hybrid:false,multistore:false,desc:"Ontology-based KG. RDF namespaces. Auto-expands ontology."},
+  // Framework
+  {id:"Letta (MemGPT)",cat:"Framework",lang:"Python",stars:12000,graph:false,forgetting:true,prefs:true,hybrid:false,multistore:true,desc:"OS-inspired: core, recall, archival. LLM as memory manager. Agent-edited blocks."},
+  {id:"CrewAI",cat:"Framework",lang:"Python",stars:8000,graph:false,forgetting:false,prefs:true,hybrid:false,multistore:true,desc:"Unified Memory class. Adaptive-depth recall. Composite scoring."},
+  {id:"MS GraphRAG",cat:"Framework",lang:"Python",stars:5000,graph:true,forgetting:false,prefs:false,hybrid:true,multistore:true,desc:"Microsoft. Hierarchical KG with Leiden community structures. 35% precision improvement."},
+  {id:"LangChain",cat:"Framework",lang:"Python",stars:90000,graph:false,forgetting:true,prefs:true,hybrid:false,multistore:false,desc:"Buffer / summary / entity memory. Window / truncation. Most widely adopted."},
+  {id:"LlamaIndex",cat:"Framework",lang:"Python",stars:35000,graph:false,forgetting:true,prefs:true,hybrid:false,multistore:false,desc:"Composable memory blocks. FIFO eviction."},
+  {id:"LangMem SDK",cat:"Framework",lang:"Python",stars:1000,graph:false,forgetting:false,prefs:true,hybrid:false,multistore:false,desc:"Semantic + procedural. Prompt updates via extracted facts."},
+  // Coding Agent
+  {id:"Beads",cat:"Coding Agent",lang:"Go",stars:17100,graph:true,forgetting:true,prefs:false,hybrid:false,multistore:false,desc:"Steve Yegge. Dependency-aware issue graph. Dolt version-controlled SQL. Compaction."},
+  {id:"Engram",cat:"Coding Agent",lang:"Go",stars:538,graph:false,forgetting:false,prefs:false,hybrid:false,multistore:false,desc:"Agent-agnostic Go binary. SQLite+FTS5. MCP server. Agent decides what to save."},
+  {id:"Memsearch",cat:"Coding Agent",lang:"Python",stars:586,graph:false,forgetting:true,prefs:false,hybrid:false,multistore:false,desc:"Zilliz. Markdown-first with Milvus vector overlay. 3-layer progressive disclosure."},
+  {id:"Cipher (ByteRover)",cat:"Coding Agent",lang:"TypeScript",stars:200,graph:false,forgetting:true,prefs:false,hybrid:false,multistore:true,desc:"Dual memory: System 1 (concepts) + System 2 (reasoning). Git-like versioning. 15+ AI tools."},
+  // File-Based
+  {id:"OpenClaw",cat:"File-Based",lang:"Python",stars:237000,graph:false,forgetting:false,prefs:true,hybrid:false,multistore:false,desc:"MEMORY.md + daily logs. grep + FTS5. Agent-authored preferences."},
+  {id:"Claudesidian",cat:"File-Based",lang:"TypeScript",stars:1000,graph:true,forgetting:true,prefs:false,hybrid:false,multistore:false,desc:"Obsidian vault with PARA folders. Daily/weekly notes. Obsidian links."},
+  // Research
+  {id:"Generative Agents",cat:"Research",lang:"Python",stars:5000,graph:false,forgetting:true,prefs:true,hybrid:true,multistore:true,desc:"Park et al. 2023. Stream + reflections + plans. Recency × importance × relevance."},
+  {id:"SYNAPSE",cat:"Research",lang:"Python",stars:200,graph:true,forgetting:true,prefs:false,hybrid:true,multistore:true,desc:"Spreading activation + lateral inhibition. Unified episodic-semantic graph."},
+  {id:"LightRAG",cat:"Research",lang:"Python",stars:27900,graph:true,forgetting:true,prefs:false,hybrid:true,multistore:false,desc:"EMNLP 2025. Dual-level KG retrieval. Incremental updates. Neo4j/Milvus/etc."},
+  {id:"A-MEM",cat:"Research",lang:"Python",stars:500,graph:true,forgetting:true,prefs:false,hybrid:true,multistore:false,desc:"Zettelkasten-inspired linked notes. Embedding + note traversal."},
+  {id:"LightMem",cat:"Research",lang:"Python",stars:100,graph:false,forgetting:true,prefs:false,hybrid:false,multistore:true,desc:"Atkinson-Shiffrin: sensory, STM, LTM. Sleep-time consolidation."},
+  {id:"Mem-alpha",cat:"Research",lang:"Python",stars:100,graph:false,forgetting:true,prefs:false,hybrid:false,multistore:true,desc:"Core + episodic + semantic. RL-managed memory operations."},
+  {id:"HippoRAG",cat:"Research",lang:"Python",stars:1000,graph:true,forgetting:false,prefs:false,hybrid:false,multistore:false,desc:"Hippocampal indexing + open KG. Personalized PageRank."},
+  {id:"MemoRAG",cat:"Research",lang:"Python",stars:1000,graph:false,forgetting:false,prefs:false,hybrid:true,multistore:true,desc:"Global memory-augmented retrieval. Dual-system clue recall. TheWebConf 2025."},
+  {id:"MemAgent",cat:"Research",lang:"Python",stars:200,graph:false,forgetting:true,prefs:false,hybrid:false,multistore:false,desc:"ByteDance/Tsinghua. RL-trained dynamic memory panel. 8K→3.5M token extrapolation. ICLR 2026."},
+  // Vector DB
+  {id:"Pinecone",cat:"Vector DB",lang:"Cloud",stars:0,graph:false,forgetting:false,prefs:false,hybrid:false,multistore:false,desc:"Cloud-native vector DB. Managed only."},
+  {id:"ChromaDB",cat:"Vector DB",lang:"Python",stars:15000,graph:false,forgetting:false,prefs:false,hybrid:true,multistore:false,desc:"FTS + vector. Chroma Cloud. Open source."},
+  {id:"Weaviate",cat:"Vector DB",lang:"Go",stars:12000,graph:false,forgetting:false,prefs:false,hybrid:true,multistore:false,desc:"BM25 + vector. Weaviate Cloud. Open source."},
+  {id:"Milvus",cat:"Vector DB",lang:"Go/C++",stars:30000,graph:false,forgetting:false,prefs:false,hybrid:true,multistore:false,desc:"Dense + sparse vectors. Zilliz Cloud. Open source."},
+];
+
+// Build similarity links: systems sharing 3+ features in same category or 4+ across categories
+const features = ["graph","forgetting","prefs","hybrid","multistore"];
+const links = [];
+for (let i = 0; i < SYSTEMS.length; i++) {
+  for (let j = i + 1; j < SYSTEMS.length; j++) {
+    const a = SYSTEMS[i], b = SYSTEMS[j];
+    let shared = features.filter(f => a[f] && b[f]).length;
+    const sameCat = a.cat === b.cat;
+    if ((sameCat && shared >= 3) || (!sameCat && shared >= 4)) {
+      links.push({source: a.id, target: b.id, strength: shared / 5});
+    }
+  }
+}
+
+// Setup
+const graphDiv = document.getElementById("graph");
+const tooltip = document.getElementById("tooltip");
+const width = graphDiv.clientWidth;
+const height = graphDiv.clientHeight;
+const svg = d3.select("#graph").append("svg").attr("width", width).attr("height", height);
+const g = svg.append("g");
+
+// Zoom
+svg.call(d3.zoom().scaleExtent([0.2, 4]).on("zoom", e => g.attr("transform", e.transform)));
+
+// Scale node radius by stars (log)
+const radiusScale = d3.scaleSqrt().domain([0, 100000]).range([6, 35]);
+function nodeRadius(d) { return Math.max(6, radiusScale(d.stars || 50)); }
+
+// Simulation
+const simulation = d3.forceSimulation(SYSTEMS)
+  .force("link", d3.forceLink(links).id(d => d.id).distance(120).strength(d => d.strength * 0.3))
+  .force("charge", d3.forceManyBody().strength(-200))
+  .force("center", d3.forceCenter(width / 2, height / 2))
+  .force("x", d3.forceX().x(d => {
+    const cats = Object.keys(CATEGORIES);
+    const idx = cats.indexOf(d.cat);
+    return width * (0.2 + 0.6 * idx / (cats.length - 1));
+  }).strength(0.07))
+  .force("y", d3.forceY(height / 2).strength(0.05))
+  .force("collision", d3.forceCollide().radius(d => nodeRadius(d) + 4));
+
+// Draw links
+const linkElements = g.append("g").selectAll("line").data(links).enter().append("line")
+  .attr("class", "link")
+  .attr("stroke", "#30363d")
+  .attr("stroke-width", d => d.strength * 3);
+
+// Draw nodes
+const nodeElements = g.append("g").selectAll("g").data(SYSTEMS).enter().append("g")
+  .attr("class", "node")
+  .call(d3.drag()
+    .on("start", (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+    .on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; })
+    .on("end", (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+  );
+
+nodeElements.append("circle")
+  .attr("r", d => nodeRadius(d))
+  .attr("fill", d => CATEGORIES[d.cat])
+  .attr("stroke", d => d.id === "Alaya" ? "#f0f6fc" : d3.color(CATEGORIES[d.cat]).darker(0.5))
+  .attr("stroke-width", d => d.id === "Alaya" ? 3 : 1.5)
+  .attr("opacity", 0.85);
+
+nodeElements.append("text")
+  .attr("dy", d => nodeRadius(d) + 12)
+  .attr("text-anchor", "middle")
+  .attr("font-size", d => d.id === "Alaya" ? "12px" : "10px")
+  .attr("font-weight", d => d.id === "Alaya" ? "bold" : "normal")
+  .text(d => d.id);
+
+// Tooltip
+nodeElements.on("mouseover", (e, d) => {
+  const featureTags = features.map(f =>
+    `<span class="tag ${d[f] ? 'yes' : 'no'}">${{graph:"Graph",forgetting:"Forgetting",prefs:"Preferences",hybrid:"Hybrid Retrieval",multistore:"Multi-Store"}[f]}</span>`
+  ).join("");
+  tooltip.innerHTML = `<h3>${d.id}</h3><div>${d.desc}</div><div style="margin-top:6px">${featureTags}</div><div class="meta">${d.lang} · ${d.cat} · ${d.stars > 0 ? d.stars.toLocaleString() + " ★" : "new"}</div>`;
+  tooltip.style.opacity = 1;
+}).on("mousemove", (e) => {
+  const rect = graphDiv.getBoundingClientRect();
+  tooltip.style.left = (e.clientX - rect.left + 15) + "px";
+  tooltip.style.top = (e.clientY - rect.top - 10) + "px";
+}).on("mouseout", () => { tooltip.style.opacity = 0; });
+
+// Tick
+simulation.on("tick", () => {
+  linkElements.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+  nodeElements.attr("transform", d => `translate(${d.x},${d.y})`);
+});
+
+// Sidebar: Category filters
+const catDiv = document.getElementById("cat-filters");
+Object.entries(CATEGORIES).forEach(([cat, color]) => {
+  const count = SYSTEMS.filter(s => s.cat === cat).length;
+  const label = document.createElement("label");
+  label.innerHTML = `<input type="checkbox" checked data-cat="${cat}"> <span class="legend-dot" style="background:${color}"></span> ${cat} (${count})`;
+  catDiv.appendChild(label);
+});
+
+// Sidebar: Feature filters
+const featDiv = document.getElementById("feat-filters");
+const featNames = {graph:"Graph",forgetting:"Forgetting",prefs:"Preferences",hybrid:"Hybrid Retrieval",multistore:"Multi-Store"};
+features.forEach(f => {
+  const count = SYSTEMS.filter(s => s[f]).length;
+  const label = document.createElement("label");
+  label.innerHTML = `<input type="checkbox" data-feat="${f}"> ${featNames[f]} (${count})`;
+  featDiv.appendChild(label);
+});
+
+// Legend
+const legendDiv = document.getElementById("legend");
+Object.entries(CATEGORIES).forEach(([cat, color]) => {
+  legendDiv.innerHTML += `<div class="legend-item"><div class="legend-dot" style="background:${color}"></div>${cat}</div>`;
+});
+
+// Filter logic
+function applyFilters() {
+  const activeCats = new Set([...document.querySelectorAll('#cat-filters input:checked')].map(el => el.dataset.cat));
+  const activeFeats = [...document.querySelectorAll('#feat-filters input:checked')].map(el => el.dataset.feat);
+  const searchTerm = document.getElementById("search").value.toLowerCase();
+
+  nodeElements.each(function(d) {
+    const catMatch = activeCats.has(d.cat);
+    const featMatch = activeFeats.length === 0 || activeFeats.every(f => d[f]);
+    const searchMatch = !searchTerm || d.id.toLowerCase().includes(searchTerm) || d.desc.toLowerCase().includes(searchTerm) || d.lang.toLowerCase().includes(searchTerm);
+    const visible = catMatch && featMatch && searchMatch;
+    d3.select(this).style("opacity", visible ? 1 : 0.08);
+    d._visible = visible;
+  });
+  linkElements.style("opacity", d => (d.source._visible && d.target._visible) ? 0.15 : 0.02);
+}
+
+document.querySelectorAll('#cat-filters input, #feat-filters input').forEach(el => el.addEventListener("change", applyFilters));
+document.getElementById("search").addEventListener("input", applyFilters);
+</script>
+</body>
+</html>
