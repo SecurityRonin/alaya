@@ -463,62 +463,68 @@ itself through use.
 
 ### Neuroscience
 
-- Anderson, M. C., Bjork, R. A., & Bjork, E. L. (1994). Remembering can
-  cause forgetting: Retrieval dynamics in long-term memory. *Journal of
-  Experimental Psychology: Learning, Memory, and Cognition*, 20(5), 1063-1087.
+- Anderson, M. C., Bjork, R. A., & Bjork, E. L. (1994).
+  [Remembering can cause forgetting: Retrieval dynamics in long-term memory](https://doi.org/10.1037/0278-7393.20.5.1063).
+  *Journal of Experimental Psychology: Learning, Memory, and Cognition*, 20(5), 1063-1087.
 
 - Bjork, R. A., & Bjork, E. L. (1992). A new theory of disuse and an old
   theory of stimulus fluctuation. In A. Healy et al. (Eds.), *From learning
   processes to cognitive processes: Essays in honor of William K. Estes*
   (Vol. 2, pp. 35-67). Erlbaum.
+  ([PDF](https://bjorklab.psych.ucla.edu/wp-content/uploads/sites/13/2016/07/RBjork_EBjork_1992.pdf))
 
-- Bliss, T. V. P., & Lomo, T. (1973). Long-lasting potentiation of
-  synaptic transmission in the dentate area of the anaesthetized rabbit
-  following stimulation of the perforant path. *Journal of Physiology*,
-  232(2), 331-356.
+- Bliss, T. V. P., & Lomo, T. (1973).
+  [Long-lasting potentiation of synaptic transmission in the dentate area of the anaesthetized rabbit following stimulation of the perforant path](https://doi.org/10.1113/jphysiol.1973.sp010273).
+  *Journal of Physiology*, 232(2), 331-356.
 
-- Collins, A. M., & Loftus, E. F. (1975). A spreading-activation theory
-  of semantic processing. *Psychological Review*, 82(6), 407-428.
+- Collins, A. M., & Loftus, E. F. (1975).
+  [A spreading-activation theory of semantic processing](https://doi.org/10.1037/0033-295X.82.6.407).
+  *Psychological Review*, 82(6), 407-428.
 
-- Cowan, N. (2001). The magical number 4 in short-term memory: A
-  reconsideration of mental storage capacity. *Behavioral and Brain
-  Sciences*, 24(1), 87-114.
+- Cowan, N. (2001).
+  [The magical number 4 in short-term memory: A reconsideration of mental storage capacity](https://doi.org/10.1017/S0140525X01003922).
+  *Behavioral and Brain Sciences*, 24(1), 87-114.
 
 - Hebb, D. O. (1949). *The Organization of Behavior*. Wiley.
+  ([Internet Archive](https://archive.org/details/organizationofbe0000hebb))
 
-- McClelland, J. L., McNaughton, B. L., & O'Reilly, R. C. (1995). Why
-  there are complementary learning systems in the hippocampus and
-  neocortex: Insights from the successes and failures of connectionist
-  models of learning and memory. *Psychological Review*, 102(3), 419-457.
+- McClelland, J. L., McNaughton, B. L., & O'Reilly, R. C. (1995).
+  [Why there are complementary learning systems in the hippocampus and neocortex](https://doi.org/10.1037/0033-295X.102.3.419).
+  *Psychological Review*, 102(3), 419-457.
 
-- Tulving, E., & Thomson, D. M. (1973). Encoding specificity and retrieval
-  processes in episodic memory. *Psychological Review*, 80(5), 352-373.
+- Tulving, E., & Thomson, D. M. (1973).
+  [Encoding specificity and retrieval processes in episodic memory](https://doi.org/10.1037/h0020071).
+  *Psychological Review*, 80(5), 352-373.
 
 ### Information Retrieval
 
-- Cormack, G. V., Clarke, C. L. A., & Buettcher, S. (2009). Reciprocal
-  rank fusion outperforms condorcet and individual rank learning methods.
+- Cormack, G. V., Clarke, C. L. A., & Buettcher, S. (2009).
+  [Reciprocal rank fusion outperforms condorcet and individual rank learning methods](https://doi.org/10.1145/1571941.1572114).
   In *Proceedings of SIGIR 2009* (pp. 758-759). ACM.
 
 ### Buddhist Psychology
 
 - *Yogacarabhumi-sastra* (瑜伽師地論). Attributed to Maitreya/Asanga,
-  translated by Xuanzang (646-648 CE). T30 No.1579. Especially 卷51
+  translated by Xuanzang (646-648 CE).
+  [T30 No.1579](https://cbetaonline.dila.edu.tw/T30n1579). Especially 卷51
   (fascicle 51) on alaya-vijnana.
 
-- *Cheng Weishi Lun* (成唯識論). Xuanzang (659 CE). T31 No.1585.
+- *Cheng Weishi Lun* (成唯識論). Xuanzang (659 CE).
+  [T31 No.1585](https://cbetaonline.dila.edu.tw/T31n1585).
   The definitive Chinese Yogacara synthesis, especially 卷九-十 on
   asraya-paravrtti and the four wisdoms.
 
-- *Samdhinirmocana Sutra* (解深密經). T16 No.676. The key verse on
+- *Samdhinirmocana Sutra* (解深密經).
+  [T16 No.676](https://cbetaonline.dila.edu.tw/T16n0676). The key verse on
   adana-vijnana (阿陀那識甚深細) appears in fascicle 1.
 
 ### Taxonomies and Surveys
 
-- Sumers, T. R., et al. (2024). Cognitive Architectures for Language
-  Agents (CoALA).
+- Sumers, T. R., et al. (2024).
+  [Cognitive Architectures for Language Agents (CoALA)](https://arxiv.org/abs/2309.02427).
 
-- Gao, Y., et al. (2023). Retrieval-Augmented Generation for Large
-  Language Models: A Survey.
+- Gao, Y., et al. (2023).
+  [Retrieval-Augmented Generation for Large Language Models: A Survey](https://arxiv.org/abs/2312.10997).
 
-- Zhang, P., et al. (2024). A Survey on Retrieval-Augmented Generation.
+- Zhang, P., et al. (2024).
+  [A Survey on Retrieval-Augmented Generation](https://arxiv.org/abs/2404.13501).

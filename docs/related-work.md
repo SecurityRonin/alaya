@@ -1004,7 +1004,7 @@ Grouped by category. Within each category, sorted by feature richness
 (graph, forgetting, preferences, hybrid retrieval, multi-store
 architecture), then by adoption where richness is comparable. For an
 interactive visualization, see
-[memory-landscape.html](https://htmlpreview.github.io/?https://github.com/h4x0r/alaya/blob/main/docs/memory-landscape.html).
+[memory-landscape.html](https://h4x0r.github.io/alaya/docs/memory-landscape.html).
 
 ### Dedicated Memory Systems
 
@@ -1532,140 +1532,151 @@ is: **start simple, extend when you must, not when you might.**
 ### Surveys and Frameworks
 
 - Sumers, T. R., Yao, S., Narasimhan, K., & Griffiths, T. L. (2024).
-  Cognitive Architectures for Language Agents. *Transactions on Machine Learning
-  Research*. arXiv:2309.02427.
+  [Cognitive Architectures for Language Agents](https://arxiv.org/abs/2309.02427).
+  *Transactions on Machine Learning Research*.
 
 - Gao, Y., Xiong, Y., Gao, X., Jia, K., Pan, J., Bi, Y., Dai, Y., Sun, J.,
-  Guo, Q., Wang, M., & Wang, H. (2023). Retrieval-Augmented Generation for
-  Large Language Models: A Survey. arXiv:2312.10997.
+  Guo, Q., Wang, M., & Wang, H. (2023).
+  [Retrieval-Augmented Generation for Large Language Models: A Survey](https://arxiv.org/abs/2312.10997).
 
 - Zhang, Z., Bo, X., Ma, C., Li, R., Chen, X., Dai, Q., Zhu, J., Dong, Z., &
-  Wen, J.-R. (2024). A Survey on the Memory Mechanism of Large Language Model
-  based Agents. *ACM Transactions on Information Systems*, 43(6).
-  arXiv:2404.13501.
+  Wen, J.-R. (2024).
+  [A Survey on the Memory Mechanism of Large Language Model based Agents](https://arxiv.org/abs/2404.13501).
+  *ACM Transactions on Information Systems*, 43(6).
 
-- Hu, Y., Liu, S., Yue, Y., Zhang, G., et al. (2025). Memory in the Age of AI
-  Agents. arXiv:2512.13564.
+- Hu, Y., Liu, S., Yue, Y., Zhang, G., et al. (2025).
+  [Memory in the Age of AI Agents](https://arxiv.org/abs/2512.13564).
 
 - Wu, Y., Liang, S., Zhang, C., Wang, Y., Zhang, Y., Guo, H., Tang, R., &
-  Liu, Y. (2025). From Human Memory to AI Memory: A Survey on Memory Mechanisms
-  in the Era of LLMs. arXiv:2504.15965.
+  Liu, Y. (2025).
+  [From Human Memory to AI Memory: A Survey on Memory Mechanisms in the Era of LLMs](https://arxiv.org/abs/2504.15965).
 
-- Du, Y., et al. (2025). Rethinking Memory in AI: Taxonomy, Operations, Topics,
-  and Future Directions. arXiv:2505.00675.
+- Du, Y., et al. (2025).
+  [Rethinking Memory in AI: Taxonomy, Operations, Topics, and Future Directions](https://arxiv.org/abs/2505.00675).
 
-- Shan, L., et al. (2025). Cognitive Memory in Large Language Models.
-  arXiv:2504.02441.
+- Shan, L., et al. (2025).
+  [Cognitive Memory in Large Language Models](https://arxiv.org/abs/2504.02441).
 
-- Jiang, D., et al. (2026). Anatomy of Agentic Memory: Taxonomy and Empirical
-  Analysis of Evaluation and System Limitations. arXiv:2602.19320.
+- Jiang, D., et al. (2026).
+  [Anatomy of Agentic Memory: Taxonomy and Empirical Analysis of Evaluation and System Limitations](https://arxiv.org/abs/2602.19320).
 
 ### Production Systems
 
-- Choudhary, T., et al. (2025). Mem0: Building Production-Ready AI Agents with
-  Scalable Long-Term Memory. arXiv:2504.19413.
+- Choudhary, T., et al. (2025).
+  [Mem0: Building Production-Ready AI Agents with Scalable Long-Term Memory](https://arxiv.org/abs/2504.19413).
 
-- Dempsey, D., et al. (2025). Graphiti: Building Real-Time, Multi-Layered
-  Temporal Knowledge Graphs. arXiv:2501.13956.
+- Dempsey, D., et al. (2025).
+  [Graphiti: Building Real-Time, Multi-Layered Temporal Knowledge Graphs](https://arxiv.org/abs/2501.13956).
 
-- Packer, C., Fang, V., et al. (2023). MemGPT: Towards LLMs as Operating
-  Systems. arXiv:2310.08560.
+- Packer, C., Fang, V., et al. (2023).
+  [MemGPT: Towards LLMs as Operating Systems](https://arxiv.org/abs/2310.08560).
 
-- Kang, et al. (2025). MemoryOS. arXiv:2506.06326.
+- Kang, et al. (2025).
+  [MemoryOS](https://arxiv.org/abs/2506.06326).
 
-- Xu, et al. (2025). A-MEM: Agentic Memory for LLM Agents. arXiv:2502.12110.
+- Xu, et al. (2025).
+  [A-MEM: Agentic Memory for LLM Agents](https://arxiv.org/abs/2502.12110).
 
 ### Academic Research Systems
 
 - Park, J. S., O'Brien, J. C., Cai, C. J., Morris, M. R., Liang, P., &
-  Bernstein, M. S. (2023). Generative Agents: Interactive Simulacra of Human
-  Behavior. *ACM UIST 2023*. arXiv:2304.03442.
+  Bernstein, M. S. (2023).
+  [Generative Agents: Interactive Simulacra of Human Behavior](https://arxiv.org/abs/2304.03442).
+  *ACM UIST 2023*.
 
 - Shinn, N., Cassano, F., Gopinath, A., Narasimhan, K., & Yao, S. (2023).
-  Reflexion: Language Agents with Verbal Reinforcement Learning. *NeurIPS 2023*.
-  arXiv:2303.11366.
+  [Reflexion: Language Agents with Verbal Reinforcement Learning](https://arxiv.org/abs/2303.11366).
+  *NeurIPS 2023*.
 
-- Wang, G., Xie, Y., Jiang, Y., et al. (2023). Voyager: An Open-Ended Embodied
-  Agent with Large Language Models. arXiv:2305.16291.
+- Wang, G., Xie, Y., Jiang, Y., et al. (2023).
+  [Voyager: An Open-Ended Embodied Agent with Large Language Models](https://arxiv.org/abs/2305.16291).
 
-- Zhong, W., Guo, L., Gao, Q., Ye, H., & Wang, Y. (2024). MemoryBank:
-  Enhancing Large Language Models with Long-Term Memory. *AAAI 2024*.
-  arXiv:2305.10250.
+- Zhong, W., Guo, L., Gao, Q., Ye, H., & Wang, Y. (2024).
+  [MemoryBank: Enhancing Large Language Models with Long-Term Memory](https://arxiv.org/abs/2305.10250).
+  *AAAI 2024*.
 
-- Liu, et al. (2023). Think-in-Memory: Recalling and Post-Thinking Enable LLMs
-  with Long-Term Memory. arXiv:2311.08719.
+- Liu, et al. (2023).
+  [Think-in-Memory: Recalling and Post-Thinking Enable LLMs with Long-Term Memory](https://arxiv.org/abs/2311.08719).
 
 - Gutierrez, B. J., Shu, Y., Gu, Y., Yasunaga, M., & Su, Y. (2024).
-  HippoRAG: Neurobiologically Inspired Long-Term Memory for Large Language
-  Models. *NeurIPS 2024*. arXiv:2405.14831.
+  [HippoRAG: Neurobiologically Inspired Long-Term Memory for Large Language Models](https://arxiv.org/abs/2405.14831).
+  *NeurIPS 2024*.
 
-- Gutierrez, B. J., Shu, Y., Qi, W., Zhou, S., & Su, Y. (2025). From RAG to
-  Memory: Non-Parametric Continual Learning for Large Language Models. *ICML
-  2025*. arXiv:2502.14802.
+- Gutierrez, B. J., Shu, Y., Qi, W., Zhou, S., & Su, Y. (2025).
+  [From RAG to Memory: Non-Parametric Continual Learning for Large Language Models](https://arxiv.org/abs/2502.14802).
+  *ICML 2025*.
 
-- Jiang, H., et al. (2026). SYNAPSE: Empowering LLM Agents with Episodic-
-  Semantic Memory via Spreading Activation. arXiv:2601.02744.
+- Jiang, H., et al. (2026).
+  [SYNAPSE: Empowering LLM Agents with Episodic-Semantic Memory via Spreading Activation](https://arxiv.org/abs/2601.02744).
 
-- Wang, Y., et al. (2025). Mem-alpha: Learning Memory Construction via
-  Reinforcement Learning. arXiv:2509.25911.
+- Wang, Y., et al. (2025).
+  [Mem-alpha: Learning Memory Construction via Reinforcement Learning](https://arxiv.org/abs/2509.25911).
 
-- Jiang, D., et al. (2026). MAGMA: A Multi-Graph based Agentic Memory
-  Architecture for AI Agents. arXiv:2601.03236.
+- Jiang, D., et al. (2026).
+  [MAGMA: A Multi-Graph based Agentic Memory Architecture for AI Agents](https://arxiv.org/abs/2601.03236).
 
-- Fang, J., et al. (2025). LightMem: Lightweight and Efficient Memory-Augmented
-  Generation. *ICLR 2026*. arXiv:2510.18866.
+- Fang, J., et al. (2025).
+  [LightMem: Lightweight and Efficient Memory-Augmented Generation](https://arxiv.org/abs/2510.18866).
+  *ICLR 2026*.
 
-- Rezazadeh, et al. (2025). MemTree: Dynamic Tree Memory. *ICLR 2025*.
-  arXiv:2410.14052.
+- Rezazadeh, et al. (2025).
+  [MemTree: Dynamic Tree Memory](https://arxiv.org/abs/2410.14052).
+  *ICLR 2025*.
 
-- Tan, Z., et al. (2025). In Prospect and Retrospect: Reflective Memory
-  Management for Long-term Personalized Dialogue Agents. *ACL 2025*.
-  arXiv:2503.08026.
+- Tan, Z., et al. (2025).
+  [In Prospect and Retrospect: Reflective Memory Management for Long-term Personalized Dialogue Agents](https://arxiv.org/abs/2503.08026).
+  *ACL 2025*.
 
-- Latimer, C., et al. (2025). Hindsight is 20/20: Building Agent Memory that
-  Retains, Recalls, and Reflects. arXiv:2512.12818.
+- Latimer, C., et al. (2025).
+  [Hindsight is 20/20: Building Agent Memory that Retains, Recalls, and Reflects](https://arxiv.org/abs/2512.12818).
 
-- Zhang, G., et al. (2025). G-Memory: Tracing Hierarchical Memory for Multi-
-  Agent Systems. *NeurIPS 2025 Spotlight*. arXiv:2506.07398.
+- Zhang, G., et al. (2025).
+  [G-Memory: Tracing Hierarchical Memory for Multi-Agent Systems](https://arxiv.org/abs/2506.07398).
+  *NeurIPS 2025 Spotlight*.
 
-- Zhang, S., et al. (2026). MemRL: Self-Evolving Agents via Runtime
-  Reinforcement Learning on Episodic Memory. arXiv:2601.03192.
+- Zhang, S., et al. (2026).
+  [MemRL: Self-Evolving Agents via Runtime Reinforcement Learning on Episodic Memory](https://arxiv.org/abs/2601.03192).
 
 ### Neuroscience and Psychology
 
 - Hebb, D. O. (1949). *The Organization of Behavior*. Wiley.
+  ([Internet Archive](https://archive.org/details/organizationofbe0000hebb))
 
-- Bliss, T. V. P., & Lomo, T. (1973). Long-lasting potentiation of synaptic
-  transmission in the dentate area of the anaesthetized rabbit following
-  stimulation of the perforant path. *Journal of Physiology*, 232(2), 331-356.
+- Bliss, T. V. P., & Lomo, T. (1973).
+  [Long-lasting potentiation of synaptic transmission in the dentate area of the anaesthetized rabbit following stimulation of the perforant path](https://doi.org/10.1113/jphysiol.1973.sp010273).
+  *Journal of Physiology*, 232(2), 331-356.
 
-- Collins, A. M., & Loftus, E. F. (1975). A spreading-activation theory of
-  semantic processing. *Psychological Review*, 82(6), 407-428.
+- Collins, A. M., & Loftus, E. F. (1975).
+  [A spreading-activation theory of semantic processing](https://doi.org/10.1037/0033-295X.82.6.407).
+  *Psychological Review*, 82(6), 407-428.
 
-- Tulving, E., & Thomson, D. M. (1973). Encoding specificity and retrieval
-  processes in episodic memory. *Psychological Review*, 80(5), 352-373.
+- Tulving, E., & Thomson, D. M. (1973).
+  [Encoding specificity and retrieval processes in episodic memory](https://doi.org/10.1037/h0020071).
+  *Psychological Review*, 80(5), 352-373.
 
-- McClelland, J. L., McNaughton, B. L., & O'Reilly, R. C. (1995). Why there
-  are complementary learning systems in the hippocampus and neocortex.
+- McClelland, J. L., McNaughton, B. L., & O'Reilly, R. C. (1995).
+  [Why there are complementary learning systems in the hippocampus and neocortex](https://doi.org/10.1037/0033-295X.102.3.419).
   *Psychological Review*, 102(3), 419-457.
 
 - Bjork, R. A., & Bjork, E. L. (1992). A new theory of disuse and an old
   theory of stimulus fluctuation. In *From Learning Processes to Cognitive
   Processes: Essays in Honor of William K. Estes* (Vol. 2, pp. 35-67).
+  ([PDF](https://bjorklab.psych.ucla.edu/wp-content/uploads/sites/13/2016/07/RBjork_EBjork_1992.pdf))
 
-- Anderson, M. C., Bjork, R. A., & Bjork, E. L. (1994). Remembering can cause
-  forgetting: Retrieval dynamics in long-term memory. *Journal of Experimental
-  Psychology: Learning, Memory, and Cognition*, 20(5), 1063-1087.
+- Anderson, M. C., Bjork, R. A., & Bjork, E. L. (1994).
+  [Remembering can cause forgetting: Retrieval dynamics in long-term memory](https://doi.org/10.1037/0278-7393.20.5.1063).
+  *Journal of Experimental Psychology: Learning, Memory, and Cognition*, 20(5), 1063-1087.
 
-- Cowan, N. (2001). The magical number 4 in short-term memory: A
-  reconsideration of mental storage capacity. *Behavioral and Brain Sciences*,
-  24(1), 87-114.
+- Cowan, N. (2001).
+  [The magical number 4 in short-term memory: A reconsideration of mental storage capacity](https://doi.org/10.1017/S0140525X01003922).
+  *Behavioral and Brain Sciences*, 24(1), 87-114.
 
 - Ebbinghaus, H. (1885). *Uber das Gedachtnis*. Duncker & Humblot. Translated
   as *Memory: A Contribution to Experimental Psychology* (1913).
+  ([English translation](https://psychclassics.yorku.ca/Ebbinghaus/index.htm))
 
 ### Information Retrieval
 
-- Cormack, G. V., Clarke, C. L. A., & Buettcher, S. (2009). Reciprocal Rank
-  Fusion outperforms Condorcet and individual Rank Learning Methods.
+- Cormack, G. V., Clarke, C. L. A., & Buettcher, S. (2009).
+  [Reciprocal Rank Fusion outperforms Condorcet and individual Rank Learning Methods](https://doi.org/10.1145/1571941.1572114).
   *SIGIR 2009*.

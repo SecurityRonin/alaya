@@ -308,9 +308,11 @@ see [docs/theoretical-foundations.md](docs/theoretical-foundations.md).
 ## Coming from MEMORY.md?
 
 If you're using file-based memory (OpenClaw, Claudesidian, or a
-hand-rolled `MEMORY.md`), you already understand the core idea: agents
-need to remember things across sessions. Alaya solves the same problem
-but with structure underneath.
+hand-rolled `MEMORY.md`), you already have long-term memory across
+sessions. The problem is what happens next: the files keep growing,
+context windows fill up, and retrieval degrades to "dump everything and
+hope the LLM finds what matters." Alaya solves the scaling problem with
+structure underneath.
 
 | What changes | MEMORY.md pattern | Alaya |
 |---|---|---|
@@ -340,7 +342,7 @@ consolidation, Bjork dual-strength forgetting, Hebbian graph reshaping,
 and emergent preference crystallization.
 
 - [Full comparison tables and system-by-system analysis](docs/related-work.md) — grounded in the CoALA taxonomy (Sumers et al., 2024) and RAG survey literature
-- [Interactive landscape visualization](https://htmlpreview.github.io/?https://github.com/h4x0r/alaya/blob/main/docs/memory-landscape.html) — D3.js force-directed graph of the memory system ecosystem
+- [Interactive landscape visualization](https://h4x0r.github.io/alaya/docs/memory-landscape.html) — D3.js force-directed graph of the memory system ecosystem
 - [Theoretical foundations](docs/theoretical-foundations.md) — neuroscience and Buddhist psychology behind Alaya's architecture
 
 ## License
