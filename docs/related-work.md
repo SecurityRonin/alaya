@@ -1342,15 +1342,15 @@ Purpose-built memory engines you integrate into your agent.
 |--------|:----:|---------|:-----:|:---:|-------------|:-----:|-----------|:----------:|:-----------:|
 | **Alaya** | Rust | SQLite single file | None | Optional (traits) | Three-store: episodic, semantic, implicit | Hebbian (reshapes through use) | BM25 + vector + graph + RRF | Bjork dual-strength + RIF | Vasana (emergent) |
 | **Vestige** | Rust | SQLCipher SQLite | None | None (local Nomic + Qwen3) | Working + semantic + procedural | Spreading activation graph | 7-stage cognitive (HyDE + BM25 + semantic + rerank + temporal + competition + spreading) | FSRS-6 spaced repetition | Prediction error gating |
-| **MemOS** | Python | Graph + vector (Postgres, Redis) | 0-2 | Optional (OpenAI, Ollama, local) | Multi-type: episodic, semantic, procedural, preference, skill | Yes (unified, inspectable) | BM25 + graph recall + mixture search | Version-controlled consolidation | Yes (preference memory type) |
-| **EverMemOS** | Python | MemCells / MemScenes | 0-1 | Required | Engram lifecycle: traces → scenes → reconstruction | MemScene hierarchies | MemScene-guided agentic retrieval | Consolidation compression + foresight signals | User profile updating |
-| **OpenMemory** | Python | SQLite / Postgres | None | Required | 5-sector: episodic, semantic, procedural, emotional, reflective | Temporal KG + waypoint graph | Hybrid semantic + temporal + sector-weighted | Sector-specific decay rates | Yes (reflective + emotional) |
-| **mem0** | Python | Qdrant/Pinecone + Postgres + Neo4j | 2-3 | Required | Tiered + optional graph | Optional (Mem0g) | Vector + graph | Exponential decay | LLM-extracted |
-| **Zep / Graphiti** | Python | Neo4j + Lucene | 1-2 | Required | Temporal knowledge graph | Static temporal KG | Cosine + BM25 + graph + RRF | Temporal invalidation | Indirect (graph) |
-| **Supermemory** | TS | KG + vector + graph DB | 2-3 | Required | Graph + vector with decay | Yes | Hybrid vector + graph | Decay curves + expiry | LLM-extracted |
+| **[MemOS](#memos)** | Python | Graph + vector (Postgres, Redis) | 0-2 | Optional (OpenAI, Ollama, local) | Multi-type: episodic, semantic, procedural, preference, skill | Yes (unified, inspectable) | BM25 + graph recall + mixture search | Version-controlled consolidation | Yes (preference memory type) |
+| **[EverMemOS](#evermemos)** | Python | MemCells / MemScenes | 0-1 | Required | Engram lifecycle: traces → scenes → reconstruction | MemScene hierarchies | MemScene-guided agentic retrieval | Consolidation compression + foresight signals | User profile updating |
+| **[OpenMemory](#openmemory)** | Python | SQLite / Postgres | None | Required | 5-sector: episodic, semantic, procedural, emotional, reflective | Temporal KG + waypoint graph | Hybrid semantic + temporal + sector-weighted | Sector-specific decay rates | Yes (reflective + emotional) |
+| **[mem0](#mem0)** | Python | Qdrant/Pinecone + Postgres + Neo4j | 2-3 | Required | Tiered + optional graph | Optional (Mem0g) | Vector + graph | Exponential decay | LLM-extracted |
+| **[Zep / Graphiti](#zep--graphiti)** | Python | Neo4j + Lucene | 1-2 | Required | Temporal knowledge graph | Static temporal KG | Cosine + BM25 + graph + RRF | Temporal invalidation | Indirect (graph) |
+| **[Supermemory](#supermemory)** | TS | KG + vector + graph DB | 2-3 | Required | Graph + vector with decay | Yes | Hybrid vector + graph | Decay curves + expiry | LLM-extracted |
 | **Neo4j Agent Memory** | Python | Neo4j | 1 | Required | 3-type: short-term, long-term, reasoning (POLE+O entities) | Yes (Neo4j core) | Multi-stage entity extraction + graph | No | Long-term facts/prefs |
-| **Hindsight** | Python | Configurable | 1-2 | Required | Four networks: world, experience, opinion, observation | No | Temporal priming + adaptive reasoning | Belief confidence evolution | Opinion memory (novel) |
-| **MemoryOS** | Python | Configurable | 0-1 | Required | Three-tier OS hierarchy | No | Hierarchical cross-tier | FIFO + paging | Yes |
+| **[Hindsight](#hindsight-vectorize)** | Python | Configurable | 1-2 | Required | Four networks: world, experience, opinion, observation | No | Temporal priming + adaptive reasoning | Belief confidence evolution | Opinion memory (novel) |
+| **[MemoryOS](#memoryos)** | Python | Configurable | 0-1 | Required | Three-tier OS hierarchy | No | Hierarchical cross-tier | FIFO + paging | Yes |
 | **Memary** | Python | Neo4j | 1 | Required | KG with entity tracking and depth ranking | Yes (Neo4j, multi-hop) | Recursive subgraph + multi-hop reasoning | Compression/summarization | Entity-based personalization |
 | **OpenClaw Redis** | TS/Python | Redis Stack (JSON + Search + Vector) | 1-2 | Required | Two-tier: working (session) + long-term (episodic, semantic, message) | No | Vector cosine + recency boosting | Recency scoring (soft) + GDPR deletion | Yes (dedicated extraction strategy) |
 | **memU** | Python | PostgreSQL + pgvector | 1-2 | Required | Three-layer hierarchical: resource → item → category | Yes (cross-references) | Dual-mode: RAG (vector) or LLM-based (deep reasoning with intent prediction) | No | Yes (explicit preference extraction) |
@@ -1361,12 +1361,12 @@ Purpose-built memory engines you integrate into your agent.
 | **Forgetful** | Python | SQLite or PostgreSQL | 0-1 | Optional (local FastEmbed) | Zettelkasten atomic memories (~300-400 words); 6 categories | Yes (auto-linking by semantic similarity + entity relationships) | Dense + BM25 + RRF + cross-encoder rerank | Importance-based with obsolescence marking | No |
 | **TiMem** | Python | PostgreSQL + Redis | 2-3 | Required | Temporal Memory Tree: 5-level (fragments → sessions → daily → weekly → persona) | Yes (tree) | Complexity-aware recall (adapts depth to query) | Consolidation compression (52% fewer tokens) | Yes (L5 persona profiles) |
 | **engram-rs** | Rust | SQLite single file | None | Optional | Atkinson-Shiffrin 3-layer: buffer → working → core; self-organizing topic tree | Yes (vector-clustered topic tree) | Hybrid semantic + BM25 (CJK support) | Activity-driven decay with per-kind rates + LLM quality gate | Implicit (procedural memories with slowest decay) |
-| **Cognee** | Python | Neo4j + vectors | 1-2 | Required | Vector + graph knowledge engine | Yes | Hybrid vector + graph | Not documented | Via graph |
-| **Redis Memory** | Python | Redis + backends | 1+ | Required | Topics + entities + HNSW | No | HNSW vector + topic filter | No | No |
-| **Cortex-Mem** | Rust | Configurable | 0-1 | Required | Extracted facts with dedup | No | Vector similarity | No | No |
-| **PageIndex** | Python | JSON tree index | 0 | Required (OpenAI) | Hierarchical ToC tree | Tree (DAG) | LLM reasoning over tree | No | No |
-| **Memvid** | Rust | Single `.mv2` file | None | None (local ONNX) | Append-only Smart Frames | No | Tantivy FTS + HNSW | None (immutable) | No |
-| **OpenViking** | Python | VikingDB | 1 | Required | Virtual filesystem: L0, L1, L2 | No | Directory + semantic search | Implicit (tiered) | No |
+| **[Cognee](#cognee)** | Python | Neo4j + vectors | 1-2 | Required | Vector + graph knowledge engine | Yes | Hybrid vector + graph | Not documented | Via graph |
+| **[Redis Memory](#redis-agent-memory-server)** | Python | Redis + backends | 1+ | Required | Topics + entities + HNSW | No | HNSW vector + topic filter | No | No |
+| **[Cortex-Mem](#cortex-mem)** | Rust | Configurable | 0-1 | Required | Extracted facts with dedup | No | Vector similarity | No | No |
+| **[PageIndex](#pageindex-vectify-ai)** | Python | JSON tree index | 0 | Required (OpenAI) | Hierarchical ToC tree | Tree (DAG) | LLM reasoning over tree | No | No |
+| **[Memvid](#memvid)** | Rust | Single `.mv2` file | None | None (local ONNX) | Append-only Smart Frames | No | Tantivy FTS + HNSW | None (immutable) | No |
+| **[OpenViking](#openviking-bytedance--volcengine)** | Python | VikingDB | 1 | Required | Virtual filesystem: L0, L1, L2 | No | Directory + semantic search | Implicit (tiered) | No |
 
 ### Framework Memory Modules
 
@@ -1374,16 +1374,16 @@ Memory features built into larger agent frameworks.
 
 | System | Lang | Storage | Infra | LLM | Memory Model | Graph | Retrieval | Forgetting | Preferences |
 |--------|:----:|---------|:-----:|:---:|-------------|:-----:|-----------|:----------:|:-----------:|
-| **Letta (MemGPT)** | Python | Postgres + Chroma/Qdrant | 1-2 | Required (LLM = manager) | OS-inspired: core, recall, archival | No | Agent-driven tool calls | Eviction + summarization | Agent-edited blocks |
+| **[Letta (MemGPT)](#letta-formerly-memgpt)** | Python | Postgres + Chroma/Qdrant | 1-2 | Required (LLM = manager) | OS-inspired: core, recall, archival | No | Agent-driven tool calls | Eviction + summarization | Agent-edited blocks |
 | **CrewAI** | Python | SQLite | 0 | Required | Unified: short-term + long-term + entity | No | Adaptive-depth recall with composite scoring | Not explicit | Importance scoring |
 | **MS GraphRAG** | Python | KG (various backends) | 1-2 | Required | Hierarchical KG with Leiden community structures | Yes (core design) | Graph + community summaries | Incremental updates | No |
-| **LangChain** | Python | In-memory / Redis | 0-1 | Optional | Buffer / summary / entity | No | Direct injection | Window / truncation | Minimal |
-| **LlamaIndex** | Python | SQLite / Postgres | 0-1 | Optional | Composable blocks | No | Block-dependent | FIFO eviction | Basic (facts) |
-| **LangMem SDK** | Python | LangGraph store | 0-1 | Required | Semantic + procedural (prompt updates) | No | Vector similarity | No | Via extracted facts |
+| **[LangChain](#langchain-memory)** | Python | In-memory / Redis | 0-1 | Optional | Buffer / summary / entity | No | Direct injection | Window / truncation | Minimal |
+| **[LlamaIndex](#llamaindex-memory)** | Python | SQLite / Postgres | 0-1 | Optional | Composable blocks | No | Block-dependent | FIFO eviction | Basic (facts) |
+| **[LangMem SDK](#langmem-sdk)** | Python | LangGraph store | 0-1 | Required | Semantic + procedural (prompt updates) | No | Vector similarity | No | Via extracted facts |
 | **Agno** | Python | SQLite / Postgres | 0-1 | Required (LLM manages memory) | LLM-managed UserMemory records with add/update/delete | No | Semantic search over memory records | Yes (LLM-driven deletion/update) | Yes (LLM extracts preferences) |
 | **MetaGPT** | Python | In-memory + MemoryStorage | 0 | Required | Multi-type: Memory, BrainMemory (summarized), LongTermMemory, RoleZeroMemory | No | Role/action-filtered message retrieval | Partial (BrainMemory summarization) | No |
 | **CAMEL** | Python | In-memory (extensible) | 0 | Optional | Modular MemoryBlock system with ContextCreator | No | ContextCreator selects relevant records | Partial (pop/clear operations) | No |
-| **Haystack** | Python | Pluggable DocumentStores (many) | 0-1 | Optional | Pipeline-based; experimental Mem0 integration | No | BM25 + embedding + hybrid via Retriever components | No | No |
+| **[Haystack](#haystack-deepset)** | Python | Pluggable DocumentStores (many) | 0-1 | Optional | Pipeline-based; experimental Mem0 integration | No | BM25 + embedding + hybrid via Retriever components | No | No |
 | **Qwen-Agent** | Python | In-memory messages | 0 | Required (Qwen models) | Message-based + RAG for long documents | No | RAG + function calling | No (context window limited) | No |
 | **AutoGPT** | Python/TS | Platform-managed (Docker) | 3+ | Required | Block-based workflow state; implicit in agent execution | No (workflow DAG) | Via workflow block connections | No | No |
 | **Agency Swarm** | Python | User-provided callbacks | 0 | Required (OpenAI Agents SDK) | Thread-based with persistence callbacks | No | Thread history | No | No |
@@ -1396,7 +1396,7 @@ exposed via MCP.
 | System | Lang | Storage | Infra | LLM | Memory Model | Graph | Retrieval | Forgetting | Preferences |
 |--------|:----:|---------|:-----:|:---:|-------------|:-----:|-----------|:----------:|:-----------:|
 | **Beads** | Go | Dolt (version-controlled SQL) | 0 | Agent-driven | Dependency-aware issue graph with threading | Yes (4 link types) | Graph traversal along dependency chains | Compaction of old tasks | No |
-| **Engram** | Go | SQLite + FTS5 | None | Agent-driven | Agent-curated structured summaries | No | Full-text search (FTS5) | No | Decisions/patterns |
+| **[Engram](#engram)** | Go | SQLite + FTS5 | None | Agent-driven | Agent-curated structured summaries | No | Full-text search (FTS5) | No | Decisions/patterns |
 | **[memsearch](https://github.com/zilliztech/memsearch)** | Python | Milvus (Lite/Standalone/Cloud) | 0-1 | Required (5 embedding providers) | Markdown-first with vector index overlay; MEMORY.md + daily logs + session JSONL parsing | No | Hybrid BM25 + vector with RRF; 3-layer progressive disclosure (top-k injection, not full-context) | Stale chunk auto-deletion | No |
 | **Basic Memory** | Python | Markdown files + SQLite | 0 | None (storage layer) | Structured Markdown with Observations + Relations; entities form KG | Yes (wiki-link semantic graph) | Full-text search + graph traversal via `memory://` URLs | No | No |
 | **mcp-memory-service** | Python | SQLite-vec / Cloudflare D1 | 0-1 | None (local ONNX embeddings) | 75+ memory types with emotional metadata, episode tracking | Yes (typed edges: causes, fixes, contradicts) | Hybrid BM25 + vector (5ms); autonomous consolidation | Yes (decay + compression of old memories) | No |
@@ -1415,7 +1415,7 @@ no automated lifecycle, retrieval ranking, or emergent structure.
 
 | System | Lang | Storage | Infra | LLM | Memory Model | Graph | Retrieval | Forgetting | Preferences |
 |--------|:----:|---------|:-----:|:---:|-------------|:-----:|-----------|:----------:|:-----------:|
-| **OpenClaw** | TS | Markdown + SQLite (FTS5 + sqlite-vec) | None | Required (agent-authored curation + auto-flush) | Three-layer: MEMORY.md (curated, no decay) + daily logs (30-day half-life temporal decay) + session transcripts | No | Hybrid 70% vector + 30% BM25 weighted fusion | Temporal decay on daily logs (e^(−λ×age), λ=ln(2)/30); MEMORY.md append-only | Agent-authored (in MEMORY.md) |
+| **[OpenClaw](#openclaw-built-in-memory)** | TS | Markdown + SQLite (FTS5 + sqlite-vec) | None | Required (agent-authored curation + auto-flush) | Three-layer: MEMORY.md (curated, no decay) + daily logs (30-day half-life temporal decay) + session transcripts | No | Hybrid 70% vector + 30% BM25 weighted fusion | Temporal decay on daily logs (e^(−λ×age), λ=ln(2)/30); MEMORY.md append-only | Agent-authored (in MEMORY.md) |
 | **Claudesidian** | TS | Obsidian vault (markdown) | Obsidian | Required (Claude Code) | PARA folders + daily/weekly notes | Obsidian links (static) | Obsidian search + file scan | Manual summarization | No |
 
 ### Research Architectures
@@ -1425,14 +1425,14 @@ designs but not packaged as production libraries.
 
 | System | Lang | Storage | Infra | LLM | Memory Model | Graph | Retrieval | Forgetting | Preferences |
 |--------|:----:|---------|:-----:|:---:|-------------|:-----:|-----------|:----------:|:-----------:|
-| **Generative Agents** | Python | In-memory | 0 | Required | Stream + reflections + plans | No | Recency x importance x relevance | Recency decay | Emergent |
-| **SYNAPSE** | Python | In-memory | 0 | Required | Unified episodic-semantic graph | Spreading activation + lateral inhibition | Activation-based graph traversal | Temporal decay | No |
-| **LightRAG** | Python | KG + vector (Neo4j, Milvus, etc.) | 0-2 | Required | Dual-level KG with incremental updates | Yes (core design) | Dual-level entity + community retrieval | KG regeneration on deletion | No |
-| **A-MEM** | Python | Vector + note graph | 0 | Required | Zettelkasten-inspired linked notes | Implicit links | Embedding + note traversal | Evolution-based | No |
-| **LightMem** | Python | Configurable | 0-1 | Required | Atkinson-Shiffrin: sensory, STM, LTM | No | Topic-grouped | Sleep-time consolidation | No |
-| **Mem-alpha** | Python | Configurable | 0-1 | Required | Core + episodic + semantic (RL-managed) | No | RL-learned | RL-learned | No |
-| **HippoRAG** | Python | In-memory KG | 0 | Required | Hippocampal indexing + open KG | Personalized PageRank | PPR on knowledge graph | No | No |
-| **SimpleMem** | Python | LanceDB + SQLite | 0 | Required | Three-stage: semantic compression → online synthesis → intent-aware retrieval | No | Three-index parallel: semantic + lexical (BM25) + symbolic | Yes (synthesis consolidates redundant fragments; 30x fewer tokens) | No |
+| **[Generative Agents](#generative-agents-park-et-al-2023)** | Python | In-memory | 0 | Required | Stream + reflections + plans | No | Recency x importance x relevance | Recency decay | Emergent |
+| **[SYNAPSE](#synapse-jiang-et-al-2026)** | Python | In-memory | 0 | Required | Unified episodic-semantic graph | Spreading activation + lateral inhibition | Activation-based graph traversal | Temporal decay | No |
+| **[LightRAG](#lightrag)** | Python | KG + vector (Neo4j, Milvus, etc.) | 0-2 | Required | Dual-level KG with incremental updates | Yes (core design) | Dual-level entity + community retrieval | KG regeneration on deletion | No |
+| **[A-MEM](#a-mem)** | Python | Vector + note graph | 0 | Required | Zettelkasten-inspired linked notes | Implicit links | Embedding + note traversal | Evolution-based | No |
+| **[LightMem](#lightmem-fang-et-al-2025)** | Python | Configurable | 0-1 | Required | Atkinson-Shiffrin: sensory, STM, LTM | No | Topic-grouped | Sleep-time consolidation | No |
+| **[Mem-alpha](#mem-alpha-wang-et-al-2025)** | Python | Configurable | 0-1 | Required | Core + episodic + semantic (RL-managed) | No | RL-learned | RL-learned | No |
+| **[HippoRAG](#hipporag--hipporag-2-osu-nlp-2024-2025)** | Python | In-memory KG | 0 | Required | Hippocampal indexing + open KG | Personalized PageRank | PPR on knowledge graph | No | No |
+| **[SimpleMem](#simplemem)** | Python | LanceDB + SQLite | 0 | Required | Three-stage: semantic compression → online synthesis → intent-aware retrieval | No | Three-index parallel: semantic + lexical (BM25) + symbolic | Yes (synthesis consolidates redundant fragments; 30x fewer tokens) | No |
 | **MemAgent** | Python | In-memory (fixed context) | 0 | Required (IS the LLM, RL-trained Qwen2.5) | RL-trained: learns when to memorize, what to remember, how to recall | No | Learned via RL (agent decides) | Learned via RL (<5% loss at 3.5M tokens) | No |
 | **MemoryLLM** | Python | In-model parameters | 0 | Required (IS the LLM, custom Llama) | Parametric: dedicated memory pool (1.67B params) updated via inject_memory() | No | Implicit via forward pass (modified attention) | Implicit (new injections overwrite older info) | No |
 | **AriGraph** | Python | In-memory KG | 0 | Required (GPT-4) | Semantic + episodic KG built from interaction (TextWorld games) | Yes (triplet-based semantic + episodic) | Graph traversal + RAG | No | No |
@@ -1477,25 +1477,25 @@ How each system maps to CoALA's memory module taxonomy:
 | System | Working Memory | Episodic | Semantic | Procedural | Cross-Memory Learning |
 |--------|---------------|----------|----------|------------|----------------------|
 | **Alaya** | Agent-managed (not in scope) | Yes (episodes) | Yes (consolidation) | No | Yes (episodic -> semantic via consolidation) |
-| **Mem0** | Agent-managed | Yes (interactions) | Yes (extracted facts) | No | Yes (extraction pipeline) |
-| **Zep / Graphiti** | Agent-managed | Yes (episodic subgraph) | Yes (entity subgraph) | No | Yes (episode -> entity extraction) |
-| **Letta** | Yes (core memory) | Yes (recall) | Yes (archival) | No | Yes (LLM-driven promotion) |
-| **LangChain** | Yes (buffer) | Partial (history) | No | No | No |
-| **Generative Agents** | Yes (current context) | Yes (memory stream) | Yes (reflections) | No | Yes (observation -> reflection) |
-| **Voyager** | Yes (current task) | No | No | Yes (skill library) | No |
-| **MemoryBank** | Yes (current dialogue) | Yes (conversations) | Yes (user portraits) | No | Yes (Ebbinghaus-gated) |
-| **A-MEM** | Agent-managed | No | Yes (Zettelkasten notes) | No | Evolution-based |
-| **Motorhead** | Yes (buffer) | Partial (summaries) | No | No | No |
-| **Engram** | Agent-managed | Yes (agent-directed) | No | No | No |
-| **OpenViking** | Yes (L0 context) | Yes (L1 sessions) | Yes (L2 persistent) | No | No |
-| **Supermemory** | Agent-managed | Yes | Yes (graph) | No | Yes (extraction) |
-| **PageIndex** | N/A | No | No | No | No |
-| **Hindsight** | Agent-managed | Yes (experience) | Yes (world + opinion) | No | Yes (reflection) |
-| **Memvid** | Agent-managed | Yes (Smart Frames) | No | No | No |
-| **HippoRAG** | Agent-managed | No | Yes (KG as hippocampus) | No | No |
-| **SYNAPSE** | Agent-managed | Yes | Yes (unified graph) | No | Yes (activation-based) |
-| **Mem-alpha** | Yes (core) | Yes | Yes | No | Yes (RL-learned) |
-| **LangMem** | Agent-managed | No | Yes (extracted facts) | Yes (prompt updates) | No |
+| **[Mem0](#mem0)** | Agent-managed | Yes (interactions) | Yes (extracted facts) | No | Yes (extraction pipeline) |
+| **[Zep / Graphiti](#zep--graphiti)** | Agent-managed | Yes (episodic subgraph) | Yes (entity subgraph) | No | Yes (episode -> entity extraction) |
+| **[Letta](#letta-formerly-memgpt)** | Yes (core memory) | Yes (recall) | Yes (archival) | No | Yes (LLM-driven promotion) |
+| **[LangChain](#langchain-memory)** | Yes (buffer) | Partial (history) | No | No | No |
+| **[Generative Agents](#generative-agents-park-et-al-2023)** | Yes (current context) | Yes (memory stream) | Yes (reflections) | No | Yes (observation -> reflection) |
+| **[Voyager](#voyager-wang-et-al-2023)** | Yes (current task) | No | No | Yes (skill library) | No |
+| **[MemoryBank](#memorybank-zhong-et-al-2024)** | Yes (current dialogue) | Yes (conversations) | Yes (user portraits) | No | Yes (Ebbinghaus-gated) |
+| **[A-MEM](#a-mem)** | Agent-managed | No | Yes (Zettelkasten notes) | No | Evolution-based |
+| **[Motorhead](#motorhead-metal)** | Yes (buffer) | Partial (summaries) | No | No | No |
+| **[Engram](#engram)** | Agent-managed | Yes (agent-directed) | No | No | No |
+| **[OpenViking](#openviking-bytedance--volcengine)** | Yes (L0 context) | Yes (L1 sessions) | Yes (L2 persistent) | No | No |
+| **[Supermemory](#supermemory)** | Agent-managed | Yes | Yes (graph) | No | Yes (extraction) |
+| **[PageIndex](#pageindex-vectify-ai)** | N/A | No | No | No | No |
+| **[Hindsight](#hindsight-vectorize)** | Agent-managed | Yes (experience) | Yes (world + opinion) | No | Yes (reflection) |
+| **[Memvid](#memvid)** | Agent-managed | Yes (Smart Frames) | No | No | No |
+| **[HippoRAG](#hipporag--hipporag-2-osu-nlp-2024-2025)** | Agent-managed | No | Yes (KG as hippocampus) | No | No |
+| **[SYNAPSE](#synapse-jiang-et-al-2026)** | Agent-managed | Yes | Yes (unified graph) | No | Yes (activation-based) |
+| **[Mem-alpha](#mem-alpha-wang-et-al-2025)** | Yes (core) | Yes | Yes | No | Yes (RL-learned) |
+| **[LangMem](#langmem-sdk)** | Agent-managed | No | Yes (extracted facts) | Yes (prompt updates) | No |
 
 **Key observation:** Cross-memory learning (episodic -> semantic) remains rare.
 Alaya, Generative Agents, SYNAPSE, and Mem-alpha implement principled
@@ -1508,22 +1508,22 @@ extraction.
 | System | Storage Backend | External Services | Deployment Complexity | Data Locality |
 |--------|----------------|-------------------|----------------------|---------------|
 | **Alaya** | SQLite (embedded, single file) | None | `cargo add alaya` | Fully local |
-| **Mem0** | Qdrant/Pinecone + Postgres + optional Neo4j | 2-3 services | Docker compose or cloud | Cloud-dependent |
-| **Zep / Graphiti** | Neo4j + vector embeddings + Lucene | 1-2 services | Neo4j instance required | Self-hosted or cloud |
-| **Letta** | Postgres/SQLite + Chroma/Qdrant/Milvus | 1-2 services | Docker or cloud | Configurable |
-| **LangChain** | In-memory / Redis / Postgres | 0-1 services | pip install | Configurable |
-| **Generative Agents** | In-memory | 0 services | Research code | Local (ephemeral) |
-| **MemoryBank** | External memory bank | 1 service | Research code | Configurable |
-| **Motorhead** | Redis + Redisearch | 1 service | Docker + Redis | Redis-dependent |
-| **Engram** | SQLite + FTS5 | 0 services | Single Go binary | Fully local |
-| **OpenViking** | VikingDB (virtual filesystem) | 1 service | VikingDB setup | Configurable |
-| **Supermemory** | KG + vector + graph DB | 2-3 services | Docker or cloud | Cloud-dependent |
-| **PageIndex** | JSON tree index | 0 services | pip install | Local (index file) |
-| **Hindsight** | Configurable | 1-2 services | Docker | Configurable |
-| **Cortex-Mem** | Configurable (Rust) | 0-1 services | `cargo install` or Docker | Configurable |
-| **Memvid** | Single `.mv2` file (Rust) | 0 services | Single binary | Fully local |
-| **Redis Memory** | Redis + optional backends | 1+ services | Docker + Redis | Redis-dependent |
-| **LangMem** | LangGraph store | 0-1 services | pip install | Configurable |
+| **[Mem0](#mem0)** | Qdrant/Pinecone + Postgres + optional Neo4j | 2-3 services | Docker compose or cloud | Cloud-dependent |
+| **[Zep / Graphiti](#zep--graphiti)** | Neo4j + vector embeddings + Lucene | 1-2 services | Neo4j instance required | Self-hosted or cloud |
+| **[Letta](#letta-formerly-memgpt)** | Postgres/SQLite + Chroma/Qdrant/Milvus | 1-2 services | Docker or cloud | Configurable |
+| **[LangChain](#langchain-memory)** | In-memory / Redis / Postgres | 0-1 services | pip install | Configurable |
+| **[Generative Agents](#generative-agents-park-et-al-2023)** | In-memory | 0 services | Research code | Local (ephemeral) |
+| **[MemoryBank](#memorybank-zhong-et-al-2024)** | External memory bank | 1 service | Research code | Configurable |
+| **[Motorhead](#motorhead-metal)** | Redis + Redisearch | 1 service | Docker + Redis | Redis-dependent |
+| **[Engram](#engram)** | SQLite + FTS5 | 0 services | Single Go binary | Fully local |
+| **[OpenViking](#openviking-bytedance--volcengine)** | VikingDB (virtual filesystem) | 1 service | VikingDB setup | Configurable |
+| **[Supermemory](#supermemory)** | KG + vector + graph DB | 2-3 services | Docker or cloud | Cloud-dependent |
+| **[PageIndex](#pageindex-vectify-ai)** | JSON tree index | 0 services | pip install | Local (index file) |
+| **[Hindsight](#hindsight-vectorize)** | Configurable | 1-2 services | Docker | Configurable |
+| **[Cortex-Mem](#cortex-mem)** | Configurable (Rust) | 0-1 services | `cargo install` or Docker | Configurable |
+| **[Memvid](#memvid)** | Single `.mv2` file (Rust) | 0 services | Single binary | Fully local |
+| **[Redis Memory](#redis-agent-memory-server)** | Redis + optional backends | 1+ services | Docker + Redis | Redis-dependent |
+| **[LangMem](#langmem-sdk)** | LangGraph store | 0-1 services | pip install | Configurable |
 | **ChromaDB** | Embedded HNSW | 0 services | pip install | Local |
 | **Weaviate** | Custom engine | 0-1 services | Docker or cloud | Configurable |
 
@@ -1534,24 +1534,24 @@ Mapped to Gao et al.'s taxonomy (Naive / Advanced / Modular RAG):
 | System | Sparse (BM25) | Dense (Vector) | Graph | Fusion Method | Reranking | RAG Category |
 |--------|:------------:|:--------------:|:-----:|:-------------:|:---------:|:------------:|
 | **Alaya** | FTS5 | Cosine | Spreading activation | RRF | Context-weighted | Modular |
-| **Mem0** | No | Yes | Optional (Mem0g) | Priority scoring | Yes | Advanced |
-| **Zep / Graphiti** | BM25 (Okapi) | Cosine | BFS traversal | RRF + MMR | Multi-stage | Modular |
-| **Letta** | No | Yes | No | N/A (agent-driven) | N/A | Naive (agent-augmented) |
-| **LangChain** | No | No | No | N/A | N/A | Naive |
-| **Generative Agents** | No | Cosine | No | Weighted sum | Recency + importance | Advanced |
-| **MemoryBank** | No | Likely | No | Not specified | Not specified | Naive |
-| **A-MEM** | No | Yes | Link traversal | Not specified | Not specified | Advanced |
-| **Motorhead** | No | Yes (Redisearch VSS) | No | N/A | N/A | Naive |
-| **Engram** | FTS5 | No | No | N/A | N/A | Naive |
-| **OpenViking** | No | Yes (VikingDB) | No | Directory positioning | Hierarchical | Advanced |
-| **Supermemory** | No | Yes | Yes (graph) | Not specified | Yes | Advanced |
-| **PageIndex** | No | No | Tree traversal (LLM reasoning) | LLM reasoning scores | LLM-based | Modular (reasoning-based) |
-| **Hindsight** | No | Yes | No | Tempr (temporal priming) | Cara (adaptive) | Advanced |
-| **Memvid** | Tantivy FTS | HNSW | No | Not specified | Chronological | Advanced |
-| **HippoRAG** | No | Yes | Personalized PageRank | PPR scores | None | Modular |
-| **SYNAPSE** | No | Yes | Spreading activation + lateral inhibition | Triple hybrid | Activation-based | Modular |
-| **Mem-alpha** | No | Yes | No | RL-learned | RL-learned | Advanced |
-| **LangMem** | No | Yes | No | N/A | N/A | Naive |
+| **[Mem0](#mem0)** | No | Yes | Optional (Mem0g) | Priority scoring | Yes | Advanced |
+| **[Zep / Graphiti](#zep--graphiti)** | BM25 (Okapi) | Cosine | BFS traversal | RRF + MMR | Multi-stage | Modular |
+| **[Letta](#letta-formerly-memgpt)** | No | Yes | No | N/A (agent-driven) | N/A | Naive (agent-augmented) |
+| **[LangChain](#langchain-memory)** | No | No | No | N/A | N/A | Naive |
+| **[Generative Agents](#generative-agents-park-et-al-2023)** | No | Cosine | No | Weighted sum | Recency + importance | Advanced |
+| **[MemoryBank](#memorybank-zhong-et-al-2024)** | No | Likely | No | Not specified | Not specified | Naive |
+| **[A-MEM](#a-mem)** | No | Yes | Link traversal | Not specified | Not specified | Advanced |
+| **[Motorhead](#motorhead-metal)** | No | Yes (Redisearch VSS) | No | N/A | N/A | Naive |
+| **[Engram](#engram)** | FTS5 | No | No | N/A | N/A | Naive |
+| **[OpenViking](#openviking-bytedance--volcengine)** | No | Yes (VikingDB) | No | Directory positioning | Hierarchical | Advanced |
+| **[Supermemory](#supermemory)** | No | Yes | Yes (graph) | Not specified | Yes | Advanced |
+| **[PageIndex](#pageindex-vectify-ai)** | No | No | Tree traversal (LLM reasoning) | LLM reasoning scores | LLM-based | Modular (reasoning-based) |
+| **[Hindsight](#hindsight-vectorize)** | No | Yes | No | Tempr (temporal priming) | Cara (adaptive) | Advanced |
+| **[Memvid](#memvid)** | Tantivy FTS | HNSW | No | Not specified | Chronological | Advanced |
+| **[HippoRAG](#hipporag--hipporag-2-osu-nlp-2024-2025)** | No | Yes | Personalized PageRank | PPR scores | None | Modular |
+| **[SYNAPSE](#synapse-jiang-et-al-2026)** | No | Yes | Spreading activation + lateral inhibition | Triple hybrid | Activation-based | Modular |
+| **[Mem-alpha](#mem-alpha-wang-et-al-2025)** | No | Yes | No | RL-learned | RL-learned | Advanced |
+| **[LangMem](#langmem-sdk)** | No | Yes | No | N/A | N/A | Naive |
 
 **Key observation:** Full three-signal retrieval (sparse + dense + graph) with
 principled fusion is implemented by Alaya (RRF), Zep/Graphiti (RRF + MMR), and
@@ -1566,25 +1566,25 @@ axis:
 | System | Formation | Consolidation | Forgetting Model | Contradiction Resolution | Preference Crystallization |
 |--------|-----------|---------------|-----------------|-------------------------|---------------------------|
 | **Alaya** | Direct episode storage | CLS-inspired (episodic -> semantic) | Bjork dual-strength + RIF | Via transformation lifecycle | Vasana (impression accumulation) |
-| **Mem0** | LLM extraction | Short-to-long promotion | Exponential decay | LLM-driven | LLM-extracted profiles |
-| **Zep / Graphiti** | LLM entity extraction | Episode -> entity subgraph | Bi-temporal invalidation | Temporal versioning | Indirect (graph structure) |
-| **Letta** | Agent-directed tool calls | Sleep-time reorganization | Eviction + summarization | Not built-in | Agent-edited core blocks |
-| **LangChain** | Direct buffer append | ConversationSummaryMemory | Truncation / window drop | Not built-in | Not built-in |
-| **Generative Agents** | Observation logging | Reflection generation | Recency decay | Not built-in | Emergent from reflections |
-| **MemoryBank** | Writer module | Not built-in | Ebbinghaus curve (R = e^(-t/S)) | Not built-in | User portrait synthesis |
-| **A-MEM** | LLM note construction | Evolution-based | Evolution (not deletion) | LLM-driven merge | Not built-in |
-| **Motorhead** | Direct buffer append | Incremental summarization | Window eviction | Not built-in | Not built-in |
-| **Engram** | Agent-directed save | Session summaries on end | Not built-in | Not built-in | Not built-in |
-| **OpenViking** | Virtual file write | Tiered L0 -> L1 -> L2 | Implicit (tiered deprioritization) | Not built-in | Not built-in |
-| **Supermemory** | LLM extraction | Not specified | Decay curves + expiry | Not specified | LLM-extracted |
-| **PageIndex** | LLM tree indexing | N/A (stateless) | None | N/A | N/A |
-| **Hindsight** | LLM extraction | Tempr (temporal priming) | Belief confidence evolution | Not specified | Opinion memory (novel) |
-| **Memvid** | Append-only frames | Not built-in | None (immutable) | Not built-in | Not built-in |
-| **HippoRAG** | LLM KG extraction | Not built-in | Not built-in | Not built-in | Not built-in |
-| **SYNAPSE** | Direct storage | Activation-based | Temporal decay + lateral inhibition | Not built-in | Not built-in |
-| **Mem-alpha** | RL-learned | RL-learned | RL-learned | Not built-in | Not built-in |
-| **LangMem** | LLM extraction | Background manager | Not built-in | Not built-in | Via extracted facts |
-| **LightMem** | Sensory compression | Sleep-time offline consolidation | Not specified | Not specified | Not built-in |
+| **[Mem0](#mem0)** | LLM extraction | Short-to-long promotion | Exponential decay | LLM-driven | LLM-extracted profiles |
+| **[Zep / Graphiti](#zep--graphiti)** | LLM entity extraction | Episode -> entity subgraph | Bi-temporal invalidation | Temporal versioning | Indirect (graph structure) |
+| **[Letta](#letta-formerly-memgpt)** | Agent-directed tool calls | Sleep-time reorganization | Eviction + summarization | Not built-in | Agent-edited core blocks |
+| **[LangChain](#langchain-memory)** | Direct buffer append | ConversationSummaryMemory | Truncation / window drop | Not built-in | Not built-in |
+| **[Generative Agents](#generative-agents-park-et-al-2023)** | Observation logging | Reflection generation | Recency decay | Not built-in | Emergent from reflections |
+| **[MemoryBank](#memorybank-zhong-et-al-2024)** | Writer module | Not built-in | Ebbinghaus curve (R = e^(-t/S)) | Not built-in | User portrait synthesis |
+| **[A-MEM](#a-mem)** | LLM note construction | Evolution-based | Evolution (not deletion) | LLM-driven merge | Not built-in |
+| **[Motorhead](#motorhead-metal)** | Direct buffer append | Incremental summarization | Window eviction | Not built-in | Not built-in |
+| **[Engram](#engram)** | Agent-directed save | Session summaries on end | Not built-in | Not built-in | Not built-in |
+| **[OpenViking](#openviking-bytedance--volcengine)** | Virtual file write | Tiered L0 -> L1 -> L2 | Implicit (tiered deprioritization) | Not built-in | Not built-in |
+| **[Supermemory](#supermemory)** | LLM extraction | Not specified | Decay curves + expiry | Not specified | LLM-extracted |
+| **[PageIndex](#pageindex-vectify-ai)** | LLM tree indexing | N/A (stateless) | None | N/A | N/A |
+| **[Hindsight](#hindsight-vectorize)** | LLM extraction | Tempr (temporal priming) | Belief confidence evolution | Not specified | Opinion memory (novel) |
+| **[Memvid](#memvid)** | Append-only frames | Not built-in | None (immutable) | Not built-in | Not built-in |
+| **[HippoRAG](#hipporag--hipporag-2-osu-nlp-2024-2025)** | LLM KG extraction | Not built-in | Not built-in | Not built-in | Not built-in |
+| **[SYNAPSE](#synapse-jiang-et-al-2026)** | Direct storage | Activation-based | Temporal decay + lateral inhibition | Not built-in | Not built-in |
+| **[Mem-alpha](#mem-alpha-wang-et-al-2025)** | RL-learned | RL-learned | RL-learned | Not built-in | Not built-in |
+| **[LangMem](#langmem-sdk)** | LLM extraction | Background manager | Not built-in | Not built-in | Via extracted facts |
+| **[LightMem](#lightmem-fang-et-al-2025)** | Sensory compression | Sleep-time offline consolidation | Not specified | Not specified | Not built-in |
 
 **Key observation:** Alaya remains the only system combining CLS-inspired
 consolidation, dual-strength forgetting with RIF suppression, explicit
