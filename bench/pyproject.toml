@@ -1,0 +1,25 @@
+[project]
+name = "alaya-bench"
+version = "0.1.0"
+description = "Benchmark harness for AI agent memory systems"
+requires-python = ">=3.11"
+dependencies = [
+    "litellm>=1.40",
+    "chromadb>=0.5",
+    "huggingface_hub>=0.20",
+    "tqdm>=4.66",
+    "click>=8.1",
+]
+
+[project.optional-dependencies]
+mem0 = ["mem0ai>=1.0"]
+zep = ["zep-cloud>=3.16"]
+all = ["mem0ai>=1.0", "zep-cloud>=3.16"]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23"]
+test = ["pytest>=8.0"]
+
+[tool.setuptools.packages.find]
+include = ["adapters*", "judge*", "runners*"]
+
+[project.scripts]
+alaya-bench = "run:cli"
