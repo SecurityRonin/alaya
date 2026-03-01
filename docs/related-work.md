@@ -1030,6 +1030,19 @@ against Alaya's architecture.
 - **Forgetting:** Temporal decay on daily logs only (exponential with 30-day
   half-life). MEMORY.md has no automated decay — grows unboundedly unless the
   agent manually curates it.
+- **Token cost problem:** MEMORY.md is injected into the system prompt in
+  full on every turn, regardless of relevance. Workspace injection alone
+  consumes ~35,600 tokens per message (93.5% waste in multi-message
+  conversations). Heavy users report 1.8M tokens/month ($3,600) to 5M
+  tokens/day. Community alternatives (memsearch, QMD, index1) replace
+  full-context injection with top-k ranked retrieval, reporting 70-96%
+  token savings.
+- **User-invented patterns:** Power users create a separate **decision.md**
+  file (e.g., in Obsidian) because MEMORY.md conflates decisions with
+  general knowledge. When finalizing a decision, users explicitly tell the
+  agent "that's a decision" to prevent re-litigation of settled issues.
+  This workaround pattern highlights the absence of structured memory types
+  in OpenClaw's design.
 - **Plugin system:** Memory is a swappable plugin slot
   (`plugins.slots.memory`). Bundled alternatives: `memory-core` (default,
   SQLite) and `memory-lancedb`. Third-party memory plugins exist: Supermemory,
@@ -1038,19 +1051,24 @@ against Alaya's architecture.
   native shared library loading via `libloading`.
 - **vs. Alaya:** OpenClaw's memory is Markdown-first (files are the source of
   truth, SQLite is a derived index); Alaya is SQLite-first (the database is
-  the source of truth). OpenClaw's retrieval is two-signal linear fusion
-  (vector + BM25); Alaya uses four-signal RRF (BM25 + vector + graph
-  activation + context weighting) with spreading activation. OpenClaw has
-  temporal decay on daily logs only; Alaya has Bjork dual-strength decay
-  (storage vs. retrieval strength) on all memory types with revival mechanics.
-  OpenClaw has no graph structure; Alaya has a Hebbian graph that reshapes
-  through use. OpenClaw's preferences are agent-authored (whatever the LLM
-  writes to MEMORY.md); Alaya's preferences emerge from accumulated
-  impressions via the vasana/perfuming pipeline. OpenClaw's memory grows
-  linearly until the agent manually curates; Alaya's lifecycle processes
-  (consolidation, transformation, forgetting) keep memory self-organized.
-  However, OpenClaw's plugin architecture means Alaya could serve as a
-  drop-in `memory` slot replacement — see
+  the source of truth). OpenClaw injects full MEMORY.md into context every
+  turn (~35,600 tokens, 93.5% waste); Alaya returns only the top-k most
+  relevant memories via ranked retrieval. OpenClaw's retrieval is two-signal
+  linear fusion (70% vector + 30% BM25); Alaya uses four-signal RRF (BM25 +
+  vector + graph activation + context weighting) with spreading activation —
+  the same RRF approach adopted by all three community alternatives
+  (memsearch, QMD, index1). OpenClaw has temporal decay on daily logs only;
+  Alaya has Bjork dual-strength decay (storage vs. retrieval strength) on all
+  memory types with revival mechanics. OpenClaw has no graph structure; Alaya
+  has a Hebbian graph that reshapes through use. OpenClaw collapses decisions,
+  preferences, and knowledge into a single unstructured MEMORY.md (users
+  invent separate decision.md files as a workaround); Alaya separates them
+  into typed stores — facts → semantic nodes (via consolidation), preferences
+  → implicit store (via vasana/perfuming), raw conversations → episodic
+  store. OpenClaw's memory grows linearly until the agent manually curates;
+  Alaya's lifecycle processes (consolidation, transformation, forgetting) keep
+  memory self-organized. However, OpenClaw's plugin architecture means Alaya
+  could serve as a drop-in `memory` slot replacement — see
   [Alaya as OpenClaw Plugin](#alaya-as-openclaw-memory-plugin) below.
 
 ---
@@ -1228,13 +1246,15 @@ exposed via MCP.
 |--------|:----:|---------|:-----:|:---:|-------------|:-----:|-----------|:----------:|:-----------:|
 | **Beads** | Go | Dolt (version-controlled SQL) | 0 | Agent-driven | Dependency-aware issue graph with threading | Yes (4 link types) | Graph traversal along dependency chains | Compaction of old tasks | No |
 | **Engram** | Go | SQLite + FTS5 | None | Agent-driven | Agent-curated structured summaries | No | Full-text search (FTS5) | No | Decisions/patterns |
-| **Memsearch** | Python | Milvus (vector) | 1 | Required (embeddings) | Markdown-first with vector index overlay | No | Cosine similarity + 3-layer progressive disclosure | Stale chunk auto-deletion | No |
+| **[memsearch](https://github.com/zilliztech/memsearch)** | Python | Milvus (Lite/Standalone/Cloud) | 0-1 | Required (5 embedding providers) | Markdown-first with vector index overlay; MEMORY.md + daily logs + session JSONL parsing | No | Hybrid BM25 + vector with RRF; 3-layer progressive disclosure (top-k injection, not full-context) | Stale chunk auto-deletion | No |
 | **Basic Memory** | Python | Markdown files + SQLite | 0 | None (storage layer) | Structured Markdown with Observations + Relations; entities form KG | Yes (wiki-link semantic graph) | Full-text search + graph traversal via `memory://` URLs | No | No |
 | **mcp-memory-service** | Python | SQLite-vec / Cloudflare D1 | 0-1 | None (local ONNX embeddings) | 75+ memory types with emotional metadata, episode tracking | Yes (typed edges: causes, fixes, contradicts) | Hybrid BM25 + vector (5ms); autonomous consolidation | Yes (decay + compression of old memories) | No |
 | **memento-mcp** | TS | Neo4j 5.13+ | 1 | Required (OpenAI embeddings) | KG with versioned entities, typed relations with strength/confidence | Yes (Neo4j, full version history, temporal) | Hybrid semantic + keyword (adaptive selection) | Yes (confidence decay, 30-day half-life) | No |
 | **MemoryMesh** | TS | JSON file | 0 | None (storage layer) | Schema-driven KG for interactive storytelling; dynamic tools from schemas | Yes (typed nodes + edges, JSON) | Node search + full graph read | No | No |
 | **memory-graph** | Python | SQLite / Neo4j / FalkorDB | 0-1 | None (storage layer) | Graph with 7 relationship categories (causal, solution, context, learning, similarity, workflow, quality) | Yes (7 typed relationship categories) | Fuzzy matching + graph traversal + shortest path | No (importance scores, no decay) | Implicit (PREFERRED_OVER relations) |
 | **mcp-neuralmemory** | Python | KG (configurable) | 0-1 | None | Persistent KG for coding agents (goals, strategies, preferences) | Yes | Graph traversal | No | Yes (stores preferences) |
+| **[QMD](https://github.com/tobi/qmd)** | TS | SQLite (FTS5 + sqlite-vec) | None | Local only (3 GGUFs: embeddinggemma-300M + Qwen3-Reranker-0.6B + query-expansion-1.7B) | Document collections with context tree organization; 900-token chunks, 15% overlap, heading-aware | No | Three-stage: BM25 + vector + RRF, then local LLM cross-encoder re-ranking (Qwen3-Reranker) | No | No |
+| **index1** | CLI | SQLite (FTS5 + sqlite-vec) | None | Local (Ollama embeddings); BM25-only fallback without Ollama | Code index + episodic memory (lessons, bug root causes, architectural decisions) in same SQLite; structure-aware chunking (AST for Python, regex for JS/TS, headings for Markdown) | No | Hybrid BM25 + vector with RRF; 40-180ms query time | No | No |
 | **ClaudeHistory Cloud** | TS | PostgreSQL | 1 | None (structured knowledge layer) | Structured knowledge entries (decisions, solutions, error→fix patterns) | No | Full-text search API | No | No |
 
 ### File-Based Memory (MEMORY.md Pattern)
