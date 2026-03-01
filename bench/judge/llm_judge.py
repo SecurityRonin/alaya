@@ -66,6 +66,39 @@ def provider_config() -> dict:
     return {"model": model, "api_base": api_base, "api_key": api_key}
 
 
+def judge_config() -> dict:
+    """Build judge LLM config from environment variables.
+
+    Falls back to LLM provider config when JUDGE_* vars aren't set.
+
+    Env vars:
+        JUDGE_PROVIDER — provider for judge (falls back to LLM_PROVIDER)
+        JUDGE_MODEL    — model for judge (falls back to provider default)
+    """
+    judge_provider = os.environ.get("JUDGE_PROVIDER")
+    judge_model = os.environ.get("JUDGE_MODEL")
+
+    if judge_provider:
+        # Judge has its own provider
+        preset = PROVIDERS.get(judge_provider, PROVIDERS["openai"])
+        raw_model = judge_model or preset["default_model"]
+        model = preset["model_prefix"] + raw_model
+        api_base = preset["api_base"]
+        api_key = os.environ.get(preset["api_key_env"])
+    elif judge_model:
+        # No separate provider, but model overridden — use LLM provider routing
+        llm_provider = os.environ.get("LLM_PROVIDER", "openai")
+        preset = PROVIDERS.get(llm_provider, PROVIDERS["openai"])
+        model = preset["model_prefix"] + judge_model
+        api_base = preset["api_base"]
+        api_key = os.environ.get(preset["api_key_env"])
+    else:
+        # Fall back entirely to LLM config
+        return provider_config()
+
+    return {"model": model, "api_base": api_base, "api_key": api_key}
+
+
 def llm_call(
     prompt: str,
     model: str | None = None,
@@ -127,11 +160,10 @@ def score_answer(
         "Answer (yes or no):"
     )
     if judge_fn is None:
-        cfg = provider_config()
-        judge_model = os.environ.get("JUDGE_MODEL", cfg["model"])
+        cfg = judge_config()
         judge_fn = partial(
             llm_call,
-            model=judge_model,
+            model=cfg["model"],
             max_tokens=10,
             api_base=cfg["api_base"],
             api_key=cfg["api_key"],
