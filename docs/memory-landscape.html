@@ -8,14 +8,28 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; background: #0d1117; color: #c9d1d9; overflow: hidden; }
 #container { display: flex; height: 100vh; }
-#sidebar { width: 280px; background: #161b22; border-right: 1px solid #30363d; padding: 16px; overflow-y: auto; flex-shrink: 0; }
+#sidebar { width: 300px; background: #161b22; border-right: 1px solid #30363d; padding: 16px; overflow-y: auto; flex-shrink: 0; }
 #sidebar h1 { font-size: 16px; margin-bottom: 4px; color: #f0f6fc; }
-#sidebar .subtitle { font-size: 11px; color: #8b949e; margin-bottom: 16px; }
-#sidebar h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; margin: 16px 0 8px 0; }
-.filter-group { margin-bottom: 12px; }
-.filter-group label { display: flex; align-items: center; gap: 6px; font-size: 13px; padding: 3px 0; cursor: pointer; }
+#sidebar .subtitle { font-size: 11px; color: #8b949e; margin-bottom: 12px; }
+#search { width: 100%; padding: 6px 10px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #c9d1d9; font-size: 13px; margin-bottom: 8px; }
+#search:focus { outline: none; border-color: #58a6ff; }
+#search::placeholder { color: #484f58; }
+#status-bar { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #8b949e; margin-bottom: 12px; padding: 4px 0; border-bottom: 1px solid #21262d; }
+#status-bar span { color: #58a6ff; font-weight: 600; }
+#reset-btn { background: none; border: 1px solid #30363d; color: #8b949e; font-size: 11px; padding: 2px 8px; border-radius: 4px; cursor: pointer; }
+#reset-btn:hover { color: #f0f6fc; border-color: #58a6ff; }
+details { margin-bottom: 4px; }
+details summary { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; cursor: pointer; padding: 6px 0; user-select: none; list-style: none; display: flex; align-items: center; gap: 6px; }
+details summary::-webkit-details-marker { display: none; }
+details summary::before { content: "\u25B6"; font-size: 9px; color: #484f58; transition: transform 0.15s; display: inline-block; width: 12px; }
+details[open] summary::before { transform: rotate(90deg); }
+details summary:hover { color: #f0f6fc; }
+details summary .group-count { font-size: 10px; color: #484f58; margin-left: auto; font-weight: normal; text-transform: none; letter-spacing: 0; }
+.filter-group { padding: 2px 0 8px 18px; }
+.filter-group label { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 0; cursor: pointer; }
 .filter-group label:hover { color: #f0f6fc; }
-.filter-group input[type="checkbox"] { accent-color: #58a6ff; }
+.filter-group input[type="checkbox"] { accent-color: #58a6ff; width: 13px; height: 13px; }
+.filter-group .feat-count { color: #484f58; font-size: 10px; margin-left: auto; }
 .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 2px 0; }
 .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
 #graph { flex: 1; position: relative; }
@@ -23,31 +37,41 @@ svg { width: 100%; height: 100%; }
 .node circle { cursor: pointer; stroke-width: 2; }
 .node text { font-size: 10px; fill: #c9d1d9; pointer-events: none; }
 .link { stroke-opacity: 0.15; }
-.tooltip { position: absolute; background: #1c2128; border: 1px solid #30363d; border-radius: 8px; padding: 12px; font-size: 12px; pointer-events: none; opacity: 0; transition: opacity 0.15s; max-width: 320px; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+.tooltip { position: absolute; background: #1c2128; border: 1px solid #30363d; border-radius: 8px; padding: 12px; font-size: 12px; pointer-events: none; opacity: 0; transition: opacity 0.15s; max-width: 400px; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
 .tooltip h3 { font-size: 14px; color: #f0f6fc; margin-bottom: 6px; }
-.tooltip .tag { display: inline-block; background: #30363d; border-radius: 3px; padding: 1px 6px; margin: 1px 2px; font-size: 10px; }
+.tooltip .details { color: #8b949e; font-size: 11px; margin-top: 6px; line-height: 1.4; border-left: 2px solid #30363d; padding-left: 8px; }
+.tooltip .detail-row { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.tooltip .detail-badge { display: inline-flex; align-items: center; gap: 4px; background: #21262d; border-radius: 4px; padding: 2px 8px; font-size: 10px; }
+.tooltip .detail-badge .bl { color: #8b949e; }
+.tooltip .detail-badge .bv { color: #c9d1d9; }
+.tooltip .feat-section { margin-top: 6px; }
+.tooltip .feat-label { font-size: 10px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.3px; margin-top: 4px; margin-bottom: 2px; }
+.tooltip .tag { display: inline-block; border-radius: 3px; padding: 1px 6px; margin: 1px 2px; font-size: 10px; }
 .tooltip .tag.yes { background: #1f6f2b; color: #56d364; }
-.tooltip .tag.no { background: #5a1e1e; color: #f85149; }
+.tooltip .tag.no { background: #21262d; color: #484f58; }
 .tooltip .meta { color: #8b949e; margin-top: 6px; font-size: 11px; }
-#search { width: 100%; padding: 6px 10px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #c9d1d9; font-size: 13px; margin-bottom: 12px; }
-#search:focus { outline: none; border-color: #58a6ff; }
-#search::placeholder { color: #484f58; }
+#help { margin-top: 16px; font-size: 11px; color: #484f58; line-height: 1.5; border-top: 1px solid #21262d; padding-top: 8px; }
 </style>
 </head>
 <body>
 <div id="container">
 <div id="sidebar">
 <h1>AI Agent Memory Landscape</h1>
-<div class="subtitle">Interactive map of memory systems compared in Alaya's docs</div>
+<div class="subtitle">Interactive taxonomy of 40+ memory systems — filter by feature</div>
 <input type="text" id="search" placeholder="Search systems...">
-<h2>Categories</h2>
-<div class="filter-group" id="cat-filters"></div>
-<h2>Features</h2>
-<div class="filter-group" id="feat-filters"></div>
-<h2>Legend</h2>
-<div id="legend"></div>
-<div style="margin-top:20px;font-size:11px;color:#484f58">
-Drag to pan. Scroll to zoom. Click nodes for details. Node size = adoption level.
+<div id="status-bar">
+  <div>Showing <span id="visible-count">0</span> of <span id="total-count">0</span> systems</div>
+  <button id="reset-btn">Reset</button>
+</div>
+<div id="filter-sections"></div>
+<details open>
+  <summary>Legend</summary>
+  <div class="filter-group" id="legend"></div>
+</details>
+<div id="help">
+Drag to pan. Scroll to zoom. Hover nodes for details.<br>
+Node size = GitHub stars. Filters use AND logic.<br>
+Based on the taxonomy in <em>Memory as Process</em>.
 </div>
 </div>
 <div id="graph">
@@ -56,6 +80,7 @@ Drag to pan. Scroll to zoom. Click nodes for details. Node size = adoption level
 </div>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script>
+// ── Category colors ──
 const CATEGORIES = {
   "Dedicated": "#58a6ff",
   "Framework": "#3fb950",
@@ -65,90 +90,528 @@ const CATEGORIES = {
   "Vector DB": "#8b949e"
 };
 
-const SYSTEMS = [
-  // Dedicated
-  {id:"Alaya",cat:"Dedicated",lang:"Rust",stars:0,graph:true,forgetting:true,prefs:true,hybrid:true,multistore:true,desc:"Three-store (episodic, semantic, implicit) with Hebbian graph, BM25+vector+graph RRF, Bjork forgetting, vasana preferences. SQLite, zero infra."},
-  {id:"Vestige",cat:"Dedicated",lang:"Rust",stars:100,graph:true,forgetting:true,prefs:true,hybrid:true,multistore:true,desc:"FSRS-6 spaced repetition, spreading activation, 7-stage cognitive search, prediction error gating. SQLCipher SQLite, local Nomic+Qwen3."},
-  {id:"MemOS",cat:"Dedicated",lang:"Python",stars:5900,graph:true,forgetting:true,prefs:true,hybrid:true,multistore:true,desc:"Memory Operating System. Multi-type (episodic, semantic, procedural, preference, skill). MemCubes for isolation. BM25+graph+mixture."},
-  {id:"EverMemOS",cat:"Dedicated",lang:"Python",stars:200,graph:true,forgetting:true,prefs:true,hybrid:true,multistore:true,desc:"Engram lifecycle: traces→scenes→reconstruction. 93% LoCoMo SOTA. Foresight signals for temporal relevance."},
-  {id:"OpenMemory",cat:"Dedicated",lang:"Python",stars:3200,graph:true,forgetting:true,prefs:true,hybrid:true,multistore:true,desc:"5-sector: episodic, semantic, procedural, emotional, reflective. Temporal KG + waypoint graph. Sector-specific decay."},
-  {id:"mem0",cat:"Dedicated",lang:"Python",stars:25000,graph:true,forgetting:true,prefs:true,hybrid:true,multistore:true,desc:"Tiered + optional graph (Mem0g). 26% accuracy improvement over OpenAI memory on LOCOMO. Requires 2-3 external services."},
-  {id:"Zep / Graphiti",cat:"Dedicated",lang:"Python",stars:3000,graph:true,forgetting:true,prefs:true,hybrid:true,multistore:true,desc:"Temporal knowledge graph. Cosine+BM25+graph+RRF. Neo4j+Lucene backend."},
-  {id:"Supermemory",cat:"Dedicated",lang:"TypeScript",stars:5000,graph:true,forgetting:true,prefs:true,hybrid:true,multistore:false,desc:"Graph + vector with decay curves and expiry. KG + vector + graph DB."},
-  {id:"Neo4j Agent Memory",cat:"Dedicated",lang:"Python",stars:200,graph:true,forgetting:false,prefs:true,hybrid:true,multistore:true,desc:"Neo4j Labs. 3-type (short-term, long-term, reasoning). POLE+O entity model. Multi-stage extraction."},
-  {id:"Hindsight",cat:"Dedicated",lang:"Python",stars:500,graph:false,forgetting:true,prefs:true,hybrid:true,multistore:true,desc:"Four networks: world, experience, opinion, observation. Novel opinion memory."},
-  {id:"MemoryOS",cat:"Dedicated",lang:"Python",stars:300,graph:false,forgetting:true,prefs:true,hybrid:true,multistore:true,desc:"Three-tier OS hierarchy. FIFO+paging forgetting."},
-  {id:"Memary",cat:"Dedicated",lang:"Python",stars:300,graph:true,forgetting:true,prefs:true,hybrid:true,multistore:false,desc:"Neo4j KG with entity tracking, depth ranking, multi-hop reasoning, compression."},
-  {id:"OpenClaw Redis",cat:"Dedicated",lang:"TS/Python",stars:4,graph:false,forgetting:true,prefs:true,hybrid:false,multistore:true,desc:"Redis Stack (JSON+Search+Vector). Two-tier working+long-term. Recency boosting. GDPR deletion. LLM extraction strategies."},
-  {id:"Cognee",cat:"Dedicated",lang:"Python",stars:2000,graph:true,forgetting:false,prefs:true,hybrid:true,multistore:false,desc:"Vector + graph knowledge engine. Neo4j + vectors."},
-  {id:"MCP Memory Service",cat:"Dedicated",lang:"Python",stars:1400,graph:true,forgetting:false,prefs:false,hybrid:true,multistore:false,desc:"KG with D3.js visualization, 75 memory types, 5ms retrieval. Cloudflare sync."},
-  {id:"Redis Memory",cat:"Dedicated",lang:"Python",stars:500,graph:false,forgetting:false,prefs:false,hybrid:true,multistore:false,desc:"Topics + entities + HNSW. Redis backends."},
-  {id:"Memobase",cat:"Dedicated",lang:"Python",stars:200,graph:false,forgetting:false,prefs:true,hybrid:false,multistore:false,desc:"User profile-based. SQL operations, sub-100ms. Fixed 3 LLM calls per batch."},
-  {id:"Cortex-Mem",cat:"Dedicated",lang:"Rust",stars:100,graph:false,forgetting:false,prefs:false,hybrid:false,multistore:false,desc:"Extracted facts with dedup. Configurable storage."},
-  {id:"Memvid",cat:"Dedicated",lang:"Rust",stars:300,graph:false,forgetting:false,prefs:false,hybrid:true,multistore:false,desc:"Append-only Smart Frames. Tantivy FTS + HNSW. Single .mv2 file."},
-  {id:"Memonto",cat:"Dedicated",lang:"Python",stars:100,graph:true,forgetting:false,prefs:false,hybrid:false,multistore:false,desc:"Ontology-based KG. RDF namespaces. Auto-expands ontology."},
-  // Framework
-  {id:"Letta (MemGPT)",cat:"Framework",lang:"Python",stars:12000,graph:false,forgetting:true,prefs:true,hybrid:false,multistore:true,desc:"OS-inspired: core, recall, archival. LLM as memory manager. Agent-edited blocks."},
-  {id:"CrewAI",cat:"Framework",lang:"Python",stars:8000,graph:false,forgetting:false,prefs:true,hybrid:false,multistore:true,desc:"Unified Memory class. Adaptive-depth recall. Composite scoring."},
-  {id:"MS GraphRAG",cat:"Framework",lang:"Python",stars:5000,graph:true,forgetting:false,prefs:false,hybrid:true,multistore:true,desc:"Microsoft. Hierarchical KG with Leiden community structures. 35% precision improvement."},
-  {id:"LangChain",cat:"Framework",lang:"Python",stars:90000,graph:false,forgetting:true,prefs:true,hybrid:false,multistore:false,desc:"Buffer / summary / entity memory. Window / truncation. Most widely adopted."},
-  {id:"LlamaIndex",cat:"Framework",lang:"Python",stars:35000,graph:false,forgetting:true,prefs:true,hybrid:false,multistore:false,desc:"Composable memory blocks. FIFO eviction."},
-  {id:"LangMem SDK",cat:"Framework",lang:"Python",stars:1000,graph:false,forgetting:false,prefs:true,hybrid:false,multistore:false,desc:"Semantic + procedural. Prompt updates via extracted facts."},
-  // Coding Agent
-  {id:"Beads",cat:"Coding Agent",lang:"Go",stars:17100,graph:true,forgetting:true,prefs:false,hybrid:false,multistore:false,desc:"Steve Yegge. Dependency-aware issue graph. Dolt version-controlled SQL. Compaction."},
-  {id:"Engram",cat:"Coding Agent",lang:"Go",stars:538,graph:false,forgetting:false,prefs:false,hybrid:false,multistore:false,desc:"Agent-agnostic Go binary. SQLite+FTS5. MCP server. Agent decides what to save."},
-  {id:"Memsearch",cat:"Coding Agent",lang:"Python",stars:586,graph:false,forgetting:true,prefs:false,hybrid:false,multistore:false,desc:"Zilliz. Markdown-first with Milvus vector overlay. 3-layer progressive disclosure."},
-  {id:"Cipher (ByteRover)",cat:"Coding Agent",lang:"TypeScript",stars:200,graph:false,forgetting:true,prefs:false,hybrid:false,multistore:true,desc:"Dual memory: System 1 (concepts) + System 2 (reasoning). Git-like versioning. 15+ AI tools."},
-  // File-Based
-  {id:"OpenClaw",cat:"File-Based",lang:"Python",stars:237000,graph:false,forgetting:false,prefs:true,hybrid:false,multistore:false,desc:"MEMORY.md + daily logs. grep + FTS5. Agent-authored preferences."},
-  {id:"Claudesidian",cat:"File-Based",lang:"TypeScript",stars:1000,graph:true,forgetting:true,prefs:false,hybrid:false,multistore:false,desc:"Obsidian vault with PARA folders. Daily/weekly notes. Obsidian links."},
-  // Research
-  {id:"Generative Agents",cat:"Research",lang:"Python",stars:5000,graph:false,forgetting:true,prefs:true,hybrid:true,multistore:true,desc:"Park et al. 2023. Stream + reflections + plans. Recency × importance × relevance."},
-  {id:"SYNAPSE",cat:"Research",lang:"Python",stars:200,graph:true,forgetting:true,prefs:false,hybrid:true,multistore:true,desc:"Spreading activation + lateral inhibition. Unified episodic-semantic graph."},
-  {id:"LightRAG",cat:"Research",lang:"Python",stars:27900,graph:true,forgetting:true,prefs:false,hybrid:true,multistore:false,desc:"EMNLP 2025. Dual-level KG retrieval. Incremental updates. Neo4j/Milvus/etc."},
-  {id:"A-MEM",cat:"Research",lang:"Python",stars:500,graph:true,forgetting:true,prefs:false,hybrid:true,multistore:false,desc:"Zettelkasten-inspired linked notes. Embedding + note traversal."},
-  {id:"LightMem",cat:"Research",lang:"Python",stars:100,graph:false,forgetting:true,prefs:false,hybrid:false,multistore:true,desc:"Atkinson-Shiffrin: sensory, STM, LTM. Sleep-time consolidation."},
-  {id:"Mem-alpha",cat:"Research",lang:"Python",stars:100,graph:false,forgetting:true,prefs:false,hybrid:false,multistore:true,desc:"Core + episodic + semantic. RL-managed memory operations."},
-  {id:"HippoRAG",cat:"Research",lang:"Python",stars:1000,graph:true,forgetting:false,prefs:false,hybrid:false,multistore:false,desc:"Hippocampal indexing + open KG. Personalized PageRank."},
-  {id:"MemoRAG",cat:"Research",lang:"Python",stars:1000,graph:false,forgetting:false,prefs:false,hybrid:true,multistore:true,desc:"Global memory-augmented retrieval. Dual-system clue recall. TheWebConf 2025."},
-  {id:"MemAgent",cat:"Research",lang:"Python",stars:200,graph:false,forgetting:true,prefs:false,hybrid:false,multistore:false,desc:"ByteDance/Tsinghua. RL-trained dynamic memory panel. 8K→3.5M token extrapolation. ICLR 2026."},
-  // Vector DB
-  {id:"Pinecone",cat:"Vector DB",lang:"Cloud",stars:0,graph:false,forgetting:false,prefs:false,hybrid:false,multistore:false,desc:"Cloud-native vector DB. Managed only."},
-  {id:"ChromaDB",cat:"Vector DB",lang:"Python",stars:15000,graph:false,forgetting:false,prefs:false,hybrid:true,multistore:false,desc:"FTS + vector. Chroma Cloud. Open source."},
-  {id:"Weaviate",cat:"Vector DB",lang:"Go",stars:12000,graph:false,forgetting:false,prefs:false,hybrid:true,multistore:false,desc:"BM25 + vector. Weaviate Cloud. Open source."},
-  {id:"Milvus",cat:"Vector DB",lang:"Go/C++",stars:30000,graph:false,forgetting:false,prefs:false,hybrid:true,multistore:false,desc:"Dense + sparse vectors. Zilliz Cloud. Open source."},
+// ── Feature taxonomy (maps to paper's four axes + deployment) ──
+const FEATURE_GROUPS = [
+  { key: "memtype", label: "Memory Types", feats: {
+    episodic:    "Episodic",
+    semantic:    "Semantic",
+    procedural:  "Procedural",
+    prefs:       "Preferences / Implicit"
+  }},
+  { key: "retrieval", label: "Retrieval", feats: {
+    bm25:           "BM25 / FTS",
+    vector:         "Vector / Embedding",
+    graphRetrieval: "Graph Traversal",
+    fusion:         "Multi-Signal Fusion",
+    reranking:      "Reranking"
+  }},
+  { key: "lifecycle", label: "Memory Lifecycle", feats: {
+    consolidation:  "Consolidation",
+    forgetting:     "Forgetting / Decay",
+    contradiction:  "Contradiction Resolution",
+    dedup:          "Deduplication"
+  }},
+  { key: "arch", label: "Architecture", feats: {
+    graph:      "Knowledge Graph",
+    multistore: "Multi-Store",
+    temporal:   "Temporal Awareness",
+    mcp:        "MCP Support"
+  }},
+  { key: "deploy", label: "Deployment", feats: {
+    selfHosted: "Self-Hosted / Local",
+    cloudAvail: "Cloud / Managed"
+  }}
 ];
 
-// Build similarity links: systems sharing 3+ features in same category or 4+ across categories
-const features = ["graph","forgetting","prefs","hybrid","multistore"];
+const ALL_FEAT_KEYS = FEATURE_GROUPS.flatMap(g => Object.keys(g.feats));
+
+// ── System data with expanded features + details from related-work ──
+const SYSTEMS = [
+  // ──── Dedicated ────
+  {id:"Alaya",cat:"Dedicated",lang:"Rust",stars:0,
+   episodic:true,semantic:true,procedural:false,prefs:true,
+   bm25:true,vector:true,graphRetrieval:true,fusion:true,reranking:true,
+   consolidation:true,forgetting:true,contradiction:true,dedup:true,
+   graph:true,multistore:true,temporal:true,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"SQLite (embedded, single file)",rag:"Modular",
+   desc:"Three-store (episodic, semantic, implicit) with Hebbian graph, BM25+vector+graph RRF, Bjork dual-strength forgetting, vasana preference crystallization.",
+   details:"Only system combining CLS-inspired consolidation, dual-strength forgetting with retrieval-induced forgetting (RIF), explicit contradiction resolution, and emergent preference crystallization from accumulated impressions. Zero external infrastructure \u2014 everything runs in a single SQLite file."},
+
+  {id:"Vestige",cat:"Dedicated",lang:"Rust",stars:100,
+   episodic:true,semantic:true,procedural:false,prefs:true,
+   bm25:false,vector:true,graphRetrieval:true,fusion:true,reranking:false,
+   consolidation:false,forgetting:true,contradiction:false,dedup:false,
+   graph:true,multistore:true,temporal:true,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"SQLCipher SQLite (encrypted)",rag:"Modular",
+   desc:"FSRS-6 spaced repetition, spreading activation, 7-stage cognitive search, prediction error gating.",
+   details:"Uses Free Spaced Repetition Scheduler (FSRS-6) for scientifically grounded forgetting. Prediction error gating prioritizes surprising information. Runs local embedding models (Nomic + Qwen3) for fully offline operation with encrypted storage."},
+
+  {id:"MemOS",cat:"Dedicated",lang:"Python",stars:5900,
+   episodic:true,semantic:true,procedural:true,prefs:true,
+   bm25:true,vector:true,graphRetrieval:true,fusion:true,reranking:false,
+   consolidation:true,forgetting:true,contradiction:false,dedup:false,
+   graph:true,multistore:true,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"Configurable (multiple backends)",rag:"Advanced",
+   desc:"Memory Operating System with MemCubes for isolation. Multi-type: episodic, semantic, procedural, preference, skill.",
+   details:"One of the few systems implementing procedural memory (executable skills). MemCubes provide memory isolation between different agents or contexts. BM25+graph+mixture retrieval with consolidation pipeline."},
+
+  {id:"EverMemOS",cat:"Dedicated",lang:"Python",stars:200,
+   episodic:true,semantic:true,procedural:false,prefs:false,
+   bm25:false,vector:true,graphRetrieval:false,fusion:true,reranking:false,
+   consolidation:true,forgetting:true,contradiction:false,dedup:false,
+   graph:false,multistore:true,temporal:true,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"Configurable",rag:"Advanced",
+   desc:"Engram lifecycle: traces \u2192 scenes \u2192 reconstruction. 93% LoCoMo SOTA. Foresight signals for temporal relevance.",
+   details:"Achieves 93% on LoCoMo benchmark (SOTA at time of publication). Key innovation is foresight signals that predict future relevance of memories. Three-phase encoding/consolidation/retrieval pipeline inspired by cognitive neuroscience."},
+
+  {id:"OpenMemory",cat:"Dedicated",lang:"Python",stars:3200,
+   episodic:true,semantic:true,procedural:true,prefs:true,
+   bm25:false,vector:true,graphRetrieval:true,fusion:true,reranking:false,
+   consolidation:false,forgetting:true,contradiction:false,dedup:false,
+   graph:true,multistore:true,temporal:true,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"Temporal KG + vector store",rag:"Advanced",
+   desc:"5-sector memory: episodic, semantic, procedural, emotional, reflective. Temporal KG + waypoint graph.",
+   details:"Novel 5-sector architecture that includes emotional and reflective memory \u2014 sectors not found in most systems. Sector-specific decay rates allow emotional memories to fade differently than factual ones. Waypoint graph enables temporal navigation."},
+
+  {id:"mem0",cat:"Dedicated",lang:"Python",stars:25000,
+   episodic:true,semantic:true,procedural:false,prefs:true,
+   bm25:false,vector:true,graphRetrieval:true,fusion:true,reranking:true,
+   consolidation:false,forgetting:true,contradiction:true,dedup:true,
+   graph:true,multistore:true,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:true,
+   storage:"Qdrant/Pinecone + Postgres + optional Neo4j",rag:"Advanced",
+   desc:"Most popular production memory system. Tiered + optional graph (Mem0g). 26% accuracy improvement over OpenAI memory on LoCoMo.",
+   details:"Requires 2-3 external services (vector DB + relational DB + optional graph DB). Mem0g variant adds Neo4j entity graph. LLM-extracted profiles for preferences. Priority scoring for retrieval fusion. Commercial Mem0 Platform available."},
+
+  {id:"Zep / Graphiti",cat:"Dedicated",lang:"Python",stars:3000,
+   episodic:true,semantic:true,procedural:false,prefs:false,
+   bm25:true,vector:true,graphRetrieval:true,fusion:true,reranking:true,
+   consolidation:true,forgetting:true,contradiction:true,dedup:true,
+   graph:true,multistore:true,temporal:true,mcp:false,
+   selfHosted:true,cloudAvail:true,
+   storage:"Neo4j + Lucene + vector embeddings",rag:"Modular",
+   desc:"Temporal knowledge graph engine. Cosine + BM25 + graph + RRF + MMR. Bi-temporal invalidation.",
+   details:"Main rival to Alaya in feature completeness. Graphiti is the open-source temporal KG engine; Zep is the commercial platform. Only other Modular RAG system alongside Alaya. Bi-temporal model tracks both event time and ingestion time. Requires Neo4j infrastructure."},
+
+  {id:"Supermemory",cat:"Dedicated",lang:"TypeScript",stars:5000,
+   episodic:true,semantic:true,procedural:false,prefs:true,
+   bm25:false,vector:true,graphRetrieval:true,fusion:false,reranking:true,
+   consolidation:false,forgetting:true,contradiction:false,dedup:false,
+   graph:true,multistore:false,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"KG + vector + graph DB",rag:"Advanced",
+   desc:"Graph + vector with decay curves and expiry. LLM-extracted profiles for user preferences.",
+   details:"TypeScript-native system with decay curves that expire memories after configurable time periods. LLM-extracted user profiles are brittle compared to emergent preference models. Requires 2-3 external services for full operation."},
+
+  {id:"Neo4j Agent Memory",cat:"Dedicated",lang:"Python",stars:200,
+   episodic:true,semantic:true,procedural:false,prefs:false,
+   bm25:false,vector:true,graphRetrieval:true,fusion:true,reranking:false,
+   consolidation:false,forgetting:false,contradiction:false,dedup:false,
+   graph:true,multistore:true,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"Neo4j graph database",rag:"Advanced",
+   desc:"Neo4j Labs. 3-type (short-term, long-term, reasoning). POLE+O entity model. Multi-stage extraction.",
+   details:"Official Neo4j Labs project. Uses POLE+O (Person, Object, Location, Event + Organization) entity model for structured knowledge. Multi-stage LLM extraction pipeline. Tightly coupled to Neo4j ecosystem."},
+
+  {id:"Hindsight",cat:"Dedicated",lang:"Python",stars:500,
+   episodic:true,semantic:true,procedural:false,prefs:true,
+   bm25:false,vector:true,graphRetrieval:false,fusion:true,reranking:true,
+   consolidation:false,forgetting:true,contradiction:true,dedup:false,
+   graph:false,multistore:true,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"Configurable (plugin architecture)",rag:"Advanced",
+   desc:"Four networks: world, experience, opinion, observation. Novel opinion memory with confidence-scored beliefs.",
+   details:"Introduces explicit opinion tracking \u2014 confidence-scored beliefs that evolve as new evidence arrives. Tempr (temporal priming) and Cara (context-adaptive retrieval architecture) are novel retrieval innovations. The opinion memory concept is unique in the field."},
+
+  {id:"MemoryOS",cat:"Dedicated",lang:"Python",stars:300,
+   episodic:true,semantic:true,procedural:false,prefs:true,
+   bm25:false,vector:true,graphRetrieval:false,fusion:true,reranking:false,
+   consolidation:false,forgetting:true,contradiction:false,dedup:false,
+   graph:false,multistore:true,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"Configurable",rag:"Advanced",
+   desc:"Three-tier OS hierarchy with FIFO + paging forgetting model.",
+   details:"Uses operating system metaphors (RAM/disk/swap) for memory management. FIFO eviction for working memory, paging for long-term storage. Simple but effective forgetting model."},
+
+  {id:"Memary",cat:"Dedicated",lang:"Python",stars:300,
+   episodic:false,semantic:true,procedural:false,prefs:false,
+   bm25:false,vector:true,graphRetrieval:true,fusion:false,reranking:false,
+   consolidation:false,forgetting:true,contradiction:false,dedup:false,
+   graph:true,multistore:false,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"Neo4j",rag:"Advanced",
+   desc:"Neo4j KG with entity tracking, depth ranking, multi-hop reasoning, and memory compression.",
+   details:"Focuses on knowledge graph reasoning. Depth ranking prioritizes memories by graph distance from query. Multi-hop traversal follows entity relationships. Memory compression reduces storage over time."},
+
+  {id:"OpenClaw Redis",cat:"Dedicated",lang:"TypeScript",stars:4,
+   episodic:true,semantic:true,procedural:false,prefs:true,
+   bm25:true,vector:true,graphRetrieval:false,fusion:false,reranking:false,
+   consolidation:false,forgetting:true,contradiction:false,dedup:true,
+   graph:false,multistore:true,temporal:true,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"Redis Stack (JSON + Search + Vector)",rag:"Advanced",
+   desc:"Redis Stack two-tier memory. Recency boosting. GDPR-compliant deletion. LLM extraction strategies.",
+   details:"Demonstrates Redis as a viable single-service memory backend. Two-tier working + long-term memory with configurable promotion. GDPR deletion support is rare among memory systems. Recency boosting in retrieval scoring."},
+
+  {id:"Cognee",cat:"Dedicated",lang:"Python",stars:2000,
+   episodic:false,semantic:true,procedural:false,prefs:false,
+   bm25:false,vector:true,graphRetrieval:true,fusion:true,reranking:false,
+   consolidation:false,forgetting:false,contradiction:false,dedup:false,
+   graph:true,multistore:false,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"Neo4j + vector store",rag:"Advanced",
+   desc:"Vector + graph knowledge engine. Combines Neo4j graph with vector embeddings.",
+   details:"Positions itself as a \"knowledge engine\" rather than a memory system. Focus is on structured knowledge extraction and graph-based retrieval rather than conversational memory management."},
+
+  {id:"MCP Memory Service",cat:"Dedicated",lang:"Python",stars:1400,
+   episodic:false,semantic:true,procedural:false,prefs:false,
+   bm25:false,vector:true,graphRetrieval:true,fusion:true,reranking:false,
+   consolidation:false,forgetting:false,contradiction:false,dedup:false,
+   graph:true,multistore:false,temporal:false,mcp:true,
+   selfHosted:true,cloudAvail:false,
+   storage:"Local graph + vector store",rag:"Advanced",
+   desc:"KG with built-in D3.js visualization. 75 memory types. 5ms retrieval. MCP server interface.",
+   details:"Notable for its MCP (Model Context Protocol) native interface \u2014 designed to work directly with Claude and other MCP-compatible agents. 75 predefined memory type categories. Includes its own D3.js knowledge graph visualization. Cloudflare sync for cross-device use."},
+
+  {id:"Redis Memory",cat:"Dedicated",lang:"Python",stars:500,
+   episodic:false,semantic:true,procedural:false,prefs:false,
+   bm25:false,vector:true,graphRetrieval:false,fusion:true,reranking:false,
+   consolidation:false,forgetting:false,contradiction:false,dedup:false,
+   graph:false,multistore:false,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"Redis + HNSW",rag:"Advanced",
+   desc:"Topics + entities + HNSW vector search. Redis-backed.",
+   details:"Lightweight Redis-based memory with automatic topic and entity extraction. Uses Redis's built-in HNSW index for vector similarity. Requires Redis server but no other infrastructure."},
+
+  {id:"Memobase",cat:"Dedicated",lang:"Python",stars:200,
+   episodic:false,semantic:false,procedural:false,prefs:true,
+   bm25:false,vector:false,graphRetrieval:false,fusion:false,reranking:false,
+   consolidation:false,forgetting:false,contradiction:false,dedup:false,
+   graph:false,multistore:false,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"SQL database",rag:"Naive",
+   desc:"User profile-based memory. SQL operations, sub-100ms latency. Fixed 3 LLM calls per batch.",
+   details:"Pure profile-based approach \u2014 no episodic or semantic memory, only extracted user preferences. Minimal LLM usage (exactly 3 calls per batch). Very fast (sub-100ms) but limited to preference storage. Good for personalization-only use cases."},
+
+  {id:"Cortex-Mem",cat:"Dedicated",lang:"Rust",stars:100,
+   episodic:false,semantic:true,procedural:false,prefs:false,
+   bm25:false,vector:false,graphRetrieval:false,fusion:false,reranking:false,
+   consolidation:false,forgetting:false,contradiction:false,dedup:true,
+   graph:false,multistore:false,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"Configurable (Rust trait)",rag:"Naive",
+   desc:"Extracted facts with deduplication. Configurable storage backends via Rust traits.",
+   details:"Minimal Rust memory library focused on fact extraction and deduplication. Storage backend is pluggable via Rust trait system. No retrieval sophistication \u2014 designed as a building block rather than a complete system."},
+
+  {id:"Memvid",cat:"Dedicated",lang:"Rust",stars:300,
+   episodic:true,semantic:false,procedural:false,prefs:false,
+   bm25:true,vector:true,graphRetrieval:false,fusion:true,reranking:false,
+   consolidation:false,forgetting:false,contradiction:false,dedup:false,
+   graph:false,multistore:false,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"Single .mv2 file (append-only)",rag:"Advanced",
+   desc:"Append-only Smart Frames. Tantivy FTS + HNSW. Single portable .mv2 file.",
+   details:"Novel append-only format stores memories as video-like frames in a single portable file. Uses Tantivy (Rust Lucene equivalent) for full-text search alongside HNSW vector index. Immutable storage means no forgetting, but excellent for archival use cases."},
+
+  {id:"Memonto",cat:"Dedicated",lang:"Python",stars:100,
+   episodic:false,semantic:true,procedural:false,prefs:false,
+   bm25:false,vector:false,graphRetrieval:true,fusion:false,reranking:false,
+   consolidation:false,forgetting:false,contradiction:false,dedup:false,
+   graph:true,multistore:false,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"RDF triple store",rag:"Naive",
+   desc:"Ontology-based KG using RDF namespaces. Auto-expands ontology from conversations.",
+   details:"Unique approach using formal ontologies (RDF/OWL) rather than ad-hoc knowledge graphs. Automatically expands the ontology as new concepts are encountered. Strong for domains with well-defined schemas."},
+
+  // ──── Framework ────
+  {id:"Letta (MemGPT)",cat:"Framework",lang:"Python",stars:12000,
+   episodic:true,semantic:true,procedural:false,prefs:true,
+   bm25:false,vector:true,graphRetrieval:false,fusion:false,reranking:false,
+   consolidation:true,forgetting:true,contradiction:false,dedup:false,
+   graph:false,multistore:true,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:true,
+   storage:"Postgres/SQLite + Chroma/Qdrant/Milvus",rag:"Naive (agent-augmented)",
+   desc:"OS-inspired: core, recall, archival memory. LLM as memory manager. Sleep-time reorganization.",
+   details:"Pioneered the idea of LLM-as-memory-manager \u2014 the agent decides what to store, retrieve, and delete via tool calls. Core memory blocks are directly editable by the agent. Sleep-time reorganization provides offline consolidation. Retrieval itself is naive (single-signal vector), but augmented by the agent's reasoning."},
+
+  {id:"CrewAI",cat:"Framework",lang:"Python",stars:8000,
+   episodic:true,semantic:true,procedural:false,prefs:true,
+   bm25:false,vector:true,graphRetrieval:false,fusion:true,reranking:false,
+   consolidation:false,forgetting:false,contradiction:false,dedup:false,
+   graph:false,multistore:true,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"Configurable (in-memory default)",rag:"Advanced",
+   desc:"Unified Memory class with adaptive-depth recall. Composite scoring for multi-agent systems.",
+   details:"Memory designed for multi-agent collaboration. Adaptive-depth recall adjusts how deeply it searches based on query complexity. Composite scoring combines relevance, recency, and agent-specific factors. Memory is shared across crew members."},
+
+  {id:"MS GraphRAG",cat:"Framework",lang:"Python",stars:5000,
+   episodic:false,semantic:true,procedural:false,prefs:false,
+   bm25:false,vector:true,graphRetrieval:true,fusion:true,reranking:true,
+   consolidation:false,forgetting:false,contradiction:false,dedup:false,
+   graph:true,multistore:true,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"Neo4j/Cosmos DB + vector store",rag:"Modular",
+   desc:"Microsoft. Hierarchical KG with Leiden community structures. 35% precision improvement over baseline RAG.",
+   details:"Uses Leiden community detection algorithm to build hierarchical clusters in the knowledge graph. Global queries traverse community summaries (top-down), local queries use entity neighborhoods (bottom-up). 35% precision improvement over vector-only RAG on multi-hop questions."},
+
+  {id:"LangChain",cat:"Framework",lang:"Python",stars:90000,
+   episodic:true,semantic:false,procedural:false,prefs:false,
+   bm25:false,vector:false,graphRetrieval:false,fusion:false,reranking:false,
+   consolidation:false,forgetting:true,contradiction:false,dedup:false,
+   graph:false,multistore:false,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"In-memory / Redis / Postgres",rag:"Naive",
+   desc:"Buffer, summary, and entity memory types. Window/truncation forgetting. Most widely adopted framework.",
+   details:"Memory is a secondary feature \u2014 LangChain is primarily an LLM framework. ConversationBufferMemory, ConversationSummaryMemory, and EntityMemory provide basic patterns. No structural retrieval, no graph, no fusion. Forgetting is crude (window truncation). But ubiquitous adoption makes it the de facto baseline."},
+
+  {id:"LlamaIndex",cat:"Framework",lang:"Python",stars:35000,
+   episodic:true,semantic:false,procedural:false,prefs:false,
+   bm25:false,vector:true,graphRetrieval:false,fusion:false,reranking:false,
+   consolidation:false,forgetting:true,contradiction:false,dedup:false,
+   graph:false,multistore:false,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"In-memory / configurable vector store",rag:"Naive",
+   desc:"Composable memory blocks with FIFO eviction. Vector-based retrieval.",
+   details:"Like LangChain, memory is secondary to the RAG framework. Composable memory blocks can be combined but each block uses single-signal retrieval. FIFO eviction is the simplest possible forgetting model. Strong ecosystem for document retrieval, less so for conversational memory."},
+
+  {id:"LangMem SDK",cat:"Framework",lang:"Python",stars:1000,
+   episodic:false,semantic:true,procedural:true,prefs:false,
+   bm25:false,vector:true,graphRetrieval:false,fusion:false,reranking:false,
+   consolidation:false,forgetting:false,contradiction:false,dedup:false,
+   graph:false,multistore:false,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"LangGraph store",rag:"Naive",
+   desc:"Semantic + procedural memory. Prompt updates via extracted facts. Background manager.",
+   details:"One of the few systems implementing procedural memory \u2014 learned behaviors that update the system prompt over time. Extracted facts accumulate and periodically get merged into prompt instructions. Background manager handles offline processing."},
+
+  // ──── Coding Agent ────
+  {id:"Beads",cat:"Coding Agent",lang:"Go",stars:17100,
+   episodic:true,semantic:true,procedural:false,prefs:false,
+   bm25:false,vector:false,graphRetrieval:true,fusion:false,reranking:false,
+   consolidation:true,forgetting:true,contradiction:false,dedup:false,
+   graph:true,multistore:false,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"Dolt (version-controlled SQL)",rag:"Advanced",
+   desc:"Steve Yegge. Dependency-aware issue graph. Dolt version-controlled SQL. Compaction.",
+   details:"Created by Steve Yegge. Uses Dolt (Git for data) for version-controlled SQL storage, enabling time-travel queries on memory state. Dependency-aware issue graph tracks relationships between code entities. Compaction consolidates related memories over time."},
+
+  {id:"Engram",cat:"Coding Agent",lang:"Go",stars:538,
+   episodic:true,semantic:false,procedural:false,prefs:false,
+   bm25:true,vector:false,graphRetrieval:false,fusion:false,reranking:false,
+   consolidation:false,forgetting:false,contradiction:false,dedup:false,
+   graph:false,multistore:false,temporal:false,mcp:true,
+   selfHosted:true,cloudAvail:false,
+   storage:"SQLite + FTS5",rag:"Naive",
+   desc:"Agent-agnostic Go binary. SQLite + FTS5. MCP server. Agent decides what to save.",
+   details:"Minimalist design \u2014 a single Go binary that provides persistent memory via MCP protocol. The agent (not the memory system) decides what to store, making it a pure storage layer. FTS5 for keyword search only, no vector similarity. Extremely easy to deploy."},
+
+  {id:"Memsearch",cat:"Coding Agent",lang:"Python",stars:586,
+   episodic:true,semantic:false,procedural:false,prefs:false,
+   bm25:true,vector:true,graphRetrieval:false,fusion:false,reranking:false,
+   consolidation:false,forgetting:true,contradiction:false,dedup:false,
+   graph:false,multistore:false,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"Markdown files + Milvus vector",rag:"Advanced",
+   desc:"Zilliz. Markdown-first with Milvus vector overlay. 3-layer progressive disclosure.",
+   details:"Built by Zilliz (Milvus creators). Markdown files are the primary store, with Milvus providing a vector search overlay. 3-layer progressive disclosure: title \u2192 summary \u2192 full content, reducing token usage. Forgetting via progressive summarization."},
+
+  {id:"Cipher (ByteRover)",cat:"Coding Agent",lang:"TypeScript",stars:200,
+   episodic:true,semantic:true,procedural:false,prefs:false,
+   bm25:false,vector:true,graphRetrieval:false,fusion:false,reranking:false,
+   consolidation:false,forgetting:true,contradiction:false,dedup:false,
+   graph:false,multistore:true,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"Git-like versioned store",rag:"Advanced",
+   desc:"Dual memory: System 1 (concepts) + System 2 (reasoning). Git-like versioning. 15+ AI tools.",
+   details:"Kahneman-inspired dual-process architecture: System 1 for fast concept lookup, System 2 for slow deliberative reasoning. Git-like versioning tracks memory evolution over time. Part of a larger AI-powered coding tool suite."},
+
+  // ──── File-Based ────
+  {id:"Claude Code",cat:"File-Based",lang:"TypeScript",stars:237000,
+   episodic:true,semantic:false,procedural:false,prefs:true,
+   bm25:true,vector:false,graphRetrieval:false,fusion:false,reranking:false,
+   consolidation:false,forgetting:false,contradiction:false,dedup:false,
+   graph:false,multistore:false,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"MEMORY.md flat file",rag:"Naive",
+   desc:"MEMORY.md + daily logs. grep + FTS5. Agent-authored preferences. Most widely used coding agent.",
+   details:"The MEMORY.md pattern: agent reads/writes a single markdown file for persistent memory. Simple and effective for coding tasks, but breaks down at scale \u2014 O(n) token cost per interaction, no structural retrieval, no forgetting. Demonstrates the ceiling of file-based memory."},
+
+  {id:"Claudesidian",cat:"File-Based",lang:"TypeScript",stars:1000,
+   episodic:true,semantic:false,procedural:false,prefs:false,
+   bm25:true,vector:false,graphRetrieval:true,fusion:false,reranking:false,
+   consolidation:false,forgetting:true,contradiction:false,dedup:false,
+   graph:true,multistore:false,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"Obsidian vault (markdown + wikilinks)",rag:"Advanced",
+   desc:"Obsidian vault with PARA folders. Daily/weekly notes. Obsidian links as graph edges.",
+   details:"Leverages Obsidian's existing graph structure (wikilinks between notes) as an implicit knowledge graph. PARA (Projects/Areas/Resources/Archives) folder structure for organization. Daily and weekly notes provide temporal structure. Benefits from Obsidian's rich ecosystem of plugins."},
+
+  // ──── Research ────
+  {id:"Generative Agents",cat:"Research",lang:"Python",stars:5000,
+   episodic:true,semantic:true,procedural:false,prefs:true,
+   bm25:false,vector:true,graphRetrieval:false,fusion:true,reranking:false,
+   consolidation:true,forgetting:true,contradiction:false,dedup:false,
+   graph:false,multistore:true,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"In-memory (research prototype)",rag:"Advanced",
+   desc:"Park et al. 2023. Memory stream + reflections + plans. Recency \u00d7 importance \u00d7 relevance scoring.",
+   details:"Foundational paper for the field (ACM CHI 2023). Introduced the reflection mechanism: periodically asking 'What are the most salient observations?' to create higher-level insights. The recency \u00d7 importance \u00d7 relevance scoring formula is widely imitated. Preferences emerge organically from reflections."},
+
+  {id:"SYNAPSE",cat:"Research",lang:"Python",stars:200,
+   episodic:true,semantic:true,procedural:false,prefs:false,
+   bm25:false,vector:true,graphRetrieval:true,fusion:true,reranking:false,
+   consolidation:true,forgetting:true,contradiction:false,dedup:false,
+   graph:true,multistore:true,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"In-memory graph (research prototype)",rag:"Modular",
+   desc:"Spreading activation + lateral inhibition. Unified episodic-semantic graph. Triple hybrid retrieval.",
+   details:"Closest system to Alaya architecturally. Spreading activation (Hebbian-like) for associative retrieval, lateral inhibition (analogous to RIF) for competitive suppression. Unified graph stores both episodic and semantic memories with activation-based promotion. Jiang et al. 2026."},
+
+  {id:"LightRAG",cat:"Research",lang:"Python",stars:27900,
+   episodic:false,semantic:true,procedural:false,prefs:false,
+   bm25:false,vector:true,graphRetrieval:true,fusion:true,reranking:false,
+   consolidation:false,forgetting:false,contradiction:false,dedup:false,
+   graph:true,multistore:false,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"Neo4j/Milvus/multiple backends",rag:"Modular",
+   desc:"EMNLP 2025. Dual-level KG retrieval (entity + relation). Incremental updates.",
+   details:"Dual-level retrieval: entity-level for specific facts, relation-level for connections between entities. Supports incremental graph updates without full reconstruction. Highly popular (27K+ stars) and well-documented. Backend-agnostic with Neo4j, Milvus, and other options."},
+
+  {id:"A-MEM",cat:"Research",lang:"Python",stars:500,
+   episodic:false,semantic:true,procedural:false,prefs:false,
+   bm25:false,vector:true,graphRetrieval:true,fusion:true,reranking:false,
+   consolidation:false,forgetting:false,contradiction:false,dedup:false,
+   graph:true,multistore:false,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"In-memory linked notes",rag:"Advanced",
+   desc:"Zettelkasten-inspired linked notes. Embedding + note traversal. LLM-driven note evolution.",
+   details:"Applies the Zettelkasten method (Niklas Luhmann) to AI memory: atomic notes linked by associations. Notes evolve through LLM-driven updates rather than being deleted. Retrieval follows links between related notes, enabling multi-hop reasoning."},
+
+  {id:"LightMem",cat:"Research",lang:"Python",stars:100,
+   episodic:true,semantic:true,procedural:false,prefs:false,
+   bm25:false,vector:true,graphRetrieval:false,fusion:false,reranking:false,
+   consolidation:true,forgetting:true,contradiction:false,dedup:false,
+   graph:false,multistore:true,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"In-memory (research prototype)",rag:"Advanced",
+   desc:"Atkinson-Shiffrin model: sensory, short-term, long-term memory. Sleep-time offline consolidation.",
+   details:"Directly implements the Atkinson-Shiffrin cognitive model. Sensory memory captures raw input, short-term memory holds active context, long-term memory stores consolidated knowledge. Sleep-time consolidation (offline processing) promotes important short-term memories to long-term storage. Fang et al. 2025."},
+
+  {id:"Mem-alpha",cat:"Research",lang:"Python",stars:100,
+   episodic:true,semantic:true,procedural:false,prefs:false,
+   bm25:false,vector:true,graphRetrieval:false,fusion:false,reranking:false,
+   consolidation:false,forgetting:true,contradiction:false,dedup:false,
+   graph:false,multistore:true,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"In-memory (research prototype)",rag:"Advanced",
+   desc:"Core + episodic + semantic memory. RL-managed memory operations.",
+   details:"Uses reinforcement learning to learn optimal memory management policies. Instead of hand-crafted heuristics for what to store/forget/consolidate, an RL agent learns these decisions from reward signals. Part of the emerging trend of RL-trained memory systems. Wang et al. 2025."},
+
+  {id:"HippoRAG",cat:"Research",lang:"Python",stars:1000,
+   episodic:false,semantic:true,procedural:false,prefs:false,
+   bm25:false,vector:true,graphRetrieval:true,fusion:false,reranking:false,
+   consolidation:false,forgetting:false,contradiction:false,dedup:false,
+   graph:true,multistore:false,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"In-memory open KG",rag:"Modular",
+   desc:"Hippocampal indexing + open KG. Personalized PageRank for associative retrieval.",
+   details:"Biologically inspired: models the hippocampus as an indexing structure over a knowledge graph. Personalized PageRank (PPR) enables associative retrieval \u2014 spreading activation through the graph from query entities. No explicit lifecycle management. OSU NLP 2024-2025."},
+
+  {id:"MemoRAG",cat:"Research",lang:"Python",stars:1000,
+   episodic:true,semantic:true,procedural:false,prefs:false,
+   bm25:false,vector:true,graphRetrieval:false,fusion:true,reranking:false,
+   consolidation:false,forgetting:false,contradiction:false,dedup:false,
+   graph:false,multistore:true,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"In-memory (research prototype)",rag:"Advanced",
+   desc:"Global memory-augmented retrieval. Dual-system clue recall. TheWebConf 2025.",
+   details:"Uses a lightweight 'memory model' that maintains a global understanding of the full corpus, generating retrieval clues that guide the dense retriever. Dual-system: global memory for broad understanding + standard retrieval for precision. Effective for very long documents."},
+
+  {id:"MemAgent",cat:"Research",lang:"Python",stars:200,
+   episodic:true,semantic:false,procedural:false,prefs:false,
+   bm25:false,vector:true,graphRetrieval:false,fusion:false,reranking:false,
+   consolidation:false,forgetting:true,contradiction:false,dedup:false,
+   graph:false,multistore:false,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:false,
+   storage:"Dynamic memory panel (RL-managed)",rag:"Advanced",
+   desc:"ByteDance/Tsinghua. RL-trained dynamic memory panel. Extrapolates 8K context to 3.5M tokens.",
+   details:"Remarkable context extrapolation: trains on 8K token contexts, generalizes to 3.5M tokens at inference. RL-trained memory panel dynamically decides what to keep in working memory. Demonstrates that learned memory policies can dramatically extend effective context. ICLR 2026."},
+
+  // ──── Vector DB ────
+  {id:"Pinecone",cat:"Vector DB",lang:"Cloud",stars:0,
+   episodic:false,semantic:false,procedural:false,prefs:false,
+   bm25:false,vector:true,graphRetrieval:false,fusion:false,reranking:true,
+   consolidation:false,forgetting:false,contradiction:false,dedup:false,
+   graph:false,multistore:false,temporal:false,mcp:false,
+   selfHosted:false,cloudAvail:true,
+   storage:"Managed cloud vector index",rag:"Naive",
+   desc:"Cloud-native managed vector DB with built-in reranking. No self-hosted option.",
+   details:"Pure infrastructure layer \u2014 provides vector similarity search but no memory management, lifecycle, or knowledge extraction. Built-in reranking model. Serverless pricing. Often used as the vector backend for memory systems like Mem0."},
+
+  {id:"ChromaDB",cat:"Vector DB",lang:"Python",stars:15000,
+   episodic:false,semantic:false,procedural:false,prefs:false,
+   bm25:true,vector:true,graphRetrieval:false,fusion:true,reranking:false,
+   consolidation:false,forgetting:false,contradiction:false,dedup:false,
+   graph:false,multistore:false,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:true,
+   storage:"Embedded HNSW + FTS",rag:"Naive",
+   desc:"FTS + vector hybrid search. Embedded or Chroma Cloud. Popular open-source vector DB.",
+   details:"Most popular embedded vector database for AI applications. Hybrid search combines FTS and vector similarity. Can run in-process (no server needed) or as a standalone service. Chroma Cloud provides managed hosting. Often used as the vector backend in the naive RAG baseline."},
+
+  {id:"Weaviate",cat:"Vector DB",lang:"Go",stars:12000,
+   episodic:false,semantic:false,procedural:false,prefs:false,
+   bm25:true,vector:true,graphRetrieval:false,fusion:true,reranking:false,
+   consolidation:false,forgetting:false,contradiction:false,dedup:false,
+   graph:false,multistore:false,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:true,
+   storage:"Custom storage engine (Go)",rag:"Naive",
+   desc:"BM25 + vector hybrid search. Weaviate Cloud. Go-based open-source vector DB.",
+   details:"Go-based vector DB with native BM25 + vector hybrid search. Object-oriented schema with cross-references between objects. Weaviate Cloud for managed hosting. Module system for extending functionality (text2vec, generative, reranker modules)."},
+
+  {id:"Milvus",cat:"Vector DB",lang:"Go/C++",stars:30000,
+   episodic:false,semantic:false,procedural:false,prefs:false,
+   bm25:false,vector:true,graphRetrieval:false,fusion:true,reranking:false,
+   consolidation:false,forgetting:false,contradiction:false,dedup:false,
+   graph:false,multistore:false,temporal:false,mcp:false,
+   selfHosted:true,cloudAvail:true,
+   storage:"Custom storage engine (Go/C++)",rag:"Naive",
+   desc:"Dense + sparse vector support. Zilliz Cloud managed service. High-performance open-source.",
+   details:"Enterprise-grade vector DB supporting both dense and sparse vectors. Handles billions of vectors with GPU-accelerated search. Zilliz Cloud provides managed hosting. Often used as backend for research systems (LightRAG, Memsearch). Hybrid search via dense+sparse fusion."},
+];
+
+// ── Build similarity links ──
+const linkFeats = ALL_FEAT_KEYS;
 const links = [];
 for (let i = 0; i < SYSTEMS.length; i++) {
   for (let j = i + 1; j < SYSTEMS.length; j++) {
     const a = SYSTEMS[i], b = SYSTEMS[j];
-    let shared = features.filter(f => a[f] && b[f]).length;
+    const shared = linkFeats.filter(f => a[f] && b[f]).length;
     const sameCat = a.cat === b.cat;
-    if ((sameCat && shared >= 3) || (!sameCat && shared >= 4)) {
-      links.push({source: a.id, target: b.id, strength: shared / 5});
+    if ((sameCat && shared >= 6) || (!sameCat && shared >= 8)) {
+      links.push({source: a.id, target: b.id, strength: shared / linkFeats.length});
     }
   }
 }
 
-// Setup
+// ── SVG + zoom ──
 const graphDiv = document.getElementById("graph");
 const tooltip = document.getElementById("tooltip");
 const width = graphDiv.clientWidth;
 const height = graphDiv.clientHeight;
 const svg = d3.select("#graph").append("svg").attr("width", width).attr("height", height);
 const g = svg.append("g");
-
-// Zoom
 svg.call(d3.zoom().scaleExtent([0.2, 4]).on("zoom", e => g.attr("transform", e.transform)));
 
-// Scale node radius by stars (log)
+// ── Node sizing by stars (log scale) ──
 const radiusScale = d3.scaleSqrt().domain([0, 100000]).range([6, 35]);
 function nodeRadius(d) { return Math.max(6, radiusScale(d.stars || 50)); }
 
-// Simulation
+// ── Force simulation ──
 const simulation = d3.forceSimulation(SYSTEMS)
   .force("link", d3.forceLink(links).id(d => d.id).distance(120).strength(d => d.strength * 0.3))
   .force("charge", d3.forceManyBody().strength(-200))
@@ -161,13 +624,13 @@ const simulation = d3.forceSimulation(SYSTEMS)
   .force("y", d3.forceY(height / 2).strength(0.05))
   .force("collision", d3.forceCollide().radius(d => nodeRadius(d) + 4));
 
-// Draw links
+// ── Draw links ──
 const linkElements = g.append("g").selectAll("line").data(links).enter().append("line")
   .attr("class", "link")
   .attr("stroke", "#30363d")
-  .attr("stroke-width", d => d.strength * 3);
+  .attr("stroke-width", d => d.strength * 4);
 
-// Draw nodes
+// ── Draw nodes ──
 const nodeElements = g.append("g").selectAll("g").data(SYSTEMS).enter().append("g")
   .attr("class", "node")
   .call(d3.drag()
@@ -190,43 +653,113 @@ nodeElements.append("text")
   .attr("font-weight", d => d.id === "Alaya" ? "bold" : "normal")
   .text(d => d.id);
 
-// Tooltip
+// ── Tooltip with details from related-work ──
 nodeElements.on("mouseover", (e, d) => {
-  const featureTags = features.map(f =>
-    `<span class="tag ${d[f] ? 'yes' : 'no'}">${{graph:"Graph",forgetting:"Forgetting",prefs:"Preferences",hybrid:"Hybrid Retrieval",multistore:"Multi-Store"}[f]}</span>`
-  ).join("");
-  tooltip.innerHTML = `<h3>${d.id}</h3><div>${d.desc}</div><div style="margin-top:6px">${featureTags}</div><div class="meta">${d.lang} · ${d.cat} · ${d.stars > 0 ? d.stars.toLocaleString() + " ★" : "new"}</div>`;
+  let html = `<h3>${d.id}</h3><div>${d.desc}</div>`;
+  if (d.details) html += `<div class="details">${d.details}</div>`;
+  html += `<div class="detail-row">`;
+  if (d.storage) html += `<div class="detail-badge"><span class="bl">Storage:</span> <span class="bv">${d.storage}</span></div>`;
+  if (d.rag) html += `<div class="detail-badge"><span class="bl">RAG:</span> <span class="bv">${d.rag}</span></div>`;
+  html += `</div>`;
+  html += `<div class="feat-section">`;
+  FEATURE_GROUPS.forEach(group => {
+    const tags = Object.entries(group.feats).map(([k, label]) =>
+      `<span class="tag ${d[k] ? 'yes' : 'no'}">${label}</span>`
+    ).join("");
+    html += `<div class="feat-label">${group.label}</div>${tags}`;
+  });
+  html += `</div><div class="meta">${d.lang} \u00b7 ${d.cat} \u00b7 ${d.stars > 0 ? d.stars.toLocaleString() + " \u2605" : "new"}</div>`;
+  tooltip.innerHTML = html;
   tooltip.style.opacity = 1;
 }).on("mousemove", (e) => {
   const rect = graphDiv.getBoundingClientRect();
-  tooltip.style.left = (e.clientX - rect.left + 15) + "px";
-  tooltip.style.top = (e.clientY - rect.top - 10) + "px";
+  let left = e.clientX - rect.left + 15;
+  let top = e.clientY - rect.top - 10;
+  if (left + 410 > rect.width) left = e.clientX - rect.left - 415;
+  if (top + 400 > rect.height) top = rect.height - 400;
+  tooltip.style.left = left + "px";
+  tooltip.style.top = Math.max(0, top) + "px";
 }).on("mouseout", () => { tooltip.style.opacity = 0; });
 
-// Tick
+// ── Tick ──
 simulation.on("tick", () => {
   linkElements.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
   nodeElements.attr("transform", d => `translate(${d.x},${d.y})`);
 });
 
-// Sidebar: Category filters
-const catDiv = document.getElementById("cat-filters");
+// ── Build sidebar filters ──
+const filtersDiv = document.getElementById("filter-sections");
+
+// Category filters
+const catDetails = document.createElement("details");
+catDetails.open = true;
+catDetails.innerHTML = `<summary>Categories <span class="group-count">${Object.keys(CATEGORIES).length}</span></summary>`;
+const catGroup = document.createElement("div");
+catGroup.className = "filter-group";
+catGroup.id = "cat-filters";
 Object.entries(CATEGORIES).forEach(([cat, color]) => {
   const count = SYSTEMS.filter(s => s.cat === cat).length;
   const label = document.createElement("label");
-  label.innerHTML = `<input type="checkbox" checked data-cat="${cat}"> <span class="legend-dot" style="background:${color}"></span> ${cat} (${count})`;
-  catDiv.appendChild(label);
+  label.innerHTML = `<input type="checkbox" checked data-cat="${cat}"> <span class="legend-dot" style="background:${color}"></span> ${cat} <span class="feat-count">${count}</span>`;
+  catGroup.appendChild(label);
+});
+catDetails.appendChild(catGroup);
+filtersDiv.appendChild(catDetails);
+
+// Feature group filters
+FEATURE_GROUPS.forEach(group => {
+  const details = document.createElement("details");
+  details.open = true;
+  const activeCount = Object.keys(group.feats).length;
+  details.innerHTML = `<summary>${group.label} <span class="group-count">${activeCount}</span></summary>`;
+  const div = document.createElement("div");
+  div.className = "filter-group";
+  Object.entries(group.feats).forEach(([key, label]) => {
+    const count = SYSTEMS.filter(s => s[key]).length;
+    const el = document.createElement("label");
+    el.innerHTML = `<input type="checkbox" data-feat="${key}"> ${label} <span class="feat-count">${count}</span>`;
+    div.appendChild(el);
+  });
+  details.appendChild(div);
+  filtersDiv.appendChild(details);
 });
 
-// Sidebar: Feature filters
-const featDiv = document.getElementById("feat-filters");
-const featNames = {graph:"Graph",forgetting:"Forgetting",prefs:"Preferences",hybrid:"Hybrid Retrieval",multistore:"Multi-Store"};
-features.forEach(f => {
-  const count = SYSTEMS.filter(s => s[f]).length;
-  const label = document.createElement("label");
-  label.innerHTML = `<input type="checkbox" data-feat="${f}"> ${featNames[f]} (${count})`;
-  featDiv.appendChild(label);
+// RAG category filter
+const ragDetails = document.createElement("details");
+ragDetails.innerHTML = `<summary>RAG Category <span class="group-count">3</span></summary>`;
+const ragGroup = document.createElement("div");
+ragGroup.className = "filter-group";
+["Naive","Advanced","Modular"].forEach(rag => {
+  const count = SYSTEMS.filter(s => s.rag && s.rag.startsWith(rag)).length;
+  const el = document.createElement("label");
+  el.innerHTML = `<input type="checkbox" data-rag="${rag}"> ${rag} <span class="feat-count">${count}</span>`;
+  ragGroup.appendChild(el);
 });
+ragDetails.appendChild(ragGroup);
+filtersDiv.appendChild(ragDetails);
+
+// Language filters
+const majorLangs = ["Python","Rust","TypeScript","Go"];
+const langDetails = document.createElement("details");
+langDetails.innerHTML = `<summary>Language <span class="group-count">${majorLangs.length + 1}</span></summary>`;
+const langGroup = document.createElement("div");
+langGroup.className = "filter-group";
+majorLangs.forEach(lang => {
+  const count = SYSTEMS.filter(s => s.lang.includes(lang)).length;
+  if (count > 0) {
+    const el = document.createElement("label");
+    el.innerHTML = `<input type="checkbox" data-lang="${lang}"> ${lang} <span class="feat-count">${count}</span>`;
+    langGroup.appendChild(el);
+  }
+});
+const otherCount = SYSTEMS.filter(s => !majorLangs.some(l => s.lang.includes(l))).length;
+if (otherCount > 0) {
+  const el = document.createElement("label");
+  el.innerHTML = `<input type="checkbox" data-lang="Other"> Other <span class="feat-count">${otherCount}</span>`;
+  langGroup.appendChild(el);
+}
+langDetails.appendChild(langGroup);
+filtersDiv.appendChild(langDetails);
 
 // Legend
 const legendDiv = document.getElementById("legend");
@@ -234,25 +767,58 @@ Object.entries(CATEGORIES).forEach(([cat, color]) => {
   legendDiv.innerHTML += `<div class="legend-item"><div class="legend-dot" style="background:${color}"></div>${cat}</div>`;
 });
 
-// Filter logic
+// ── Filter logic ──
+const totalCountEl = document.getElementById("total-count");
+const visibleCountEl = document.getElementById("visible-count");
+totalCountEl.textContent = SYSTEMS.length;
+
 function applyFilters() {
   const activeCats = new Set([...document.querySelectorAll('#cat-filters input:checked')].map(el => el.dataset.cat));
-  const activeFeats = [...document.querySelectorAll('#feat-filters input:checked')].map(el => el.dataset.feat);
+  const activeFeats = [...document.querySelectorAll('[data-feat]:checked')].map(el => el.dataset.feat);
+  const activeLangs = [...document.querySelectorAll('[data-lang]:checked')].map(el => el.dataset.lang);
+  const activeRags = [...document.querySelectorAll('[data-rag]:checked')].map(el => el.dataset.rag);
   const searchTerm = document.getElementById("search").value.toLowerCase();
 
+  let visibleCount = 0;
   nodeElements.each(function(d) {
     const catMatch = activeCats.has(d.cat);
     const featMatch = activeFeats.length === 0 || activeFeats.every(f => d[f]);
-    const searchMatch = !searchTerm || d.id.toLowerCase().includes(searchTerm) || d.desc.toLowerCase().includes(searchTerm) || d.lang.toLowerCase().includes(searchTerm);
-    const visible = catMatch && featMatch && searchMatch;
+    const searchMatch = !searchTerm || d.id.toLowerCase().includes(searchTerm) || d.desc.toLowerCase().includes(searchTerm) || d.lang.toLowerCase().includes(searchTerm) || (d.storage && d.storage.toLowerCase().includes(searchTerm));
+    let langMatch = true;
+    if (activeLangs.length > 0) {
+      langMatch = activeLangs.some(lang => {
+        if (lang === "Other") return !majorLangs.some(l => d.lang.includes(l));
+        return d.lang.includes(lang);
+      });
+    }
+    let ragMatch = true;
+    if (activeRags.length > 0) {
+      ragMatch = d.rag && activeRags.some(r => d.rag.startsWith(r));
+    }
+    const visible = catMatch && featMatch && searchMatch && langMatch && ragMatch;
     d3.select(this).style("opacity", visible ? 1 : 0.08);
     d._visible = visible;
+    if (visible) visibleCount++;
   });
   linkElements.style("opacity", d => (d.source._visible && d.target._visible) ? 0.15 : 0.02);
+  visibleCountEl.textContent = visibleCount;
 }
 
-document.querySelectorAll('#cat-filters input, #feat-filters input').forEach(el => el.addEventListener("change", applyFilters));
+// Wire up all filter inputs
+document.querySelectorAll('#filter-sections input[type="checkbox"]').forEach(el => el.addEventListener("change", applyFilters));
 document.getElementById("search").addEventListener("input", applyFilters);
+
+// Reset button
+document.getElementById("reset-btn").addEventListener("click", () => {
+  document.querySelectorAll('#filter-sections input[type="checkbox"]').forEach(el => {
+    el.checked = el.dataset.cat ? true : false;
+  });
+  document.getElementById("search").value = "";
+  applyFilters();
+});
+
+// Initial count
+applyFilters();
 </script>
 </body>
 </html>
