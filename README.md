@@ -311,24 +311,44 @@ If you're using file-based memory (OpenClaw, Claudesidian, or a
 hand-rolled `MEMORY.md`), you already have long-term memory across
 sessions. The problem is what happens next: the files keep growing,
 context windows fill up, and retrieval degrades to "dump everything and
-hope the LLM finds what matters." Alaya solves the scaling problem with
-structure underneath.
+hope the LLM finds what matters."
+
+**The cost is real.** OpenClaw injects ~35,600 tokens of workspace files
+into every message — 93.5% waste in multi-message conversations
+([#9157](https://github.com/openclaw/openclaw/issues/9157)). Heavy
+users report [$3,600/month](https://milvus.io/blog/why-ai-agents-like-openclaw-burn-through-tokens-and-how-to-cut-costs.md)
+in token costs. Community tools like
+[QMD](https://github.com/tobi/qmd) and
+[memsearch](https://github.com/zilliztech/memsearch) cut costs
+[70-96%](https://x.com/andrarchy/status/2015783856087929254) by
+replacing full-context injection with ranked retrieval — the same
+approach Alaya uses natively.
+
+**The structure problem is real too.** Users independently invent
+[`decision.md`](https://www.chatprd.ai/how-i-ai/jesse-genets-5-openclaw-agents-for-homeschooling-app-building-and-physical-inventories)
+files, `working-context.md` snapshots, and
+[12-layer memory architectures](https://github.com/coolmanns/openclaw-memory-architecture)
+because MEMORY.md conflates decisions, preferences, and knowledge into
+one unstructured blob. Alaya separates them into typed stores with
+different lifecycle characteristics — no manual file management needed.
 
 | What changes | MEMORY.md pattern | Alaya |
 |---|---|---|
 | **Storage** | Markdown files the agent reads/writes | SQLite with typed stores (episodes, knowledge, preferences) |
-| **Retrieval** | `grep`, file scan, or dump everything into context | Ranked hybrid search: BM25 + vector + graph traversal + RRF fusion |
-| **What gets remembered** | Whatever the agent decides to write down | Everything is stored; retrieval quality determines what surfaces |
-| **Forgetting** | Manual cleanup or unbounded growth | Automatic: weak memories decay, strong ones persist (Bjork model) |
-| **Associations** | None — flat files | Hebbian graph links memories that are retrieved together |
+| **Retrieval** | Full-context injection (~35K tokens/message) | Ranked hybrid search: BM25 + vector + graph + RRF — returns only what's relevant |
+| **Decisions** | Conflated in MEMORY.md (users invent `decision.md` workarounds) | Typed `SemanticNode` with provenance (`created_at`, `corroboration_count`) |
+| **Forgetting** | Manual cleanup or unbounded growth | Automatic: Bjork dual-strength decay, weak memories fade, strong ones persist |
+| **Associations** | None — flat files | Hebbian graph links memories co-retrieved together; spreading activation finds indirect connections |
 | **Preferences** | Agent-authored summary, easily drifts | Emerge from accumulated impressions (vasana), crystallize at threshold |
-| **Context window cost** | Grows linearly — eventually you hit the limit | Ranked retrieval returns only the most relevant memories |
+| **Context window cost** | Grows linearly — 93.5% waste at scale | Ranked retrieval: only the top-k most relevant memories enter context |
 | **LLM dependency** | Required for writing and organizing | Optional — works without an LLM, gets better with one |
 
 The tradeoff: MEMORY.md is zero-setup and human-readable. Alaya
 requires `cargo add alaya` and a few trait implementations. In return
 you get retrieval that improves with use, memories that self-organize,
-and a context window that stays clean.
+and a context window that stays clean. For the full analysis of
+community workarounds and how Alaya addresses each, see
+[The MEMORY.md Problem](docs/related-work.md#the-memorymd-problem-why-file-based-memory-breaks-at-scale).
 
 ## Comparison with Alternatives
 

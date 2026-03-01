@@ -1073,6 +1073,139 @@ against Alaya's architecture.
 
 ---
 
+## The MEMORY.md Problem: Why File-Based Memory Breaks at Scale
+
+The community around AI coding agents has converged on a shared diagnosis:
+file-based memory (MEMORY.md + daily logs) works for single sessions but
+degrades as usage grows. This section documents the problem, the community's
+pragmatic workarounds, and how each maps to Alaya's architecture. Citations
+use the format established in [References](#references) below.
+
+### The Cost Problem
+
+OpenClaw injects the full contents of MEMORY.md, AGENTS.md, SOUL.md, and
+other workspace files into the system prompt on **every message**, regardless
+of relevance. GitHub Issue
+[#9157](https://github.com/openclaw/openclaw/issues/9157) measured the
+impact: ~35,600 tokens per message in workspace injection alone, representing
+93.5% waste in multi-message conversations (~$1.51 per 100-message session).
+A community
+[discussion](https://github.com/openclaw/openclaw/discussions/25633) reported
+real-world costs dropping from $4.20/day to $1.80/day after workarounds.
+Heavy users report 1.8M tokens/month ($3,600) to 5M tokens/day (Zilliz,
+2026; Azizi, 2026).
+
+Three community tools emerged to replace full-context injection with ranked
+retrieval:
+
+| Tool | Author | Approach | Token Savings | Source |
+|------|--------|----------|:-------------:|--------|
+| **[QMD](https://github.com/tobi/qmd)** | Tobi Lutke (Shopify) | BM25 + vector + RRF + local LLM cross-encoder re-ranking (Qwen3-Reranker-0.6B) | 96% ([Levine, 2026](https://x.com/andrarchy/status/2015783856087929254)) | [Casanova, 2026](https://www.josecasanova.com/blog/openclaw-qmd-memory) |
+| **[memsearch](https://github.com/zilliztech/memsearch)** | Zilliz (Milvus team) | BM25 + vector + RRF, top-k progressive disclosure | Not quantified | [Zilliz, 2026a](https://milvus.io/blog/we-extracted-openclaws-memory-system-and-opensourced-it-memsearch.md) |
+| **Clawdbot-Next TGAA** | [cyrilliu1974](https://github.com/cyrilliu1974/Clawdbot-Next) | Tiered Global Anchor Architecture + dynamic tool injection | 70-90% | [Azizi, 2026](https://medium.com/@reza.ra/openclaw-the-ai-agent-that-burns-through-your-api-budget-and-how-to-fix-it-050fc57552c9) |
+
+All three independently adopted **Reciprocal Rank Fusion** (Cormack et al.,
+2009) over OpenClaw's 70/30 weighted linear fusion — the same fusion
+algorithm Alaya uses in `retrieval/fusion.rs`. This convergence is notable:
+RRF does not require score normalization across heterogeneous retrievers,
+making it more robust than weighted sums when combining BM25 (unbounded
+scores) with vector cosine similarity (bounded [-1, 1]) (Qdrant, 2025;
+Weaviate, 2024). For a formal analysis, see Bruch et al. (2023), who
+demonstrated that convex combination outperforms RRF when tuning data is
+available, but RRF is superior in zero-shot settings — the typical case for
+agent memory where labeled relevance judgments do not exist.
+
+### The Structure Problem
+
+MEMORY.md conflates decisions, preferences, knowledge, and context into a
+single unstructured file. Users have independently invented structured memory
+file patterns to work around this:
+
+| Pattern | Author | Description | Source |
+|---------|--------|-------------|--------|
+| **`decision.md`** | Jesse Genet | Separate file for finalized decisions; user tells agent "that's a decision" to prevent re-litigation | [Genet, 2026](https://www.chatprd.ai/how-i-ai/jesse-genets-5-openclaw-agents-for-homeschooling-app-building-and-physical-inventories) |
+| **`working-context.md`** | Craig Fisher | Real-time context snapshot updated during complex tasks; survives compaction | [Fisher, 2026](https://medium.com/@cfisher2_85823/how-i-gave-my-openclaw-assistant-a-memory-that-actually-works-ba0a4dfc1da2) |
+| **Temporal metadata** (`[since:]`, `[learned:]`) | Craig Fisher | Bi-temporal markers tracking when facts became true vs. when the system learned them (inspired by Graphiti) | [Fisher, 2026](https://medium.com/@cfisher2_85823/how-i-gave-my-openclaw-assistant-a-memory-that-actually-works-ba0a4dfc1da2) |
+| **4-layer architecture** (SOUL.md + tacit.md + daily notes + PARA vault) | Oblivion Labz | Identity, tacit knowledge, temporal, and reference layers — all prepended to system prompt | [Oblivion Labz, 2026](https://dev.to/oblivionlabz/the-4-layer-memory-architecture-that-makes-ai-agents-actually-useful-long-term-50ep) |
+| **12-layer architecture** with activation/decay | [coolmanns](https://github.com/coolmanns/openclaw-memory-architecture) | SQLite + FTS5 knowledge graph, Hot/Warm/Cool activation tiers, cron-based nightly decay | [coolmanns, 2026](https://github.com/coolmanns/openclaw-memory-architecture) |
+| **TELOS system** (10 identity files) | Daniel Miessler, adapted by Dave Swift | Values, goals, background as structured Markdown in Obsidian vault | [Swift, 2026](https://daveswift.com/openclaw-obsidian-memory/) |
+
+Each of these patterns addresses a specific failure of unstructured flat-file
+memory. The table below maps each pattern to the Alaya component that
+provides the equivalent functionality natively:
+
+| User Workaround | Problem Addressed | Alaya Equivalent |
+|----------------|-------------------|-------------------|
+| `decision.md` | Decisions re-litigated across sessions | `SemanticNode` with `SemanticType::Fact`, persisted via `consolidate()` |
+| `working-context.md` | Context lost during compaction | Episodic store with `session_id` — full session context in SQLite, immune to context window limits |
+| Temporal metadata | No provenance on when facts were established | `created_at`, `last_corroborated`, `corroboration_count` on `semantic_nodes` |
+| Typed file layers | All memory types conflated in one file | Three stores: episodic (raw conversation), semantic (curated knowledge), implicit (preferences) |
+| Activation/decay tiers | Old memories outrank recent relevant ones | Bjork dual-strength model: `storage_strength` (how well learned) vs. `retrieval_strength` (how accessible) with exponential decay |
+| Knowledge graph plugin | Text similarity misses entity relationships | Native Hebbian graph overlay with `spread_activation()` and typed `LinkType` edges |
+| Forced memory contract | Agent forgets to save/search | Library API: `store_episode()` and `query()` are structural calls, not optional MCP tools the LLM may skip |
+
+### The Retrieval Problem
+
+Chawla (2026) demonstrated the canonical failure mode: on Monday the user
+mentions "Alice manages the auth team"; on Wednesday, asking "who handles
+auth permissions?" retrieves both memories via text similarity but cannot
+connect them — the system knows Alice exists and auth exists but cannot infer
+the relationship. The proposed fix (Cognee knowledge graph plugin) adds
+entity-relationship traversal as a bolt-on layer.
+
+Alaya addresses this natively through three mechanisms:
+
+1. **Typed semantic nodes** — `consolidate()` extracts
+   `SemanticType::Relationship` nodes that explicitly capture "Alice manages
+   auth team" as structured knowledge.
+2. **Hebbian graph links** — co-retrieved memories strengthen their mutual
+   links via LTP (Long-Term Potentiation), creating navigable association
+   paths.
+3. **Spreading activation** — retrieval propagates through the graph beyond
+   direct text matches, finding connected entities through relationship
+   traversal rather than pure embedding similarity (Collins & Loftus, 1975).
+
+### The Extraction Problem
+
+Fisher (2026) observed: "The extraction step is more important than the
+storage format. Getting facts out of conversations automatically is the
+game-changer." This validates Alaya's `ConsolidationProvider` trait, which
+delegates knowledge extraction to an LLM. The provider implements three
+methods — `extract_knowledge()`, `extract_impressions()`, and
+`detect_contradiction()` — making extraction a first-class concern rather
+than an afterthought.
+
+A community feature request for OpenClaw Memory v2
+([#28930](https://github.com/openclaw/openclaw/issues/28930)) proposed
+associative traversal, salience weighting, and access-based forgetting — all
+features Alaya already implements via `spread_activation()`,
+`node_strengths`, and `forget()` respectively. The accompanying CLS-M
+prototype (Complementary Learning Systems for Memory) achieved F1=44% on a
+45-query benchmark, finding that precision matters more than recall for
+context assembly — their recall was 65% but precision only 35%, meaning 65%
+of retrieved content was noise.
+
+### Synthesis
+
+The community has independently converged on the same architectural
+principles that Alaya implements as a unified system:
+
+- **Ranked retrieval over full-context injection** (QMD, memsearch, index1)
+- **Typed memory stores over flat files** (decision.md, SOUL.md, USER.md)
+- **Graph traversal over text similarity** (Cognee, coolmanns KG)
+- **Temporal decay over manual curation** (coolmanns activation tiers, Fisher
+  temporal metadata)
+- **Automatic extraction over manual logging** (Fisher, gonewx)
+
+The critical difference is **coherence**: the community builds these
+capabilities from stitched-together Markdown files, Python scripts, cron
+jobs, and plugins. Alaya provides them in a single Rust library with a
+unified SQLite schema, IMMEDIATE-mode transactions, WAL-mode concurrent
+access, and a coherent type system (`NodeRef` polymorphism across
+Episode/Semantic/Preference nodes).
+
+---
+
 ## How the Categories Fit Together
 
 ```mermaid
@@ -1981,3 +2114,91 @@ is the source of truth. Three strategies to bridge this gap:
 - Cormack, G. V., Clarke, C. L. A., & Buettcher, S. (2009).
   [Reciprocal Rank Fusion outperforms Condorcet and individual Rank Learning Methods](https://doi.org/10.1145/1571941.1572114).
   *SIGIR 2009*.
+  ([Author PDF](https://cormack.uwaterloo.ca/cormacksigir09-rrf.pdf))
+
+- Bruch, S., Gai, S., & Ingber, A. (2023).
+  [An Analysis of Fusion Functions for Hybrid Retrieval](https://doi.org/10.1145/3596512).
+  *ACM Transactions on Information Systems*, 42(20), 1-35.
+  ([arXiv](https://arxiv.org/abs/2210.11934))
+
+- Zhang, Y., Zhao, X., Wang, Z. Z., Yang, C., Wei, J., & Wu, T. (2025).
+  [cAST: Enhancing Code Retrieval-Augmented Generation with Structural Chunking via Abstract Syntax Tree](https://doi.org/10.18653/v1/2025.findings-emnlp.430).
+  *Findings of EMNLP 2025*, 8106-8116.
+
+### Community Tools and Practitioner Sources
+
+- Zilliz (2026a).
+  [We Extracted OpenClaw's Memory System and Open-Sourced It (memsearch)](https://milvus.io/blog/we-extracted-openclaws-memory-system-and-opensourced-it-memsearch.md).
+  *Milvus Blog*.
+
+- Zilliz (2026b).
+  [Why AI Agents like OpenClaw Burn Through Tokens and How to Cut Costs](https://milvus.io/blog/why-ai-agents-like-openclaw-burn-through-tokens-and-how-to-cut-costs.md).
+  *Milvus Blog*.
+
+- Zilliz (2026c).
+  [Persistent Memory for Claude Code: memsearch ccplugin](https://milvus.io/blog/adding-persistent-memory-to-claude-code-with-the-lightweight-memsearch-plugin.md).
+  *Milvus Blog*.
+
+- Lutke, T. (2026).
+  [QMD: Query Markup Documents](https://github.com/tobi/qmd).
+  GitHub. 11.1K stars. MIT License.
+
+- Casanova, J. (2026).
+  [How to Fix OpenClaw's Memory Search with QMD](https://www.josecasanova.com/blog/openclaw-qmd-memory).
+  *josecasanova.com*.
+
+- Levine, A. (2026).
+  [QMD saved me 96% on tokens with clawdbot](https://x.com/andrarchy/status/2015783856087929254).
+  X/Twitter.
+
+- Genet, J. (2026).
+  [5 OpenClaw Agents for Homeschooling, App Building, and Physical Inventories](https://www.chatprd.ai/how-i-ai/jesse-genets-5-openclaw-agents-for-homeschooling-app-building-and-physical-inventories).
+  *ChatPRD: How I AI*.
+  ([Also on Lenny's Newsletter](https://www.lennysnewsletter.com/p/5-openclaw-agents-run-my-home-finances))
+
+- Fisher, C. (2026).
+  [How I Gave My OpenClaw Assistant a Memory That Actually Works](https://medium.com/@cfisher2_85823/how-i-gave-my-openclaw-assistant-a-memory-that-actually-works-ba0a4dfc1da2).
+  *Medium*.
+
+- Chawla, A. (2026).
+  [OpenClaw's Memory Is Broken. Here's how to fix it](https://blog.dailydoseofds.com/p/openclaws-memory-is-broken-heres).
+  *DailyDoseOfDS (Substack)*.
+
+- Azizi, R. (2026).
+  [OpenClaw: The AI Agent That Burns Through Your API Budget (And How to Fix It)](https://medium.com/@reza.ra/openclaw-the-ai-agent-that-burns-through-your-api-budget-and-how-to-fix-it-050fc57552c9).
+  *Medium*.
+
+- Oblivion Labz (2026).
+  [The 4-Layer Memory Architecture That Makes AI Agents Actually Useful Long-Term](https://dev.to/oblivionlabz/the-4-layer-memory-architecture-that-makes-ai-agents-actually-useful-long-term-50ep).
+  *DEV Community*.
+
+- coolmanns (2026).
+  [openclaw-memory-architecture: 12-layer memory architecture for OpenClaw agents](https://github.com/coolmanns/openclaw-memory-architecture).
+  GitHub.
+
+- Swift, D. (2026).
+  [OpenClaw + Obsidian: Real Persistent Memory for Your AI Agent](https://daveswift.com/openclaw-obsidian-memory/).
+  *daveswift.com*.
+
+- gonewx (2026).
+  [I tried 3 different ways to fix Claude Code's memory problem](https://dev.to/gonewx/i-tried-3-different-ways-to-fix-claude-codes-memory-problem-heres-what-actually-worked-30fk).
+  *DEV Community*.
+
+- Agent Native (2026).
+  [OpenClaw Memory Systems That Don't Forget](https://agentnativedev.medium.com/openclaw-memory-systems-that-dont-forget-qmd-mem0-cognee-obsidian-4ad96c02c9cc).
+  *Medium*.
+
+- Sandstrom, J. (2025).
+  [Vector Search is not enough: Why I added BM25 (Hybrid Search) to my AI Memory Server](https://dev.to/jakob_sandstrm_a11b3056c/vector-search-is-not-enough-why-i-added-bm25-hybrid-search-to-my-ai-memory-server-3h3l).
+  *DEV Community*.
+
+### Hybrid Search Vendor References
+
+- Weaviate (2024).
+  [Unlocking the Power of Hybrid Search — A Deep Dive into Fusion Algorithms](https://weaviate.io/blog/hybrid-search-fusion-algorithms).
+
+- Qdrant (2025).
+  [Hybrid Search Revamped — Building with Qdrant's Query API](https://qdrant.tech/articles/hybrid-search/).
+
+- Pinecone (2024).
+  [Getting Started with Hybrid Search](https://www.pinecone.io/learn/hybrid-search-intro/).
