@@ -32,12 +32,11 @@
     citecolor=blue!70!black,
     urlcolor=blue!70!black,
     pdfauthor={Albert K.T. Hui},
-    pdftitle={Memory as Process: A Taxonomy of Memory Architectures for LLM-Based Agents},
+    pdftitle={A Taxonomy of Memory Architectures for LLM-Based Agents},
 }
 
 % ---- Custom commands ----
 \newcommand{\sys}[1]{\textsc{#1}}
-\newcommand{\alaya}{\sys{Alaya}}
 \newcommand{\eg}{\emph{e.g.}}
 \newcommand{\ie}{\emph{i.e.}}
 \newcommand{\etal}{\emph{et~al.}}
@@ -52,7 +51,7 @@
 
 \begin{document}
 
-\title{Memory as Process: A Taxonomy of Memory Architectures\\for LLM-Based Agents}
+\title{A Taxonomy of Memory Architectures\\for LLM-Based Agents}
 
 \author{
     \IEEEauthorblockN{Albert K.T. Hui}
@@ -77,7 +76,7 @@ Large language model (LLM) agents increasingly require persistent memory
 that goes beyond context-window chat history. Over 90 memory systems have
 emerged since 2023, ranging from flat-file approaches (MEMORY.md) through
 knowledge-graph engines (Zep/Graphiti, HippoRAG) to cognitively inspired
-architectures (SYNAPSE, Alaya). Yet no unified taxonomy captures the full
+architectures (SYNAPSE~\cite{jiang2026synapse}, LightMem~\cite{fang2025lightmem}). Yet no unified taxonomy captures the full
 landscape. We survey these systems along four axes drawn from cognitive
 science and information retrieval: (1) memory \emph{structure} (episodic,
 semantic, procedural, implicit), mapped to the CoALA framework; (2)
@@ -88,8 +87,8 @@ behavioral patterns crystallize from interaction). We ground this taxonomy
 in neuroscience (Hebbian learning, complementary learning systems, Bjork
 dual-strength forgetting) and Yogac\=ara Buddhist psychology
 (\emph{alaya-vij\~n\=ana}, \emph{v\=asan\=a}, \emph{b\=ija}), showing
-that both traditions converge on the insight that memory is a dynamic
-process, not a static store. We identify five convergent design principles
+that both traditions converge on the same structural
+principles for memory architecture. We identify five convergent design principles
 emerging independently in the practitioner community, catalog critical
 gaps (principled forgetting, preference emergence, adaptive retrieval),
 and propose a research agenda for the next generation of agent memory

@@ -98,9 +98,9 @@ Following Gao~\etal~\cite{gao2023rag}, we classify retrieval as:
     Examples: Generative Agents (recency $\times$ importance $\times$
     relevance), Mem0 (vector + graph + priority).
     \item \textbf{Modular RAG:} Composable pipeline with independent
-    retrieval, fusion, and reranking stages. Examples: Alaya (BM25 +
-    vector + graph + RRF), Zep/Graphiti (cosine + BM25 + graph + RRF
-    + MMR).
+    retrieval, fusion, and reranking stages. Examples: Zep/Graphiti
+    (cosine + BM25 + graph + RRF + MMR), SYNAPSE (multi-signal with
+    activation-based scoring).
 \end{itemize}
 
 \subsection{Axis 3: Memory Lifecycle}
@@ -130,8 +130,9 @@ We propose this as a new axis not covered by existing surveys:
     One-shot extraction, brittle.
     \item \textbf{Explicit opinion tracking:} Hindsight. Confidence-scored
     beliefs that evolve.
-    \item \textbf{Emergent crystallization:} Alaya. Preferences crystallize
-    from accumulated impressions without LLM involvement.
+    \item \textbf{Emergent crystallization:} Preferences crystallize
+    from accumulated impressions without per-interaction LLM involvement.
+    Rare; only 4.5\% of surveyed systems.
 \end{itemize}
 
 \medskip

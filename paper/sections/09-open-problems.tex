@@ -17,12 +17,13 @@ curves~\cite{ebbinghaus1885}, Mem0 uses exponential decay, and
 Generative Agents~\cite{park2023generative} weight memories by
 recency. SYNAPSE~\cite{jiang2026synapse} introduces temporal decay
 with lateral inhibition, providing competitive suppression beyond
-simple time-based fading. Alaya implements the Bjork dual-strength
-model~\cite{bjork1992}, which distinguishes storage strength (how
-deeply encoded) from retrieval strength (how currently accessible),
-combined with retrieval-induced forgetting~\cite{anderson1994} in
-which retrieving one memory actively suppresses competitors sharing
-the same cues. Despite this diversity of approaches, no empirical
+simple time-based fading. The most principled approach is the Bjork
+dual-strength model~\cite{bjork1992}, which distinguishes storage
+strength (how deeply encoded) from retrieval strength (how currently
+accessible), combined with retrieval-induced
+forgetting~\cite{anderson1994} in which retrieving one memory actively
+suppresses competitors sharing the same cues. Despite this diversity
+of approaches, no empirical
 comparison of forgetting models exists on standard agent benchmarks
 such as LoCoMo or LongMemEval. Three critical questions remain
 unanswered: whether principled forgetting improves downstream task
@@ -42,8 +43,7 @@ identify and store explicit preference statements. This approach is
 fast and produces interpretable outputs but is brittle (preferences
 that are implied rather than stated are missed), expensive (each
 extraction consumes inference tokens), and prone to recency bias.
-The alternative is emergent crystallization, as implemented through
-Alaya's vasana (perfuming) mechanism: individual impressions
+The alternative is emergent crystallization: individual impressions
 accumulate over many interactions, and preferences crystallize
 organically when sufficient evidence converges, without any
 per-interaction LLM call. Hindsight~\cite{latimer2025hindsight}
@@ -65,8 +65,7 @@ whether a vector database or a knowledge graph. Episodic-to-semantic
 consolidation---the process by which raw conversational episodes are
 distilled into stable knowledge representations---remains rare
 despite strong neuroscientific motivation. Systems that implement
-consolidation include Alaya (CLS-inspired interleaved
-replay~\cite{mcclelland1995}), Generative
+consolidation include Generative
 Agents~\cite{park2023generative} (periodic reflection that
 synthesizes higher-order observations),
 SYNAPSE~\cite{jiang2026synapse} (activation-based promotion from
@@ -92,8 +91,8 @@ Retrieval pipelines in most surveyed systems are static: a fixed
 sequence of embedding lookup, optional reranking, and top-$k$
 truncation that does not change regardless of how many queries the
 system processes. Three alternatives have emerged. First, Hebbian
-graph approaches---implemented in Alaya and
-SYNAPSE~\cite{jiang2026synapse}---reshape associative pathways
+graph approaches---implemented in
+SYNAPSE~\cite{jiang2026synapse} and similar systems---reshape associative pathways
 through use: co-retrieved memories strengthen their mutual links
 (LTP), while unused associations decay (LTD), producing emergent
 small-world topology without explicit supervision. Second, RL-learned

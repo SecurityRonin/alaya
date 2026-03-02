@@ -70,7 +70,7 @@ those impressions deliberatively, producing structured understanding
 over time.  In AI memory architectures, this corresponds to the
 episodic--semantic separation found in systems such as Generative
 Agents~\cite{park2023generative}, SYNAPSE~\cite{jiang2026synapse}, and
-\alaya{}.
+LightMem~\cite{fang2025lightmem}.
 
 Third, the Yogac\=ara model treats memory as inherently
 \emph{processual}.  Seeds do not simply sit in the storehouse; they
@@ -102,7 +102,7 @@ Learning Systems theory formalized in 1995~\cite{mcclelland1995}:
 hippocampal replays produce neocortical representations that differ in
 kind from the original episodes.  Among the systems we survey,
 those that implement true consolidation (Generative Agents,
-SYNAPSE, HippoRAG~\cite{gutierrez2024hipporag}, \alaya{}) produce
+SYNAPSE, HippoRAG~\cite{gutierrez2024hipporag}, LightMem~\cite{fang2025lightmem}) produce
 semantic nodes structurally distinct from their episodic sources.  The
 many systems that store only raw episodes or only extracted facts
 implicitly assume homogeneous ripening---an assumption the Yogac\=ara
@@ -120,9 +120,8 @@ single LLM call per interaction.  These systems conflate signal with
 noise: a user mentioning Python once is treated identically to a user
 who has discussed Python across fifty sessions.  The Yogac\=ara model
 predicts that systems employing gradual accumulation with a
-crystallization threshold---as \alaya{} does with its five-impression
-minimum before preference formation---will produce more stable and
-accurate preference representations.
+crystallization threshold will produce more stable and
+accurate preference representations than one-shot extraction.
 
 \paragraph{Transformation of the basis (\emph{\=a\'sraya-par\=av\d{r}tti},
 \cjk{轉依})}
@@ -138,9 +137,9 @@ This predicts that memory systems require periodic reorganization
 operations beyond append-only growth: deduplication, contradiction
 resolution, and decay of unreinforced entries.  Most systems in our
 survey are append-only; the few that implement transformation operations
-(\alaya{}'s \texttt{transform()} with deduplication, link pruning, and
-preference decay; Letta's~\cite{packer2023memgpt} sleep-time
-consolidation) align with the Yogac\=ara prediction.  The absence of
+(Letta's~\cite{packer2023memgpt} sleep-time
+consolidation; EverMemOS's encoding-consolidation-retrieval pipeline)
+align with the Yogac\=ara prediction.  The absence of
 transformation in most architectures is, from this perspective, a
 design gap rather than a simplification.
 
@@ -157,8 +156,8 @@ metadata at encoding time (topics, sentiment, entities, conversational
 role) and using that metadata at retrieval time will outperform
 context-free similarity search.  Systems that store episode context and
 use it for reranking---such as Generative Agents (recency $\times$
-importance $\times$ relevance) and \alaya{} (topic overlap, entity
-overlap, sentiment proximity)---instantiate this principle.
+importance $\times$ relevance) and Hindsight~\cite{latimer2025hindsight}
+(opinion context, belief evolution)---instantiate this principle.
 
 \subsection{Convergence with Neuroscience}
 \label{sec:yogacara-neuroscience}
