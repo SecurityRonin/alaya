@@ -156,6 +156,7 @@ impl AlayaMcp {
             embedding: None,
             context: alaya::QueryContext::default(),
             max_results: params.max_results.unwrap_or(5),
+            boost_categories: None,
         };
 
         match self.with_store(|s| s.query(&query)) {
@@ -224,6 +225,7 @@ impl AlayaMcp {
                 .and_then(SemanticType::from_str),
             min_confidence: params.min_confidence,
             limit: params.limit.or(Some(20)),
+            category: None,
         };
 
         match self.with_store(|s| s.knowledge(Some(filter))) {

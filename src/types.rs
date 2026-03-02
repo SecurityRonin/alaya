@@ -19,6 +19,9 @@ pub struct ImpressionId(pub i64);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct LinkId(pub i64);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CategoryId(pub i64);
+
 // ---------------------------------------------------------------------------
 // Node reference — polymorphic pointer into any store
 // ---------------------------------------------------------------------------
@@ -29,6 +32,7 @@ pub enum NodeRef {
     Episode(EpisodeId),
     Semantic(NodeId),
     Preference(PreferenceId),
+    Category(CategoryId),
 }
 
 impl NodeRef {
@@ -37,6 +41,7 @@ impl NodeRef {
             NodeRef::Episode(_) => "episode",
             NodeRef::Semantic(_) => "semantic",
             NodeRef::Preference(_) => "preference",
+            NodeRef::Category(_) => "category",
         }
     }
 
@@ -44,7 +49,8 @@ impl NodeRef {
         match self {
             NodeRef::Episode(EpisodeId(id))
             | NodeRef::Semantic(NodeId(id))
-            | NodeRef::Preference(PreferenceId(id)) => *id,
+            | NodeRef::Preference(PreferenceId(id))
+            | NodeRef::Category(CategoryId(id)) => *id,
         }
     }
 
@@ -53,6 +59,7 @@ impl NodeRef {
             "episode" => Some(NodeRef::Episode(EpisodeId(id))),
             "semantic" => Some(NodeRef::Semantic(NodeId(id))),
             "preference" => Some(NodeRef::Preference(PreferenceId(id))),
+            "category" => Some(NodeRef::Category(CategoryId(id))),
             _ => None,
         }
     }
@@ -130,6 +137,7 @@ pub enum LinkType {
     Entity,
     Causal,
     CoRetrieval,
+    MemberOf,
 }
 
 impl LinkType {
@@ -140,6 +148,7 @@ impl LinkType {
             LinkType::Entity => "entity",
             LinkType::Causal => "causal",
             LinkType::CoRetrieval => "co_retrieval",
+            LinkType::MemberOf => "member_of",
         }
     }
 
@@ -150,6 +159,7 @@ impl LinkType {
             "entity" => Some(LinkType::Entity),
             "causal" => Some(LinkType::Causal),
             "co_retrieval" => Some(LinkType::CoRetrieval),
+            "member_of" => Some(LinkType::MemberOf),
             _ => None,
         }
     }
@@ -267,6 +277,22 @@ pub struct Link {
 }
 
 // ---------------------------------------------------------------------------
+// Category types (emergent ontology)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Category {
+    pub id: CategoryId,
+    pub label: String,
+    pub prototype_node: NodeId,
+    pub member_count: u32,
+    pub centroid_embedding: Option<Vec<f32>>,
+    pub created_at: i64,
+    pub last_updated: i64,
+    pub stability: f32,
+}
+
+// ---------------------------------------------------------------------------
 // Node strength (Bjork dual-strength model)
 // ---------------------------------------------------------------------------
 
@@ -289,6 +315,7 @@ pub struct Query {
     pub embedding: Option<Vec<f32>>,
     pub context: QueryContext,
     pub max_results: usize,
+    pub boost_categories: Option<Vec<String>>,
 }
 
 impl Query {
@@ -306,6 +333,7 @@ impl Query {
             embedding: None,
             context: QueryContext::default(),
             max_results: 5,
+            boost_categories: None,
         }
     }
 }
@@ -336,6 +364,7 @@ pub struct KnowledgeFilter {
     pub node_type: Option<SemanticType>,
     pub min_confidence: Option<f32>,
     pub limit: Option<usize>,
+    pub category: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -358,6 +387,7 @@ pub struct ConsolidationReport {
     pub episodes_processed: u32,
     pub nodes_created: u32,
     pub links_created: u32,
+    pub categories_assigned: u32,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -373,6 +403,9 @@ pub struct TransformationReport {
     pub links_pruned: u32,
     pub preferences_decayed: u32,
     pub impressions_pruned: u32,
+    pub categories_discovered: u32,
+    pub categories_merged: u32,
+    pub categories_dissolved: u32,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -492,6 +525,28 @@ mod tests {
         assert_eq!(q.text, "hello world");
         assert_eq!(q.max_results, 5);
         assert!(q.embedding.is_none());
+    }
+
+    #[test]
+    fn test_category_id_newtype() {
+        let id = CategoryId(42);
+        assert_eq!(id.0, 42);
+        let id2 = CategoryId(42);
+        assert_eq!(id, id2);
+    }
+
+    #[test]
+    fn test_node_ref_category_roundtrip() {
+        let nr = NodeRef::Category(CategoryId(5));
+        assert_eq!(nr.type_str(), "category");
+        assert_eq!(nr.id(), 5);
+        assert_eq!(NodeRef::from_parts("category", 5), Some(nr));
+    }
+
+    #[test]
+    fn test_link_type_member_of_roundtrip() {
+        assert_eq!(LinkType::MemberOf.as_str(), "member_of");
+        assert_eq!(LinkType::from_str("member_of"), Some(LinkType::MemberOf));
     }
 
     #[test]

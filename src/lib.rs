@@ -558,6 +558,7 @@ mod tests {
             embedding: None,
             context: QueryContext::default(),
             max_results: 5,
+            boost_categories: None,
         });
         assert!(result.is_err());
         assert!(
@@ -574,6 +575,7 @@ mod tests {
             embedding: None,
             context: QueryContext::default(),
             max_results: 0,
+            boost_categories: None,
         });
         assert!(result.is_err());
         assert!(

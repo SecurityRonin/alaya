@@ -44,6 +44,10 @@ pub fn forget(conn: &Connection) -> Result<ForgettingReport> {
                 // Preferences are handled by transformation/decay, not forgetting
                 continue;
             }
+            NodeRef::Category(_) => {
+                // Categories are managed by transformation (merge/dissolve), not forgetting
+                continue;
+            }
         }
         // Clean up the strength record
         conn.execute(

@@ -128,6 +128,7 @@ mod tests {
                 ..Default::default()
             },
             max_results: 5,
+            boost_categories: None,
         }).unwrap();
 
         assert!(!results.is_empty());
