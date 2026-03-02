@@ -35,7 +35,7 @@ fn init_db(conn: &Connection) -> Result<()> {
     conn.execute_batch("PRAGMA journal_mode = WAL;")?;
     conn.execute_batch("PRAGMA foreign_keys = ON;")?;
     conn.execute_batch("PRAGMA synchronous = NORMAL;")?;
-    conn.execute_batch("PRAGMA user_version = 1;")?;
+    conn.execute_batch("PRAGMA user_version = 2;")?;
 
     conn.execute_batch(
         "
@@ -179,8 +179,36 @@ fn init_db(conn: &Connection) -> Result<()> {
             last_accessed      INTEGER NOT NULL,
             PRIMARY KEY (node_type, node_id)
         );
+
+        -- =================================================================
+        -- Categories (emergent ontology)
+        -- =================================================================
+        CREATE TABLE IF NOT EXISTS categories (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            label               TEXT    NOT NULL,
+            prototype_node_id   INTEGER REFERENCES semantic_nodes(id),
+            member_count        INTEGER NOT NULL DEFAULT 0,
+            centroid_embedding  BLOB,
+            created_at          INTEGER NOT NULL,
+            last_updated        INTEGER NOT NULL,
+            stability           REAL    NOT NULL DEFAULT 0.0
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_categories_stability
+            ON categories(stability);
         ",
     )?;
+
+    // Migration v1->v2: add category_id to semantic_nodes
+    let has_category: bool = conn
+        .prepare("SELECT category_id FROM semantic_nodes LIMIT 0")
+        .is_ok();
+    if !has_category {
+        conn.execute_batch(
+            "ALTER TABLE semantic_nodes ADD COLUMN category_id INTEGER REFERENCES categories(id);
+             CREATE INDEX IF NOT EXISTS idx_semantic_category ON semantic_nodes(category_id);"
+        )?;
+    }
 
     Ok(())
 }
@@ -209,6 +237,7 @@ mod tests {
         assert!(tables.contains(&"embeddings".to_string()));
         assert!(tables.contains(&"links".to_string()));
         assert!(tables.contains(&"node_strengths".to_string()));
+        assert!(tables.contains(&"categories".to_string()));
     }
 
     #[test]
@@ -257,7 +286,7 @@ mod tests {
         let version: i64 = conn
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 1, "schema version should be 1 after init");
+        assert_eq!(version, 2, "schema version should be 2 after init");
     }
 
     #[test]
@@ -275,6 +304,29 @@ mod tests {
             .query_row("SELECT count(*) FROM episodes", [], |r| r.get(0))
             .unwrap();
         assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn test_categories_table_exists() {
+        let conn = open_memory_db().unwrap();
+        let tables: Vec<String> = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+        assert!(tables.contains(&"categories".to_string()));
+    }
+
+    #[test]
+    fn test_semantic_nodes_has_category_id() {
+        let conn = open_memory_db().unwrap();
+        conn.execute(
+            "INSERT INTO semantic_nodes (content, node_type, confidence, created_at, last_corroborated, category_id)
+             VALUES ('test', 'fact', 0.5, 1000, 1000, NULL)",
+            [],
+        ).unwrap();
     }
 
     #[test]
