@@ -244,6 +244,38 @@ impl AlayaStore {
         }
     }
 
+    /// List emergent categories, optionally filtered by minimum stability.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let store = alaya::AlayaStore::open_in_memory().unwrap();
+    /// let cats = store.categories(None).unwrap();
+    /// assert!(cats.is_empty());
+    /// ```
+    pub fn categories(&self, min_stability: Option<f32>) -> Result<Vec<Category>> {
+        store::categories::list_categories(&self.conn, min_stability)
+    }
+
+    /// Get the category for a semantic node, if assigned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use alaya::{AlayaStore, NodeId};
+    ///
+    /// let store = AlayaStore::open_in_memory().unwrap();
+    /// let cat = store.node_category(NodeId(1)).unwrap();
+    /// assert!(cat.is_none());
+    /// ```
+    pub fn node_category(&self, node_id: NodeId) -> Result<Option<Category>> {
+        match store::categories::get_node_category(&self.conn, node_id) {
+            Ok(cat) => Ok(cat),
+            Err(AlayaError::NotFound(_)) => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+
     /// Get graph neighbors of a node up to `depth` hops.
     ///
     /// # Examples
@@ -1041,6 +1073,24 @@ mod tests {
         let report = store.forget().unwrap();
         assert!(report.nodes_archived > 0, "node with low storage+retrieval should be archived");
         assert_eq!(store.status().unwrap().episode_count, 0, "archived episode should be deleted");
+    }
+
+    // -----------------------------------------------------------------------
+    // Task 7: categories() and node_category() API tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_categories_api() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        let cats = store.categories(None).unwrap();
+        assert!(cats.is_empty());
+    }
+
+    #[test]
+    fn test_node_category_api() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        let result = store.node_category(NodeId(999)).unwrap();
+        assert!(result.is_none());
     }
 
     #[test]
