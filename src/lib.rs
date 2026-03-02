@@ -231,6 +231,15 @@ impl AlayaStore {
                 if let Some(min_conf) = f.min_confidence {
                     all.retain(|n| n.confidence >= min_conf);
                 }
+                if let Some(ref cat_label) = f.category {
+                    all.retain(|n| {
+                        store::categories::get_node_category(&self.conn, n.id)
+                            .ok()
+                            .flatten()
+                            .map(|c| c.label == *cat_label)
+                            .unwrap_or(false)
+                    });
+                }
                 all.sort_by(|a, b| {
                     b.confidence
                         .partial_cmp(&a.confidence)
@@ -1091,6 +1100,48 @@ mod tests {
         let store = AlayaStore::open_in_memory().unwrap();
         let result = store.node_category(NodeId(999)).unwrap();
         assert!(result.is_none());
+    }
+
+    // -----------------------------------------------------------------------
+    // Task 8: Knowledge filter by category
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_knowledge_filter_by_category() {
+        let store = AlayaStore::open_in_memory().unwrap();
+
+        // Store 5 episodes and consolidate to create a semantic node
+        let mut ep_ids = Vec::new();
+        for i in 0..5 {
+            let id = store.store_episode(&make_new_episode(
+                &format!("category filter ep {}", i),
+                "s1",
+                1000 + i * 100,
+            )).unwrap();
+            ep_ids.push(id);
+        }
+
+        let provider = MockProvider::with_knowledge(vec![
+            NewSemanticNode {
+                content: "User likes Rust".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.9,
+                source_episodes: ep_ids,
+                embedding: None,
+            },
+        ]);
+        store.consolidate(&provider).unwrap();
+
+        // Filter by a category that doesn't exist — should return empty
+        let filtered = store.knowledge(Some(KnowledgeFilter {
+            category: Some("nonexistent-cat".to_string()),
+            ..Default::default()
+        })).unwrap();
+        assert!(filtered.is_empty(), "filtering by nonexistent category should return empty");
+
+        // Without category filter, should find the node
+        let all = store.knowledge(None).unwrap();
+        assert!(!all.is_empty(), "without filter should find nodes");
     }
 
     #[test]
