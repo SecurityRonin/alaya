@@ -15,6 +15,10 @@ struct TestProvider {
 }
 
 impl TestProvider {
+    fn with_knowledge(knowledge: Vec<NewSemanticNode>) -> Self {
+        Self { knowledge, impressions: vec![] }
+    }
+
     fn with_impressions(impressions: Vec<NewImpression>) -> Self {
         Self { knowledge: vec![], impressions }
     }
@@ -544,4 +548,159 @@ fn test_memory_decay_and_revival() {
         !results.is_empty(),
         "revived memories should still be queryable after further decay"
     );
+}
+
+// ---------------------------------------------------------------------------
+// Test 8: Emergent category lifecycle
+// ---------------------------------------------------------------------------
+
+/// Test the full emergent category lifecycle:
+/// 1. Store episodes with embeddings
+/// 2. Consolidate -> creates semantic nodes (no categories yet)
+/// 3. Transform -> discovers categories from clustered nodes
+/// 4. Second consolidation -> assigns new nodes to existing categories
+#[test]
+fn test_emergent_category_lifecycle() {
+    let store = AlayaStore::open_in_memory().unwrap();
+
+    // Phase 1: Store episodes about cooking
+    for i in 0..5 {
+        store.store_episode(&NewEpisode {
+            content: format!("I made {} for dinner",
+                ["pasta", "risotto", "gnocchi", "lasagna", "ravioli"][i]),
+            role: Role::User,
+            session_id: "s1".to_string(),
+            timestamp: 1000 + (i as i64) * 100,
+            context: EpisodeContext::default(),
+            embedding: None,
+        }).unwrap();
+    }
+
+    // Phase 2: Consolidate with provider that returns semantic nodes with embeddings.
+    // Embeddings are chosen so that:
+    //   - pairwise cosine similarity is in [0.7, 0.95) -> clusters together
+    //   - no pair exceeds 0.95 -> avoids dedup merging
+    //   - source_episodes are non-overlapping -> avoids link conflicts
+    let provider = TestProvider::with_knowledge(vec![
+        NewSemanticNode {
+            content: "User cooks pasta dishes".to_string(),
+            node_type: SemanticType::Fact,
+            confidence: 0.9,
+            source_episodes: vec![EpisodeId(1)],
+            embedding: Some(vec![0.8, 0.3, 0.1]),
+        },
+        NewSemanticNode {
+            content: "User likes Italian food".to_string(),
+            node_type: SemanticType::Fact,
+            confidence: 0.85,
+            source_episodes: vec![EpisodeId(2)],
+            embedding: Some(vec![0.4, 0.8, 0.2]),
+        },
+        NewSemanticNode {
+            content: "User knows many Italian recipes".to_string(),
+            node_type: SemanticType::Concept,
+            confidence: 0.8,
+            source_episodes: vec![EpisodeId(3)],
+            embedding: Some(vec![0.6, 0.5, 0.5]),
+        },
+        NewSemanticNode {
+            content: "User enjoys cooking dinner".to_string(),
+            node_type: SemanticType::Fact,
+            confidence: 0.75,
+            source_episodes: vec![EpisodeId(4)],
+            embedding: Some(vec![0.3, 0.6, 0.7]),
+        },
+    ]);
+    let cr = store.consolidate(&provider).unwrap();
+    assert_eq!(cr.nodes_created, 4);
+    // No categories exist yet -- consolidation doesn't create them
+    assert_eq!(cr.categories_assigned, 0);
+    assert!(store.categories(None).unwrap().is_empty(),
+        "no categories should exist before transform");
+
+    // Phase 3: Transform discovers categories from clustered semantic nodes
+    let tr = store.transform().unwrap();
+    assert!(tr.categories_discovered >= 1,
+        "transform should discover at least 1 category from 4 similar nodes");
+
+    let cats = store.categories(None).unwrap();
+    assert!(!cats.is_empty(), "should have categories after transform");
+    let cat = &cats[0];
+    assert!(cat.member_count >= 3,
+        "category should have at least 3 members (cluster minimum)");
+
+    // Phase 4: Second consolidation -- new nodes should be assigned to existing category
+    // Store more episodes for the second batch
+    for i in 5..10 {
+        store.store_episode(&NewEpisode {
+            content: format!("cooking episode {}", i),
+            role: Role::User,
+            session_id: "s2".to_string(),
+            timestamp: 2000 + (i as i64) * 100,
+            context: EpisodeContext::default(),
+            embedding: None,
+        }).unwrap();
+    }
+
+    let provider2 = TestProvider::with_knowledge(vec![
+        NewSemanticNode {
+            content: "User experiments with Italian recipes".to_string(),
+            node_type: SemanticType::Fact,
+            confidence: 0.85,
+            source_episodes: vec![EpisodeId(6), EpisodeId(7)],
+            embedding: Some(vec![0.55, 0.55, 0.35]),  // similar to cooking cluster centroid
+        },
+    ]);
+    let cr2 = store.consolidate(&provider2).unwrap();
+    assert_eq!(cr2.nodes_created, 1);
+    assert_eq!(cr2.categories_assigned, 1,
+        "new node with similar embedding should be assigned to existing cooking category");
+
+    // Verify the node was actually assigned
+    let knowledge = store.knowledge(None).unwrap();
+    let new_node = knowledge.iter().find(|n| n.content == "User experiments with Italian recipes").unwrap();
+    let node_cat = store.node_category(new_node.id).unwrap();
+    assert!(node_cat.is_some(), "new node should have a category");
+}
+
+// ---------------------------------------------------------------------------
+// Test 9: Category survives transform cycles (stability tracking)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_category_survives_transform_cycles() {
+    let store = AlayaStore::open_in_memory().unwrap();
+
+    // Create a batch of episodes and consolidate
+    for i in 0..5 {
+        store.store_episode(&NewEpisode {
+            content: format!("Rust memory management topic {}", i),
+            role: Role::User,
+            session_id: "s1".to_string(),
+            timestamp: 1000 + (i as i64) * 100,
+            context: EpisodeContext::default(),
+            embedding: None,
+        }).unwrap();
+    }
+
+    // Embeddings chosen so pairwise cosine sim is in [0.7, 0.95) -- clusters but no dedup
+    let provider = TestProvider::with_knowledge(vec![
+        NewSemanticNode { content: "Rust ownership".to_string(), node_type: SemanticType::Concept, confidence: 0.9, source_episodes: vec![EpisodeId(1)], embedding: Some(vec![0.3, 0.8, 0.1]) },
+        NewSemanticNode { content: "Rust borrowing".to_string(), node_type: SemanticType::Concept, confidence: 0.85, source_episodes: vec![EpisodeId(2)], embedding: Some(vec![0.1, 0.7, 0.6]) },
+        NewSemanticNode { content: "Rust lifetimes".to_string(), node_type: SemanticType::Concept, confidence: 0.8, source_episodes: vec![EpisodeId(3)], embedding: Some(vec![0.4, 0.6, 0.5]) },
+    ]);
+    store.consolidate(&provider).unwrap();
+
+    // First transform: discovers category
+    store.transform().unwrap();
+    let cats = store.categories(None).unwrap();
+    assert!(!cats.is_empty());
+    let initial_stability = cats[0].stability;
+
+    // Second transform: should increment stability
+    store.transform().unwrap();
+    let cats = store.categories(None).unwrap();
+    assert!(!cats.is_empty());
+    assert!(cats[0].stability > initial_stability,
+        "stability should increase after surviving a transform cycle");
 }
