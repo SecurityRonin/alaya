@@ -1,9 +1,9 @@
-use rusqlite::Connection;
 use crate::error::Result;
-use crate::types::*;
-use crate::retrieval::{bm25, vector, fusion, rerank};
 use crate::graph::activation;
+use crate::retrieval::{bm25, fusion, rerank, vector};
 use crate::store::{episodic, strengths};
+use crate::types::*;
+use rusqlite::Connection;
 
 /// Execute a full hybrid retrieval query.
 pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemory>> {
@@ -28,7 +28,9 @@ pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemor
     };
 
     // Graph: seed from BM25 + vector top results, spread 1 hop
-    let seed_nodes: Vec<NodeRef> = bm25_results.iter().take(3)
+    let seed_nodes: Vec<NodeRef> = bm25_results
+        .iter()
+        .take(3)
         .chain(vector_results.iter().take(3))
         .map(|(nr, _)| *nr)
         .collect();
@@ -61,11 +63,16 @@ pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemor
         .take(fetch_limit)
         .filter_map(|(node_ref, score)| {
             match node_ref {
-                NodeRef::Episode(eid) => {
-                    episodic::get_episode(conn, eid).ok().map(|ep| {
-                        (node_ref, score, ep.content, Some(ep.role), ep.timestamp, ep.context)
-                    })
-                }
+                NodeRef::Episode(eid) => episodic::get_episode(conn, eid).ok().map(|ep| {
+                    (
+                        node_ref,
+                        score,
+                        ep.content,
+                        Some(ep.role),
+                        ep.timestamp,
+                        ep.context,
+                    )
+                }),
                 _ => {
                     // For semantic/preference nodes, use minimal context
                     None // TODO: enrich semantic and preference nodes
@@ -85,7 +92,8 @@ pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemor
     let retrieved_nodes: Vec<NodeRef> = results.iter().map(|r| r.node).collect();
     for i in 0..retrieved_nodes.len() {
         for j in (i + 1)..retrieved_nodes.len() {
-            let _ = crate::graph::links::on_co_retrieval(conn, retrieved_nodes[i], retrieved_nodes[j]);
+            let _ =
+                crate::graph::links::on_co_retrieval(conn, retrieved_nodes[i], retrieved_nodes[j]);
         }
     }
 
@@ -102,34 +110,46 @@ mod tests {
     fn test_basic_query() {
         let conn = open_memory_db().unwrap();
 
-        episodic::store_episode(&conn, &NewEpisode {
-            content: "I love Rust programming".to_string(),
-            role: Role::User,
-            session_id: "s1".to_string(),
-            timestamp: 1000,
-            context: EpisodeContext::default(),
-            embedding: None,
-        }).unwrap();
-
-        episodic::store_episode(&conn, &NewEpisode {
-            content: "Python is great for ML".to_string(),
-            role: Role::User,
-            session_id: "s1".to_string(),
-            timestamp: 2000,
-            context: EpisodeContext::default(),
-            embedding: None,
-        }).unwrap();
-
-        let results = execute_query(&conn, &Query {
-            text: "Rust programming".to_string(),
-            embedding: None,
-            context: QueryContext {
-                current_timestamp: Some(3000),
-                ..Default::default()
+        episodic::store_episode(
+            &conn,
+            &NewEpisode {
+                content: "I love Rust programming".to_string(),
+                role: Role::User,
+                session_id: "s1".to_string(),
+                timestamp: 1000,
+                context: EpisodeContext::default(),
+                embedding: None,
             },
-            max_results: 5,
-            boost_categories: None,
-        }).unwrap();
+        )
+        .unwrap();
+
+        episodic::store_episode(
+            &conn,
+            &NewEpisode {
+                content: "Python is great for ML".to_string(),
+                role: Role::User,
+                session_id: "s1".to_string(),
+                timestamp: 2000,
+                context: EpisodeContext::default(),
+                embedding: None,
+            },
+        )
+        .unwrap();
+
+        let results = execute_query(
+            &conn,
+            &Query {
+                text: "Rust programming".to_string(),
+                embedding: None,
+                context: QueryContext {
+                    current_timestamp: Some(3000),
+                    ..Default::default()
+                },
+                max_results: 5,
+                boost_categories: None,
+            },
+        )
+        .unwrap();
 
         assert!(!results.is_empty());
         assert!(results[0].content.contains("Rust"));

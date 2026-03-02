@@ -30,13 +30,13 @@
 //! ```
 
 pub(crate) mod error;
-pub(crate) mod types;
-pub(crate) mod schema;
-pub(crate) mod store;
 pub(crate) mod graph;
-pub(crate) mod retrieval;
 pub(crate) mod lifecycle;
 pub(crate) mod provider;
+pub(crate) mod retrieval;
+pub(crate) mod schema;
+pub(crate) mod store;
+pub(crate) mod types;
 
 use rusqlite::Connection;
 use std::path::Path;
@@ -113,10 +113,14 @@ impl AlayaStore {
     /// ```
     pub fn store_episode(&self, episode: &NewEpisode) -> Result<EpisodeId> {
         if episode.content.trim().is_empty() {
-            return Err(AlayaError::InvalidInput("episode content must not be empty".into()));
+            return Err(AlayaError::InvalidInput(
+                "episode content must not be empty".into(),
+            ));
         }
         if episode.session_id.trim().is_empty() {
-            return Err(AlayaError::InvalidInput("session_id must not be empty".into()));
+            return Err(AlayaError::InvalidInput(
+                "session_id must not be empty".into(),
+            ));
         }
 
         let tx = schema::begin_immediate(&self.conn)?;
@@ -173,10 +177,14 @@ impl AlayaStore {
     /// ```
     pub fn query(&self, q: &Query) -> Result<Vec<ScoredMemory>> {
         if q.text.trim().is_empty() {
-            return Err(AlayaError::InvalidInput("query text must not be empty".into()));
+            return Err(AlayaError::InvalidInput(
+                "query text must not be empty".into(),
+            ));
         }
         if q.max_results == 0 {
-            return Err(AlayaError::InvalidInput("max_results must be greater than 0".into()));
+            return Err(AlayaError::InvalidInput(
+                "max_results must be greater than 0".into(),
+            ));
         }
 
         retrieval::pipeline::execute_query(&self.conn, q)
@@ -207,11 +215,9 @@ impl AlayaStore {
     pub fn knowledge(&self, filter: Option<KnowledgeFilter>) -> Result<Vec<SemanticNode>> {
         let f = filter.unwrap_or_default();
         match f.node_type {
-            Some(nt) => store::semantic::find_by_type(
-                &self.conn,
-                nt,
-                f.limit.unwrap_or(100) as u32,
-            ),
+            Some(nt) => {
+                store::semantic::find_by_type(&self.conn, nt, f.limit.unwrap_or(100) as u32)
+            }
             None => {
                 // Return all types, ordered by confidence
                 let mut all = Vec::new();
@@ -297,17 +303,9 @@ impl AlayaStore {
     /// assert!(neighbors.is_empty());
     /// ```
     pub fn neighbors(&self, node: NodeRef, depth: u32) -> Result<Vec<(NodeRef, f32)>> {
-        let result = graph::activation::spread_activation(
-            &self.conn,
-            &[node],
-            depth,
-            0.05,
-            0.6,
-        )?;
-        let mut pairs: Vec<(NodeRef, f32)> = result
-            .into_iter()
-            .filter(|(nr, _)| *nr != node)
-            .collect();
+        let result = graph::activation::spread_activation(&self.conn, &[node], depth, 0.05, 0.6)?;
+        let mut pairs: Vec<(NodeRef, f32)> =
+            result.into_iter().filter(|(nr, _)| *nr != node).collect();
         pairs.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         Ok(pairs)
     }
@@ -452,10 +450,8 @@ impl AlayaStore {
                 report.episodes_deleted = store::episodic::delete_episodes(&tx, &ids)? as u32;
             }
             PurgeFilter::OlderThan(ts) => {
-                report.episodes_deleted = tx.execute(
-                    "DELETE FROM episodes WHERE timestamp < ?1",
-                    [ts],
-                )? as u32;
+                report.episodes_deleted =
+                    tx.execute("DELETE FROM episodes WHERE timestamp < ?1", [ts])? as u32;
             }
             PurgeFilter::All => {
                 tx.execute_batch(
@@ -489,7 +485,7 @@ mod tests {
         for i in 0..5 {
             store
                 .store_episode(&NewEpisode {
-                    content: format!("message about Rust programming {}", i),
+                    content: format!("message about Rust programming {i}"),
                     role: Role::User,
                     session_id: "s1".to_string(),
                     timestamp: 1000 + i * 100,
@@ -680,57 +676,56 @@ mod tests {
         let store = AlayaStore::open_in_memory().unwrap();
 
         // MockProvider returns 1 impression in domain "style" per perfume call
-        let provider = MockProvider::with_impressions(vec![
-            NewImpression {
-                domain: "style".to_string(),
-                observation: "prefers dark mode".to_string(),
-                valence: 1.0,
-            },
-        ]);
+        let provider = MockProvider::with_impressions(vec![NewImpression {
+            domain: "style".to_string(),
+            observation: "prefers dark mode".to_string(),
+            valence: 1.0,
+        }]);
 
         // Perfume 6 times to exceed CRYSTALLIZATION_THRESHOLD (5)
         for i in 0..6 {
-            let interaction = make_interaction(
-                &format!("style interaction {}", i),
-                "s1",
-                1000 + i * 100,
-            );
+            let interaction =
+                make_interaction(&format!("style interaction {i}"), "s1", 1000 + i * 100);
             store.perfume(&interaction, &provider).unwrap();
         }
 
         // Preferences for "style" domain should be non-empty
         let style_prefs = store.preferences(Some("style")).unwrap();
-        assert!(!style_prefs.is_empty(), "should have crystallized a style preference");
+        assert!(
+            !style_prefs.is_empty(),
+            "should have crystallized a style preference"
+        );
 
         // Preferences for a nonexistent domain should be empty
         let none_prefs = store.preferences(Some("nonexistent")).unwrap();
-        assert!(none_prefs.is_empty(), "nonexistent domain should have no preferences");
+        assert!(
+            none_prefs.is_empty(),
+            "nonexistent domain should have no preferences"
+        );
     }
 
     #[test]
     fn test_preferences_without_filter() {
         let store = AlayaStore::open_in_memory().unwrap();
 
-        let provider = MockProvider::with_impressions(vec![
-            NewImpression {
-                domain: "style".to_string(),
-                observation: "prefers bullet points".to_string(),
-                valence: 0.8,
-            },
-        ]);
+        let provider = MockProvider::with_impressions(vec![NewImpression {
+            domain: "style".to_string(),
+            observation: "prefers bullet points".to_string(),
+            valence: 0.8,
+        }]);
 
         for i in 0..6 {
-            let interaction = make_interaction(
-                &format!("bullet interaction {}", i),
-                "s1",
-                2000 + i * 100,
-            );
+            let interaction =
+                make_interaction(&format!("bullet interaction {i}"), "s1", 2000 + i * 100);
             store.perfume(&interaction, &provider).unwrap();
         }
 
         // No domain filter — should return all preferences
         let all_prefs = store.preferences(None).unwrap();
-        assert!(!all_prefs.is_empty(), "preferences(None) should return all crystallized preferences");
+        assert!(
+            !all_prefs.is_empty(),
+            "preferences(None) should return all crystallized preferences"
+        );
     }
 
     #[test]
@@ -740,11 +735,13 @@ mod tests {
         // Store 5 episodes (enough for consolidation, which requires >= 3 unconsolidated)
         let mut ep_ids = Vec::new();
         for i in 0..5 {
-            let id = store.store_episode(&make_new_episode(
-                &format!("knowledge episode {}", i),
-                "s1",
-                1000 + i * 100,
-            )).unwrap();
+            let id = store
+                .store_episode(&make_new_episode(
+                    &format!("knowledge episode {i}"),
+                    "s1",
+                    1000 + i * 100,
+                ))
+                .unwrap();
             ep_ids.push(id);
         }
 
@@ -770,20 +767,24 @@ mod tests {
         assert_eq!(report.nodes_created, 2);
 
         // Filter for Facts only
-        let facts = store.knowledge(Some(KnowledgeFilter {
-            node_type: Some(SemanticType::Fact),
-            ..Default::default()
-        })).unwrap();
+        let facts = store
+            .knowledge(Some(KnowledgeFilter {
+                node_type: Some(SemanticType::Fact),
+                ..Default::default()
+            }))
+            .unwrap();
         assert!(!facts.is_empty(), "should have at least one Fact");
         for f in &facts {
             assert_eq!(f.node_type, SemanticType::Fact);
         }
 
         // Filter for Relationship only
-        let rels = store.knowledge(Some(KnowledgeFilter {
-            node_type: Some(SemanticType::Relationship),
-            ..Default::default()
-        })).unwrap();
+        let rels = store
+            .knowledge(Some(KnowledgeFilter {
+                node_type: Some(SemanticType::Relationship),
+                ..Default::default()
+            }))
+            .unwrap();
         assert!(!rels.is_empty(), "should have at least one Relationship");
         for r in &rels {
             assert_eq!(r.node_type, SemanticType::Relationship);
@@ -796,11 +797,13 @@ mod tests {
 
         let mut ep_ids = Vec::new();
         for i in 0..5 {
-            let id = store.store_episode(&make_new_episode(
-                &format!("confidence episode {}", i),
-                "s1",
-                1000 + i * 100,
-            )).unwrap();
+            let id = store
+                .store_episode(&make_new_episode(
+                    &format!("confidence episode {i}"),
+                    "s1",
+                    1000 + i * 100,
+                ))
+                .unwrap();
             ep_ids.push(id);
         }
 
@@ -824,12 +827,17 @@ mod tests {
         store.consolidate(&provider).unwrap();
 
         // Filter with min_confidence 0.7 (no node_type filter => goes through the None branch)
-        let filtered = store.knowledge(Some(KnowledgeFilter {
-            min_confidence: Some(0.7),
-            ..Default::default()
-        })).unwrap();
+        let filtered = store
+            .knowledge(Some(KnowledgeFilter {
+                min_confidence: Some(0.7),
+                ..Default::default()
+            }))
+            .unwrap();
 
-        assert!(!filtered.is_empty(), "should have at least one node above 0.7 confidence");
+        assert!(
+            !filtered.is_empty(),
+            "should have at least one node above 0.7 confidence"
+        );
         for node in &filtered {
             assert!(
                 node.confidence >= 0.7,
@@ -845,11 +853,13 @@ mod tests {
 
         let mut ep_ids = Vec::new();
         for i in 0..5 {
-            let id = store.store_episode(&make_new_episode(
-                &format!("limit episode {}", i),
-                "s1",
-                1000 + i * 100,
-            )).unwrap();
+            let id = store
+                .store_episode(&make_new_episode(
+                    &format!("limit episode {i}"),
+                    "s1",
+                    1000 + i * 100,
+                ))
+                .unwrap();
             ep_ids.push(id);
         }
 
@@ -880,10 +890,12 @@ mod tests {
         store.consolidate(&provider).unwrap();
 
         // Request limit of 1 (no node_type filter)
-        let limited = store.knowledge(Some(KnowledgeFilter {
-            limit: Some(1),
-            ..Default::default()
-        })).unwrap();
+        let limited = store
+            .knowledge(Some(KnowledgeFilter {
+                limit: Some(1),
+                ..Default::default()
+            }))
+            .unwrap();
         assert_eq!(limited.len(), 1, "limit(1) should return exactly 1 node");
     }
 
@@ -892,7 +904,9 @@ mod tests {
         let store = AlayaStore::open_in_memory().unwrap();
 
         // Store 3+ episodes with preceding_episode to create temporal links
-        let id1 = store.store_episode(&make_new_episode("first msg", "s1", 1000)).unwrap();
+        let id1 = store
+            .store_episode(&make_new_episode("first msg", "s1", 1000))
+            .unwrap();
 
         let mut ep2 = make_new_episode("second msg", "s1", 2000);
         ep2.context.preceding_episode = Some(id1);
@@ -904,7 +918,10 @@ mod tests {
 
         // Spread activation from the first episode with depth 2
         let neighbors = store.neighbors(NodeRef::Episode(id1), 2).unwrap();
-        assert!(!neighbors.is_empty(), "episode with temporal links should have neighbors");
+        assert!(
+            !neighbors.is_empty(),
+            "episode with temporal links should have neighbors"
+        );
     }
 
     #[test]
@@ -912,10 +929,15 @@ mod tests {
         let store = AlayaStore::open_in_memory().unwrap();
 
         // Store a single episode with no links
-        let id = store.store_episode(&make_new_episode("isolated msg", "s1", 1000)).unwrap();
+        let id = store
+            .store_episode(&make_new_episode("isolated msg", "s1", 1000))
+            .unwrap();
 
         let neighbors = store.neighbors(NodeRef::Episode(id), 2).unwrap();
-        assert!(neighbors.is_empty(), "isolated node should have no neighbors");
+        assert!(
+            neighbors.is_empty(),
+            "isolated node should have no neighbors"
+        );
     }
 
     #[test]
@@ -939,7 +961,10 @@ mod tests {
         let interaction = make_interaction("Please use formal markdown", "s1", 1000);
         let report = store.perfume(&interaction, &provider).unwrap();
 
-        assert_eq!(report.impressions_stored, 2, "should store both impressions");
+        assert_eq!(
+            report.impressions_stored, 2,
+            "should store both impressions"
+        );
         let status = store.status().unwrap();
         assert_eq!(status.impression_count, 2);
     }
@@ -949,8 +974,12 @@ mod tests {
         let store = AlayaStore::open_in_memory().unwrap();
 
         // Store two episodes to have valid node refs for the link
-        store.store_episode(&make_new_episode("ep1", "s1", 1000)).unwrap();
-        store.store_episode(&make_new_episode("ep2", "s1", 2000)).unwrap();
+        store
+            .store_episode(&make_new_episode("ep1", "s1", 1000))
+            .unwrap();
+        store
+            .store_episode(&make_new_episode("ep2", "s1", 2000))
+            .unwrap();
 
         // Create a weak link directly via the graph module (weight 0.01, below prune threshold of 0.02)
         graph::links::create_link(
@@ -959,7 +988,8 @@ mod tests {
             NodeRef::Episode(EpisodeId(2)),
             LinkType::Topical,
             0.01,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(store.status().unwrap().link_count, 1);
 
@@ -973,8 +1003,12 @@ mod tests {
         let store = AlayaStore::open_in_memory().unwrap();
 
         // Store episodes (store_episode auto-initializes strength with retrieval_strength = 1.0)
-        let id1 = store.store_episode(&make_new_episode("remember me", "s1", 1000)).unwrap();
-        let id2 = store.store_episode(&make_new_episode("remember me too", "s1", 2000)).unwrap();
+        let id1 = store
+            .store_episode(&make_new_episode("remember me", "s1", 1000))
+            .unwrap();
+        let id2 = store
+            .store_episode(&make_new_episode("remember me too", "s1", 2000))
+            .unwrap();
 
         // Check initial retrieval strength
         let s1_before = store::strengths::get_strength(&store.conn, NodeRef::Episode(id1)).unwrap();
@@ -1009,11 +1043,17 @@ mod tests {
         let store = AlayaStore::open_in_memory().unwrap();
 
         // Store episodes in session "s1"
-        store.store_episode(&make_new_episode("s1 msg1", "s1", 1000)).unwrap();
-        store.store_episode(&make_new_episode("s1 msg2", "s1", 2000)).unwrap();
+        store
+            .store_episode(&make_new_episode("s1 msg1", "s1", 1000))
+            .unwrap();
+        store
+            .store_episode(&make_new_episode("s1 msg2", "s1", 2000))
+            .unwrap();
 
         // Store episodes in session "s2"
-        store.store_episode(&make_new_episode("s2 msg1", "s2", 3000)).unwrap();
+        store
+            .store_episode(&make_new_episode("s2 msg1", "s2", 3000))
+            .unwrap();
 
         assert_eq!(store.status().unwrap().episode_count, 3);
 
@@ -1034,20 +1074,34 @@ mod tests {
         let store = AlayaStore::open_in_memory().unwrap();
 
         // Store episodes with timestamps 1000 and 2000
-        store.store_episode(&make_new_episode("old episode", "s1", 1000)).unwrap();
-        store.store_episode(&make_new_episode("new episode", "s1", 2000)).unwrap();
+        store
+            .store_episode(&make_new_episode("old episode", "s1", 1000))
+            .unwrap();
+        store
+            .store_episode(&make_new_episode("new episode", "s1", 2000))
+            .unwrap();
 
         assert_eq!(store.status().unwrap().episode_count, 2);
 
         // Purge episodes older than 1500
         let report = store.purge(PurgeFilter::OlderThan(1500)).unwrap();
-        assert_eq!(report.episodes_deleted, 1, "should delete the episode at ts=1000");
+        assert_eq!(
+            report.episodes_deleted, 1,
+            "should delete the episode at ts=1000"
+        );
 
-        assert_eq!(store.status().unwrap().episode_count, 1, "only the newer episode should remain");
+        assert_eq!(
+            store.status().unwrap().episode_count,
+            1,
+            "only the newer episode should remain"
+        );
 
         // Verify the remaining episode is the newer one
         let results = store.query(&Query::simple("new episode")).unwrap();
-        assert!(!results.is_empty(), "the newer episode should still be queryable");
+        assert!(
+            !results.is_empty(),
+            "the newer episode should still be queryable"
+        );
     }
 
     #[test]
@@ -1055,7 +1109,9 @@ mod tests {
         let store = AlayaStore::open_in_memory().unwrap();
 
         // Create a chain with temporal links
-        let id1 = store.store_episode(&make_new_episode("first msg", "s1", 1000)).unwrap();
+        let id1 = store
+            .store_episode(&make_new_episode("first msg", "s1", 1000))
+            .unwrap();
         let mut ep2 = make_new_episode("second msg", "s1", 2000);
         ep2.context.preceding_episode = Some(id1);
         store.store_episode(&ep2).unwrap();
@@ -1069,7 +1125,9 @@ mod tests {
     fn test_forget_archives_weak_nodes() {
         let store = AlayaStore::open_in_memory().unwrap();
 
-        let id = store.store_episode(&make_new_episode("archival test", "s1", 1000)).unwrap();
+        let id = store
+            .store_episode(&make_new_episode("archival test", "s1", 1000))
+            .unwrap();
         assert_eq!(store.status().unwrap().episode_count, 1);
 
         // Directly set storage_strength below the archive threshold (0.1).
@@ -1082,8 +1140,15 @@ mod tests {
 
         // A single forget pass should now archive this node
         let report = store.forget().unwrap();
-        assert!(report.nodes_archived > 0, "node with low storage+retrieval should be archived");
-        assert_eq!(store.status().unwrap().episode_count, 0, "archived episode should be deleted");
+        assert!(
+            report.nodes_archived > 0,
+            "node with low storage+retrieval should be archived"
+        );
+        assert_eq!(
+            store.status().unwrap().episode_count,
+            0,
+            "archived episode should be deleted"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -1125,14 +1190,14 @@ mod tests {
         let proto_id = NodeId(store.conn.last_insert_rowid());
 
         // Create a category directly
-        store::categories::store_category(
-            &store.conn, "test-cat", proto_id, None,
-        ).unwrap();
+        store::categories::store_category(&store.conn, "test-cat", proto_id, None).unwrap();
         assert_eq!(store.categories(None).unwrap().len(), 1);
 
         store.purge(PurgeFilter::All).unwrap();
-        assert!(store.categories(None).unwrap().is_empty(),
-            "purge(All) should delete all categories");
+        assert!(
+            store.categories(None).unwrap().is_empty(),
+            "purge(All) should delete all categories"
+        );
     }
 
     #[test]
@@ -1142,31 +1207,36 @@ mod tests {
         // Store 5 episodes and consolidate to create a semantic node
         let mut ep_ids = Vec::new();
         for i in 0..5 {
-            let id = store.store_episode(&make_new_episode(
-                &format!("category filter ep {}", i),
-                "s1",
-                1000 + i * 100,
-            )).unwrap();
+            let id = store
+                .store_episode(&make_new_episode(
+                    &format!("category filter ep {i}"),
+                    "s1",
+                    1000 + i * 100,
+                ))
+                .unwrap();
             ep_ids.push(id);
         }
 
-        let provider = MockProvider::with_knowledge(vec![
-            NewSemanticNode {
-                content: "User likes Rust".to_string(),
-                node_type: SemanticType::Fact,
-                confidence: 0.9,
-                source_episodes: ep_ids,
-                embedding: None,
-            },
-        ]);
+        let provider = MockProvider::with_knowledge(vec![NewSemanticNode {
+            content: "User likes Rust".to_string(),
+            node_type: SemanticType::Fact,
+            confidence: 0.9,
+            source_episodes: ep_ids,
+            embedding: None,
+        }]);
         store.consolidate(&provider).unwrap();
 
         // Filter by a category that doesn't exist — should return empty
-        let filtered = store.knowledge(Some(KnowledgeFilter {
-            category: Some("nonexistent-cat".to_string()),
-            ..Default::default()
-        })).unwrap();
-        assert!(filtered.is_empty(), "filtering by nonexistent category should return empty");
+        let filtered = store
+            .knowledge(Some(KnowledgeFilter {
+                category: Some("nonexistent-cat".to_string()),
+                ..Default::default()
+            }))
+            .unwrap();
+        assert!(
+            filtered.is_empty(),
+            "filtering by nonexistent category should return empty"
+        );
 
         // Without category filter, should find the node
         let all = store.knowledge(None).unwrap();
@@ -1177,26 +1247,30 @@ mod tests {
     fn test_perfume_crystallization_dedicated() {
         let store = AlayaStore::open_in_memory().unwrap();
 
-        let provider = MockProvider::with_impressions(vec![
-            NewImpression {
-                domain: "verbosity".to_string(),
-                observation: "prefers concise answers".to_string(),
-                valence: 0.9,
-            },
-        ]);
+        let provider = MockProvider::with_impressions(vec![NewImpression {
+            domain: "verbosity".to_string(),
+            observation: "prefers concise answers".to_string(),
+            valence: 0.9,
+        }]);
 
         // Perfume below threshold -- no crystallization
         for i in 0..4 {
-            let interaction = make_interaction(&format!("msg {}", i), "s1", 1000 + i * 100);
+            let interaction = make_interaction(&format!("msg {i}"), "s1", 1000 + i * 100);
             let report = store.perfume(&interaction, &provider).unwrap();
-            assert_eq!(report.preferences_crystallized, 0, "should not crystallize below threshold");
+            assert_eq!(
+                report.preferences_crystallized, 0,
+                "should not crystallize below threshold"
+            );
         }
         assert!(store.preferences(Some("verbosity")).unwrap().is_empty());
 
         // Perfume past threshold (5th impression triggers crystallization)
         let interaction = make_interaction("msg 4", "s1", 1400);
         let report = store.perfume(&interaction, &provider).unwrap();
-        assert_eq!(report.preferences_crystallized, 1, "5th impression should trigger crystallization");
+        assert_eq!(
+            report.preferences_crystallized, 1,
+            "5th impression should trigger crystallization"
+        );
 
         let prefs = store.preferences(Some("verbosity")).unwrap();
         assert_eq!(prefs.len(), 1);
@@ -1206,7 +1280,9 @@ mod tests {
         let interaction = make_interaction("msg 5", "s1", 1500);
         let report = store.perfume(&interaction, &provider).unwrap();
         assert_eq!(report.preferences_crystallized, 0);
-        assert_eq!(report.preferences_reinforced, 1, "should reinforce existing preference");
+        assert_eq!(
+            report.preferences_reinforced, 1,
+            "should reinforce existing preference"
+        );
     }
-
 }

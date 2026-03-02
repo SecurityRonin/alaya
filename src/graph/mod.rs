@@ -1,2 +1,2 @@
-pub mod links;
 pub mod activation;
+pub mod links;

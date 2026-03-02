@@ -1,7 +1,7 @@
-use rusqlite::{params, Connection};
 use crate::error::{AlayaError, Result};
+use crate::store::embeddings::{deserialize_embedding, serialize_embedding};
 use crate::types::*;
-use crate::store::embeddings::{serialize_embedding, deserialize_embedding};
+use rusqlite::{params, Connection};
 
 fn now() -> i64 {
     std::time::SystemTime::now()
@@ -47,17 +47,12 @@ pub fn get_category(conn: &Connection, id: CategoryId) -> Result<Category> {
         },
     )
     .map_err(|e| match e {
-        rusqlite::Error::QueryReturnedNoRows => {
-            AlayaError::NotFound(format!("category {}", id.0))
-        }
+        rusqlite::Error::QueryReturnedNoRows => AlayaError::NotFound(format!("category {}", id.0)),
         other => AlayaError::Db(other),
     })
 }
 
-pub fn list_categories(
-    conn: &Connection,
-    min_stability: Option<f32>,
-) -> Result<Vec<Category>> {
+pub fn list_categories(conn: &Connection, min_stability: Option<f32>) -> Result<Vec<Category>> {
     let (sql, has_filter) = match min_stability {
         Some(_) => (
             "SELECT id, label, prototype_node_id, member_count, centroid_embedding,
@@ -121,10 +116,7 @@ pub fn assign_node_to_category(
     Ok(())
 }
 
-pub fn get_node_category(
-    conn: &Connection,
-    node_id: NodeId,
-) -> Result<Option<Category>> {
+pub fn get_node_category(conn: &Connection, node_id: NodeId) -> Result<Option<Category>> {
     let cat_id: Option<i64> = conn
         .query_row(
             "SELECT category_id FROM semantic_nodes WHERE id = ?1",
@@ -144,11 +136,7 @@ pub fn get_node_category(
     }
 }
 
-pub fn update_centroid(
-    conn: &Connection,
-    category_id: CategoryId,
-    centroid: &[f32],
-) -> Result<()> {
+pub fn update_centroid(conn: &Connection, category_id: CategoryId, centroid: &[f32]) -> Result<()> {
     let ts = now();
     let blob = serialize_embedding(centroid);
     conn.execute(
@@ -177,15 +165,14 @@ pub fn delete_category(conn: &Connection, category_id: CategoryId) -> Result<()>
 }
 
 pub fn get_uncategorized_node_ids(conn: &Connection) -> Result<Vec<NodeId>> {
-    let mut stmt =
-        conn.prepare("SELECT id FROM semantic_nodes WHERE category_id IS NULL")?;
+    let mut stmt = conn.prepare("SELECT id FROM semantic_nodes WHERE category_id IS NULL")?;
     let rows = stmt.query_map([], |row| Ok(NodeId(row.get(0)?)))?;
     Ok(rows.filter_map(|r| r.ok()).collect())
 }
 
+#[allow(dead_code)]
 pub fn count_categories(conn: &Connection) -> Result<u64> {
-    let count: i64 =
-        conn.query_row("SELECT count(*) FROM categories", [], |row| row.get(0))?;
+    let count: i64 = conn.query_row("SELECT count(*) FROM categories", [], |row| row.get(0))?;
     Ok(count as u64)
 }
 
@@ -301,7 +288,10 @@ mod tests {
         update_centroid(&conn, id, &new_centroid).unwrap();
 
         let cat = get_category(&conn, id).unwrap();
-        assert_eq!(cat.centroid_embedding.as_deref(), Some(new_centroid.as_slice()));
+        assert_eq!(
+            cat.centroid_embedding.as_deref(),
+            Some(new_centroid.as_slice())
+        );
     }
 
     #[test]

@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use crate::types::NodeRef;
+use std::collections::HashMap;
 
 /// Reciprocal Rank Fusion (RRF) merges multiple ranked result sets.
 ///
@@ -7,10 +7,7 @@ use crate::types::NodeRef;
 /// where rank_i is the 0-based rank of d in result set i.
 ///
 /// Reference: Cormack, Clarke & Buettcher (2009)
-pub fn rrf_merge(
-    result_sets: &[Vec<(NodeRef, f64)>],
-    k: u32,
-) -> Vec<(NodeRef, f64)> {
+pub fn rrf_merge(result_sets: &[Vec<(NodeRef, f64)>], k: u32) -> Vec<(NodeRef, f64)> {
     let mut scores: HashMap<NodeRef, f64> = HashMap::new();
 
     for result_set in result_sets {
@@ -75,9 +72,7 @@ mod tests {
 
     #[test]
     fn test_rrf_single_item() {
-        let sets = vec![
-            vec![(NodeRef::Episode(EpisodeId(1)), 1.0)],
-        ];
+        let sets = vec![vec![(NodeRef::Episode(EpisodeId(1)), 1.0)]];
         let result = rrf_merge(&sets, 60);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].0, NodeRef::Episode(EpisodeId(1)));

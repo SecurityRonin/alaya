@@ -1,6 +1,6 @@
-use rusqlite::{params, Connection};
 use crate::error::Result;
 use crate::types::*;
+use rusqlite::{params, Connection};
 
 pub fn serialize_embedding(vec: &[f32]) -> Vec<u8> {
     vec.iter().flat_map(|f| f.to_le_bytes()).collect()
@@ -33,7 +33,13 @@ pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     (dot / denom) as f32
 }
 
-pub fn store_embedding(conn: &Connection, node_type: &str, node_id: i64, embedding: &[f32], model: &str) -> Result<()> {
+pub fn store_embedding(
+    conn: &Connection,
+    node_type: &str,
+    node_id: i64,
+    embedding: &[f32],
+    model: &str,
+) -> Result<()> {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -63,6 +69,7 @@ pub fn get_embedding(conn: &Connection, node_type: &str, node_id: i64) -> Result
     }
 }
 
+#[allow(dead_code)]
 pub fn get_unembedded_episodes(conn: &Connection, limit: u32) -> Result<Vec<EpisodeId>> {
     let mut stmt = conn.prepare(
         "SELECT e.id FROM episodes e
@@ -82,8 +89,8 @@ pub fn search_by_vector(
 ) -> Result<Vec<(NodeRef, f32)>> {
     // Collect all candidate embeddings
     let candidates: Vec<(String, i64, Vec<u8>)> = if let Some(t) = node_type_filter {
-        let mut stmt =
-            conn.prepare("SELECT node_type, node_id, embedding FROM embeddings WHERE node_type = ?1")?;
+        let mut stmt = conn
+            .prepare("SELECT node_type, node_id, embedding FROM embeddings WHERE node_type = ?1")?;
         let rows = stmt.query_map([t], |row| {
             Ok((
                 row.get::<_, String>(0)?,
@@ -93,8 +100,7 @@ pub fn search_by_vector(
         })?;
         rows.filter_map(|r| r.ok()).collect()
     } else {
-        let mut stmt =
-            conn.prepare("SELECT node_type, node_id, embedding FROM embeddings")?;
+        let mut stmt = conn.prepare("SELECT node_type, node_id, embedding FROM embeddings")?;
         let rows = stmt.query_map([], |row| {
             Ok((
                 row.get::<_, String>(0)?,
@@ -197,16 +203,20 @@ mod tests {
         let conn = open_memory_db().unwrap();
         // Store 3 episodes
         use crate::store::episodic;
-        use crate::types::{NewEpisode, Role, EpisodeContext};
+        use crate::types::{EpisodeContext, NewEpisode, Role};
         for i in 1..=3 {
-            episodic::store_episode(&conn, &NewEpisode {
-                content: format!("ep {}", i),
-                role: Role::User,
-                session_id: "s1".to_string(),
-                timestamp: 1000 * i,
-                context: EpisodeContext::default(),
-                embedding: None,
-            }).unwrap();
+            episodic::store_episode(
+                &conn,
+                &NewEpisode {
+                    content: format!("ep {i}"),
+                    role: Role::User,
+                    session_id: "s1".to_string(),
+                    timestamp: 1000 * i,
+                    context: EpisodeContext::default(),
+                    embedding: None,
+                },
+            )
+            .unwrap();
         }
 
         // All 3 should be unembedded

@@ -24,7 +24,11 @@ pub fn rerank(
         })
         .collect();
 
-    scored.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    scored.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     scored.truncate(max_results);
     scored
 }
@@ -54,7 +58,11 @@ fn jaccard(a: &[String], b: &[String]) -> f64 {
     let set_b: std::collections::HashSet<&str> = b.iter().map(|s| s.as_str()).collect();
     let intersection = set_a.intersection(&set_b).count() as f64;
     let union = set_a.union(&set_b).count() as f64;
-    if union == 0.0 { 0.0 } else { intersection / union }
+    if union == 0.0 {
+        0.0
+    } else {
+        intersection / union
+    }
 }
 
 #[cfg(test)]
@@ -145,9 +153,30 @@ mod tests {
     #[test]
     fn test_rerank_ordering_and_truncation() {
         let candidates = vec![
-            (NodeRef::Episode(EpisodeId(1)), 0.5, "low score".to_string(), Some(Role::User), 900, EpisodeContext::default()),
-            (NodeRef::Episode(EpisodeId(2)), 0.9, "high score".to_string(), Some(Role::User), 950, EpisodeContext::default()),
-            (NodeRef::Episode(EpisodeId(3)), 0.7, "mid score".to_string(), Some(Role::User), 800, EpisodeContext::default()),
+            (
+                NodeRef::Episode(EpisodeId(1)),
+                0.5,
+                "low score".to_string(),
+                Some(Role::User),
+                900,
+                EpisodeContext::default(),
+            ),
+            (
+                NodeRef::Episode(EpisodeId(2)),
+                0.9,
+                "high score".to_string(),
+                Some(Role::User),
+                950,
+                EpisodeContext::default(),
+            ),
+            (
+                NodeRef::Episode(EpisodeId(3)),
+                0.7,
+                "mid score".to_string(),
+                Some(Role::User),
+                800,
+                EpisodeContext::default(),
+            ),
         ];
         let result = rerank(candidates, &QueryContext::default(), 1000, 2);
         assert_eq!(result.len(), 2); // truncated to max_results=2

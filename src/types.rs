@@ -87,6 +87,7 @@ impl Role {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "user" => Some(Role::User),
@@ -117,6 +118,7 @@ impl SemanticType {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "fact" => Some(SemanticType::Fact),
@@ -152,6 +154,7 @@ impl LinkType {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "temporal" => Some(LinkType::Temporal),
@@ -483,7 +486,11 @@ mod tests {
 
     #[test]
     fn test_role_roundtrip() {
-        for (role, s) in [(Role::User, "user"), (Role::Assistant, "assistant"), (Role::System, "system")] {
+        for (role, s) in [
+            (Role::User, "user"),
+            (Role::Assistant, "assistant"),
+            (Role::System, "system"),
+        ] {
             assert_eq!(role.as_str(), s);
             assert_eq!(Role::from_str(s), Some(role));
         }

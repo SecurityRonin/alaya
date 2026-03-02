@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-use rusqlite::Connection;
 use crate::error::Result;
-use crate::store::{categories, embeddings, implicit};
 use crate::graph::links;
+use crate::store::{categories, embeddings, implicit};
 use crate::types::*;
+use rusqlite::Connection;
+use std::collections::HashMap;
 
 /// Default max age for impressions: 90 days in seconds
 const MAX_IMPRESSION_AGE_SECS: i64 = 90 * 24 * 3600;
@@ -38,26 +38,27 @@ const CATEGORY_DISSOLVE_THRESHOLD: f32 = 0.1;
 /// pruning, and decay. Each cycle moves the memory store closer to the
 /// "Great Mirror" state — reflecting the user accurately with minimal distortion.
 pub fn transform(conn: &Connection) -> Result<TransformationReport> {
-    let mut report = TransformationReport::default();
-
-    // 1. Deduplicate semantic nodes with near-identical embeddings
-    report.duplicates_merged = dedup_semantic_nodes(conn)?;
-
-    // 2. Prune weak graph links
-    report.links_pruned = links::prune_weak_links(conn, LINK_PRUNE_THRESHOLD)? as u32;
+    let mut report = TransformationReport {
+        duplicates_merged: dedup_semantic_nodes(conn)?,
+        links_pruned: links::prune_weak_links(conn, LINK_PRUNE_THRESHOLD)? as u32,
+        ..Default::default()
+    };
 
     // 3. Decay un-reinforced preferences
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs() as i64;
-    report.preferences_decayed = implicit::decay_preferences(conn, now, PREFERENCE_HALF_LIFE_SECS)? as u32;
+    report.preferences_decayed =
+        implicit::decay_preferences(conn, now, PREFERENCE_HALF_LIFE_SECS)? as u32;
 
     // 4. Prune weak preferences
-    report.preferences_decayed += implicit::prune_weak_preferences(conn, MIN_PREFERENCE_CONFIDENCE)? as u32;
+    report.preferences_decayed +=
+        implicit::prune_weak_preferences(conn, MIN_PREFERENCE_CONFIDENCE)? as u32;
 
     // 5. Prune old impressions
-    report.impressions_pruned = implicit::prune_old_impressions(conn, MAX_IMPRESSION_AGE_SECS)? as u32;
+    report.impressions_pruned =
+        implicit::prune_old_impressions(conn, MAX_IMPRESSION_AGE_SECS)? as u32;
 
     // 6. Discover new categories from uncategorized nodes
     report.categories_discovered = discover_categories(conn)?;
@@ -73,9 +74,8 @@ pub fn transform(conn: &Connection) -> Result<TransformationReport> {
 /// Find and merge semantic nodes with nearly identical embeddings.
 fn dedup_semantic_nodes(conn: &Connection) -> Result<u32> {
     // Get all semantic node embeddings
-    let mut stmt = conn.prepare(
-        "SELECT node_id, embedding FROM embeddings WHERE node_type = 'semantic'"
-    )?;
+    let mut stmt =
+        conn.prepare("SELECT node_id, embedding FROM embeddings WHERE node_type = 'semantic'")?;
     let nodes: Vec<(i64, Vec<f32>)> = stmt
         .query_map([], |row| {
             let id: i64 = row.get(0)?;
@@ -183,7 +183,7 @@ fn discover_categories(conn: &Connection) -> Result<u32> {
 
     let mut categories_created = 0u32;
 
-    for (_root, members) in &clusters {
+    for members in clusters.values() {
         if members.len() < MIN_CLUSTER_SIZE {
             continue;
         }
@@ -215,8 +215,8 @@ fn discover_categories(conn: &Connection) -> Result<u32> {
             }
         }
         let count = members.len() as f32;
-        for d in 0..dim {
-            centroid[d] /= count;
+        for val in &mut centroid {
+            *val /= count;
         }
 
         // Generate placeholder label: first 3 words of prototype content
@@ -232,7 +232,7 @@ fn discover_categories(conn: &Connection) -> Result<u32> {
             .collect::<Vec<&str>>()
             .join(" ");
         let label = if label.is_empty() {
-            format!("cluster-{}", categories_created)
+            format!("cluster-{categories_created}")
         } else {
             label
         };
@@ -352,8 +352,8 @@ fn maintain_categories(conn: &Connection) -> Result<(u32, u32)> {
                             }
                         }
                         let c = embs.len() as f32;
-                        for d in 0..dim {
-                            new_centroid[d] /= c;
+                        for val in &mut new_centroid {
+                            *val /= c;
                         }
                         categories::update_centroid(conn, keep_id, &new_centroid)?;
                     }
@@ -414,7 +414,8 @@ mod tests {
             NodeRef::Episode(EpisodeId(2)),
             LinkType::Temporal,
             0.01,
-        ).unwrap();
+        )
+        .unwrap();
 
         let report = transform(&conn).unwrap();
         assert_eq!(report.links_pruned, 1);
@@ -433,14 +434,16 @@ mod tests {
         ];
 
         // Create 4 semantic nodes with similar embeddings (uncategorized)
-        for i in 0..4 {
+        for (i, emb) in test_embs.iter().enumerate() {
             conn.execute(
                 "INSERT INTO semantic_nodes (content, node_type, confidence, created_at, last_corroborated, corroboration_count)
                  VALUES (?1, 'fact', 0.8, 1000, 1000, 1)",
-                [format!("cooking recipe {}", i)],
+                [format!("cooking recipe {i}")],
             ).unwrap();
-            let node_id: i64 = conn.query_row("SELECT last_insert_rowid()", [], |r| r.get(0)).unwrap();
-            embeddings::store_embedding(&conn, "semantic", node_id, &test_embs[i], "").unwrap();
+            let node_id: i64 = conn
+                .query_row("SELECT last_insert_rowid()", [], |r| r.get(0))
+                .unwrap();
+            embeddings::store_embedding(&conn, "semantic", node_id, emb, "").unwrap();
         }
 
         let report = transform(&conn).unwrap();
@@ -469,9 +472,11 @@ mod tests {
             conn.execute(
                 "INSERT INTO semantic_nodes (content, node_type, confidence, created_at, last_corroborated)
                  VALUES (?1, 'fact', 0.8, 1000, 1000)",
-                [format!("node {}", i)],
+                [format!("node {i}")],
             ).unwrap();
-            let node_id: i64 = conn.query_row("SELECT last_insert_rowid()", [], |r| r.get(0)).unwrap();
+            let node_id: i64 = conn
+                .query_row("SELECT last_insert_rowid()", [], |r| r.get(0))
+                .unwrap();
             embeddings::store_embedding(&conn, "semantic", node_id, &[0.9, 0.1, 0.0], "").unwrap();
         }
 
@@ -516,9 +521,11 @@ mod tests {
             conn.execute(
                 "INSERT INTO semantic_nodes (content, node_type, confidence, created_at, last_corroborated, corroboration_count)
                  VALUES (?1, 'fact', 0.8, 1000, 1000, 1)",
-                [format!("topic alpha {}", i)],
+                [format!("topic alpha {i}")],
             ).unwrap();
-            let node_id: i64 = conn.query_row("SELECT last_insert_rowid()", [], |r| r.get(0)).unwrap();
+            let node_id: i64 = conn
+                .query_row("SELECT last_insert_rowid()", [], |r| r.get(0))
+                .unwrap();
             embeddings::store_embedding(&conn, "semantic", node_id, &[1.0, 0.0, 0.0], "").unwrap();
         }
 
@@ -526,11 +533,13 @@ mod tests {
         assert_eq!(created, 1);
 
         // Should have MemberOf links
-        let link_count: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM links WHERE link_type = 'member_of'",
-            [],
-            |r| r.get(0),
-        ).unwrap();
+        let link_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM links WHERE link_type = 'member_of'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
         assert_eq!(link_count, 3, "should have 3 MemberOf links");
     }
 
@@ -543,12 +552,14 @@ mod tests {
             conn.execute(
                 "INSERT INTO semantic_nodes (content, node_type, confidence, created_at, last_corroborated)
                  VALUES (?1, 'fact', 0.8, 1000, 1000)",
-                [format!("merge-node {}", i)],
+                [format!("merge-node {i}")],
             ).unwrap();
         }
 
-        let c1 = categories::store_category(&conn, "cat-a", NodeId(1), Some(&[1.0, 0.0, 0.0])).unwrap();
-        let c2 = categories::store_category(&conn, "cat-b", NodeId(2), Some(&[0.99, 0.01, 0.0])).unwrap();
+        let c1 =
+            categories::store_category(&conn, "cat-a", NodeId(1), Some(&[1.0, 0.0, 0.0])).unwrap();
+        let c2 = categories::store_category(&conn, "cat-b", NodeId(2), Some(&[0.99, 0.01, 0.0]))
+            .unwrap();
 
         // Assign one member to each so they're non-empty and don't get GC'd
         categories::assign_node_to_category(&conn, NodeId(1), c1).unwrap();
@@ -559,7 +570,14 @@ mod tests {
         embeddings::store_embedding(&conn, "semantic", 2, &[0.99, 0.01, 0.0], "").unwrap();
 
         let (merged, _dissolved) = maintain_categories(&conn).unwrap();
-        assert!(merged >= 1, "should have merged converging categories, got {}", merged);
-        assert_eq!(categories::count_categories(&conn).unwrap(), 1, "should have 1 category after merge");
+        assert!(
+            merged >= 1,
+            "should have merged converging categories, got {merged}",
+        );
+        assert_eq!(
+            categories::count_categories(&conn).unwrap(),
+            1,
+            "should have 1 category after merge"
+        );
     }
 }

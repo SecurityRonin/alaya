@@ -1,10 +1,10 @@
-use std::collections::HashMap;
-use rusqlite::Connection;
 use crate::error::Result;
-use crate::provider::ConsolidationProvider;
-use crate::store::{episodic, semantic, categories, embeddings};
 use crate::graph::links;
+use crate::provider::ConsolidationProvider;
+use crate::store::{categories, embeddings, episodic, semantic};
 use crate::types::*;
+use rusqlite::Connection;
+use std::collections::HashMap;
 
 /// Minimum number of unconsolidated episodes before consolidation triggers.
 const CONSOLIDATION_BATCH_SIZE: u32 = 10;
@@ -120,9 +120,7 @@ fn try_assign_category(
 
     if total_votes > 0 {
         // Find the category with the most votes
-        if let Some((&winning_cat_id, &winning_count)) =
-            votes.iter().max_by_key(|(_k, v)| *v)
-        {
+        if let Some((&winning_cat_id, &winning_count)) = votes.iter().max_by_key(|(_k, v)| *v) {
             // Check >50% majority
             if winning_count * 2 > total_votes {
                 let cat = categories::get_category(conn, winning_cat_id)?;
@@ -186,31 +184,39 @@ fn assign_and_update(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rusqlite::Connection;
-    use crate::schema::open_memory_db;
     use crate::provider::MockProvider;
-    use crate::store::{episodic, semantic, categories};
+    use crate::schema::open_memory_db;
+    use crate::store::{categories, episodic, semantic};
+    use rusqlite::Connection;
 
     #[test]
     fn test_consolidation_below_threshold() {
         let conn = open_memory_db().unwrap();
         // Only 2 episodes — below threshold of 3
-        episodic::store_episode(&conn, &NewEpisode {
-            content: "hello".to_string(),
-            role: Role::User,
-            session_id: "s1".to_string(),
-            timestamp: 1000,
-            context: EpisodeContext::default(),
-            embedding: None,
-        }).unwrap();
-        episodic::store_episode(&conn, &NewEpisode {
-            content: "world".to_string(),
-            role: Role::User,
-            session_id: "s1".to_string(),
-            timestamp: 2000,
-            context: EpisodeContext::default(),
-            embedding: None,
-        }).unwrap();
+        episodic::store_episode(
+            &conn,
+            &NewEpisode {
+                content: "hello".to_string(),
+                role: Role::User,
+                session_id: "s1".to_string(),
+                timestamp: 1000,
+                context: EpisodeContext::default(),
+                embedding: None,
+            },
+        )
+        .unwrap();
+        episodic::store_episode(
+            &conn,
+            &NewEpisode {
+                content: "world".to_string(),
+                role: Role::User,
+                session_id: "s1".to_string(),
+                timestamp: 2000,
+                context: EpisodeContext::default(),
+                embedding: None,
+            },
+        )
+        .unwrap();
 
         let report = consolidate(&conn, &MockProvider::empty()).unwrap();
         assert_eq!(report.nodes_created, 0);
@@ -221,26 +227,28 @@ mod tests {
         let conn = open_memory_db().unwrap();
         let mut ep_ids = vec![];
         for i in 0..5 {
-            let id = episodic::store_episode(&conn, &NewEpisode {
-                content: format!("message about Rust {}", i),
-                role: Role::User,
-                session_id: "s1".to_string(),
-                timestamp: 1000 + i * 100,
-                context: EpisodeContext::default(),
-                embedding: None,
-            }).unwrap();
+            let id = episodic::store_episode(
+                &conn,
+                &NewEpisode {
+                    content: format!("message about Rust {i}"),
+                    role: Role::User,
+                    session_id: "s1".to_string(),
+                    timestamp: 1000 + i * 100,
+                    context: EpisodeContext::default(),
+                    embedding: None,
+                },
+            )
+            .unwrap();
             ep_ids.push(id);
         }
 
-        let provider = MockProvider::with_knowledge(vec![
-            NewSemanticNode {
-                content: "User discusses Rust programming".to_string(),
-                node_type: SemanticType::Fact,
-                confidence: 0.8,
-                source_episodes: ep_ids,
-                embedding: None,
-            },
-        ]);
+        let provider = MockProvider::with_knowledge(vec![NewSemanticNode {
+            content: "User discusses Rust programming".to_string(),
+            node_type: SemanticType::Fact,
+            confidence: 0.8,
+            source_episodes: ep_ids,
+            embedding: None,
+        }]);
 
         let report = consolidate(&conn, &provider).unwrap();
         assert_eq!(report.nodes_created, 1);
@@ -263,35 +271,36 @@ mod tests {
 
         // Create a category with a centroid (needs a real prototype node)
         let proto = insert_prototype(&conn);
-        let cat_id = categories::store_category(
-            &conn, "rust-topics", proto,
-            Some(&vec![1.0, 0.0, 0.0]),
-        ).unwrap();
+        let cat_id =
+            categories::store_category(&conn, "rust-topics", proto, Some(&[1.0, 0.0, 0.0]))
+                .unwrap();
 
         // Store 5 episodes (enough for consolidation threshold of 3)
         let mut ep_ids = vec![];
         for i in 0..5 {
-            let id = episodic::store_episode(&conn, &NewEpisode {
-                content: format!("Rust episode {}", i),
-                role: Role::User,
-                session_id: "s1".to_string(),
-                timestamp: 1000 + i * 100,
-                context: EpisodeContext::default(),
-                embedding: None,
-            }).unwrap();
+            let id = episodic::store_episode(
+                &conn,
+                &NewEpisode {
+                    content: format!("Rust episode {i}"),
+                    role: Role::User,
+                    session_id: "s1".to_string(),
+                    timestamp: 1000 + i * 100,
+                    context: EpisodeContext::default(),
+                    embedding: None,
+                },
+            )
+            .unwrap();
             ep_ids.push(id);
         }
 
         // Provider returns a node with embedding close to the category centroid
-        let provider = MockProvider::with_knowledge(vec![
-            NewSemanticNode {
-                content: "User programs in Rust".to_string(),
-                node_type: SemanticType::Fact,
-                confidence: 0.8,
-                source_episodes: ep_ids,
-                embedding: Some(vec![0.9, 0.1, 0.0]),  // cosine sim ~0.99 to [1,0,0]
-            },
-        ]);
+        let provider = MockProvider::with_knowledge(vec![NewSemanticNode {
+            content: "User programs in Rust".to_string(),
+            node_type: SemanticType::Fact,
+            confidence: 0.8,
+            source_episodes: ep_ids,
+            embedding: Some(vec![0.9, 0.1, 0.0]), // cosine sim ~0.99 to [1,0,0]
+        }]);
 
         let report = consolidate(&conn, &provider).unwrap();
         assert_eq!(report.nodes_created, 1);
@@ -311,26 +320,28 @@ mod tests {
 
         let mut ep_ids = vec![];
         for i in 0..5 {
-            let id = episodic::store_episode(&conn, &NewEpisode {
-                content: format!("msg {}", i),
-                role: Role::User,
-                session_id: "s1".to_string(),
-                timestamp: 1000 + i * 100,
-                context: EpisodeContext::default(),
-                embedding: None,
-            }).unwrap();
+            let id = episodic::store_episode(
+                &conn,
+                &NewEpisode {
+                    content: format!("msg {i}"),
+                    role: Role::User,
+                    session_id: "s1".to_string(),
+                    timestamp: 1000 + i * 100,
+                    context: EpisodeContext::default(),
+                    embedding: None,
+                },
+            )
+            .unwrap();
             ep_ids.push(id);
         }
 
-        let provider = MockProvider::with_knowledge(vec![
-            NewSemanticNode {
-                content: "some fact".to_string(),
-                node_type: SemanticType::Fact,
-                confidence: 0.8,
-                source_episodes: ep_ids,
-                embedding: Some(vec![0.5, 0.5, 0.0]),
-            },
-        ]);
+        let provider = MockProvider::with_knowledge(vec![NewSemanticNode {
+            content: "some fact".to_string(),
+            node_type: SemanticType::Fact,
+            confidence: 0.8,
+            source_episodes: ep_ids,
+            embedding: Some(vec![0.5, 0.5, 0.0]),
+        }]);
 
         let report = consolidate(&conn, &provider).unwrap();
         assert_eq!(report.nodes_created, 1);
@@ -343,36 +354,38 @@ mod tests {
 
         // Category centroid is far from node embedding
         let proto = insert_prototype(&conn);
-        categories::store_category(
-            &conn, "cooking", proto,
-            Some(&vec![0.0, 0.0, 1.0]),
-        ).unwrap();
+        categories::store_category(&conn, "cooking", proto, Some(&[0.0, 0.0, 1.0])).unwrap();
 
         let mut ep_ids = vec![];
         for i in 0..5 {
-            let id = episodic::store_episode(&conn, &NewEpisode {
-                content: format!("msg {}", i),
-                role: Role::User,
-                session_id: "s1".to_string(),
-                timestamp: 1000 + i * 100,
-                context: EpisodeContext::default(),
-                embedding: None,
-            }).unwrap();
+            let id = episodic::store_episode(
+                &conn,
+                &NewEpisode {
+                    content: format!("msg {i}"),
+                    role: Role::User,
+                    session_id: "s1".to_string(),
+                    timestamp: 1000 + i * 100,
+                    context: EpisodeContext::default(),
+                    embedding: None,
+                },
+            )
+            .unwrap();
             ep_ids.push(id);
         }
 
-        let provider = MockProvider::with_knowledge(vec![
-            NewSemanticNode {
-                content: "Rust programming".to_string(),
-                node_type: SemanticType::Fact,
-                confidence: 0.8,
-                source_episodes: ep_ids,
-                embedding: Some(vec![1.0, 0.0, 0.0]),  // cosine sim ~0.0 to [0,0,1]
-            },
-        ]);
+        let provider = MockProvider::with_knowledge(vec![NewSemanticNode {
+            content: "Rust programming".to_string(),
+            node_type: SemanticType::Fact,
+            confidence: 0.8,
+            source_episodes: ep_ids,
+            embedding: Some(vec![1.0, 0.0, 0.0]), // cosine sim ~0.0 to [0,0,1]
+        }]);
 
         let report = consolidate(&conn, &provider).unwrap();
         assert_eq!(report.nodes_created, 1);
-        assert_eq!(report.categories_assigned, 0, "node should not be assigned to distant category");
+        assert_eq!(
+            report.categories_assigned, 0,
+            "node should not be assigned to distant category"
+        );
     }
 }

@@ -206,7 +206,7 @@ fn init_db(conn: &Connection) -> Result<()> {
     if !has_category {
         conn.execute_batch(
             "ALTER TABLE semantic_nodes ADD COLUMN category_id INTEGER REFERENCES categories(id);
-             CREATE INDEX IF NOT EXISTS idx_semantic_category ON semantic_nodes(category_id);"
+             CREATE INDEX IF NOT EXISTS idx_semantic_category ON semantic_nodes(category_id);",
         )?;
     }
 

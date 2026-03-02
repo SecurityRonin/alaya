@@ -1,7 +1,7 @@
-use rusqlite::Connection;
 use crate::error::Result;
-use crate::types::*;
 use crate::store::embeddings;
+use crate::types::*;
+use rusqlite::Connection;
 
 /// Search all embeddings by vector similarity.
 pub fn search_vector(
@@ -10,7 +10,10 @@ pub fn search_vector(
     limit: usize,
 ) -> Result<Vec<(NodeRef, f64)>> {
     let results = embeddings::search_by_vector(conn, query_embedding, None, limit)?;
-    Ok(results.into_iter().map(|(nr, sim)| (nr, sim as f64)).collect())
+    Ok(results
+        .into_iter()
+        .map(|(nr, sim)| (nr, sim as f64))
+        .collect())
 }
 
 #[cfg(test)]

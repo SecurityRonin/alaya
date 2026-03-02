@@ -1,7 +1,7 @@
-use rusqlite::Connection;
 use crate::error::Result;
 use crate::store::strengths;
 use crate::types::*;
+use rusqlite::Connection;
 
 /// Default decay factor per sweep (applied to retrieval strength).
 const DEFAULT_DECAY_FACTOR: f32 = 0.95;
@@ -20,17 +20,14 @@ const ARCHIVE_RETRIEVAL_THRESHOLD: f32 = 0.05;
 /// Nodes with high storage but low retrieval are "latent" — they exist
 /// but are hard to find without a strong cue.
 pub fn forget(conn: &Connection) -> Result<ForgettingReport> {
-    let mut report = ForgettingReport::default();
-
-    // Decay retrieval strength across all nodes
-    report.nodes_decayed = strengths::decay_all_retrieval(conn, DEFAULT_DECAY_FACTOR)? as u32;
+    let mut report = ForgettingReport {
+        nodes_decayed: strengths::decay_all_retrieval(conn, DEFAULT_DECAY_FACTOR)? as u32,
+        ..Default::default()
+    };
 
     // Find and archive nodes below both thresholds
-    let archivable = strengths::find_archivable(
-        conn,
-        ARCHIVE_STORAGE_THRESHOLD,
-        ARCHIVE_RETRIEVAL_THRESHOLD,
-    )?;
+    let archivable =
+        strengths::find_archivable(conn, ARCHIVE_STORAGE_THRESHOLD, ARCHIVE_RETRIEVAL_THRESHOLD)?;
 
     for node in &archivable {
         match node {
@@ -80,14 +77,18 @@ mod tests {
         let node = NodeRef::Episode(EpisodeId(1));
 
         // Create episode and init strength
-        episodic::store_episode(&conn, &NewEpisode {
-            content: "test".to_string(),
-            role: Role::User,
-            session_id: "s1".to_string(),
-            timestamp: 1000,
-            context: EpisodeContext::default(),
-            embedding: None,
-        }).unwrap();
+        episodic::store_episode(
+            &conn,
+            &NewEpisode {
+                content: "test".to_string(),
+                role: Role::User,
+                session_id: "s1".to_string(),
+                timestamp: 1000,
+                context: EpisodeContext::default(),
+                embedding: None,
+            },
+        )
+        .unwrap();
         strengths::init_strength(&conn, node).unwrap();
 
         let before = strengths::get_strength(&conn, node).unwrap();

@@ -11,8 +11,8 @@
 //! Run: `cargo run --example demo`
 
 use alaya::{
-    AlayaStore, ConsolidationProvider, Episode, EpisodeContext, EpisodeId, Interaction,
-    NewEpisode, NewImpression, NewSemanticNode, NodeRef, Query, Role, SemanticNode, SemanticType,
+    AlayaStore, ConsolidationProvider, Episode, EpisodeContext, EpisodeId, Interaction, NewEpisode,
+    NewImpression, NewSemanticNode, NodeRef, Query, Role, SemanticNode, SemanticType,
 };
 
 // ============================================================================
@@ -54,7 +54,11 @@ impl ConsolidationProvider for KeywordProvider {
         // Detect "X is Y" fact patterns and preference-like facts
         for ep in episodes {
             let lower = ep.content.to_lowercase();
-            if lower.contains(" is ") && (lower.contains("amazing") || lower.contains("powerful") || lower.contains("simple")) {
+            if lower.contains(" is ")
+                && (lower.contains("amazing")
+                    || lower.contains("powerful")
+                    || lower.contains("simple"))
+            {
                 nodes.push(NewSemanticNode {
                     content: ep.content.clone(),
                     node_type: SemanticType::Fact,
@@ -63,7 +67,11 @@ impl ConsolidationProvider for KeywordProvider {
                     embedding: None,
                 });
             }
-            if lower.contains("prefer") || lower.contains("enjoy") || lower.contains("love") || lower.contains("like") {
+            if lower.contains("prefer")
+                || lower.contains("enjoy")
+                || lower.contains("love")
+                || lower.contains("like")
+            {
                 nodes.push(NewSemanticNode {
                     content: ep.content.clone(),
                     node_type: SemanticType::Fact,
@@ -136,7 +144,7 @@ impl ConsolidationProvider for KeywordProvider {
 fn print_chapter(n: u32, title: &str, subtitle: &str) {
     println!();
     println!("  ═══════════════════════════════════════════════════");
-    println!("   Chapter {}: {} — {}", n, title, subtitle);
+    println!("   Chapter {n}: {title} — {subtitle}");
     println!("  ═══════════════════════════════════════════════════");
     println!();
 }
@@ -154,7 +162,7 @@ fn print_status(store: &AlayaStore) {
 }
 
 fn print_insight(text: &str) {
-    println!("  \u{2605} Insight: {}", text);
+    println!("  \u{2605} Insight: {text}");
     println!();
 }
 
@@ -244,8 +252,10 @@ fn chapter_1_episodic(store: &AlayaStore) -> Vec<EpisodeId> {
             last_session = session;
         }
 
-        let mut ctx = EpisodeContext::default();
-        ctx.preceding_episode = prev_id;
+        let ctx = EpisodeContext {
+            preceding_episode: prev_id,
+            ..Default::default()
+        };
 
         let id = store
             .store_episode(&NewEpisode {
@@ -277,7 +287,8 @@ fn chapter_1_episodic(store: &AlayaStore) -> Vec<EpisodeId> {
 
     // Query
     println!("  Querying: \"Rust async programming\"");
-    let results = store.query(&Query::simple("Rust async programming"))
+    let results = store
+        .query(&Query::simple("Rust async programming"))
         .expect("failed to query episodes");
     println!("  Found {} results:", results.len());
     for (i, mem) in results.iter().enumerate() {
@@ -316,20 +327,27 @@ fn chapter_2_hebbian(store: &AlayaStore, episode_ids: &[EpisodeId]) {
 
     // Run overlapping queries to trigger co-retrieval links
     println!("  Running overlapping queries to trigger Hebbian learning...");
-    let _ = store.query(&Query::simple("Rust borrow checker")).expect("query failed");
-    let _ = store.query(&Query::simple("Rust type system")).expect("query failed");
-    let _ = store.query(&Query::simple("SQLite embedded database")).expect("query failed");
+    let _ = store
+        .query(&Query::simple("Rust borrow checker"))
+        .expect("query failed");
+    let _ = store
+        .query(&Query::simple("Rust type system"))
+        .expect("query failed");
+    let _ = store
+        .query(&Query::simple("SQLite embedded database"))
+        .expect("query failed");
 
     let status2 = store.status().expect("failed to get memory status");
     let new_links = status2.link_count - status.link_count;
-    println!("  Co-retrieval links created: {}", new_links);
+    println!("  Co-retrieval links created: {new_links}");
     println!("  (Memories retrieved together strengthen their connection)");
     println!();
 
     // Show spreading activation from first episode
     if let Some(&seed) = episode_ids.first() {
         println!("  Spreading activation from episode #{}:", seed.0);
-        let neighbors = store.neighbors(NodeRef::Episode(seed), 2)
+        let neighbors = store
+            .neighbors(NodeRef::Episode(seed), 2)
             .expect("failed to get neighbors");
         if neighbors.is_empty() {
             println!("    (No neighbors yet -- graph needs more co-retrieval events)");
@@ -414,7 +432,9 @@ fn chapter_4_perfuming(store: &AlayaStore) {
             context: EpisodeContext::default(),
         };
 
-        let report = store.perfume(&interaction, &provider).expect("perfuming failed");
+        let report = store
+            .perfume(&interaction, &provider)
+            .expect("perfuming failed");
         let marker = if report.preferences_crystallized > 0 {
             " << CRYSTALLIZED!"
         } else if report.preferences_reinforced > 0 {
@@ -473,10 +493,7 @@ fn chapter_5_transformation(store: &AlayaStore) {
     println!("  TransformationReport:");
     println!("    duplicates_merged:  {}", report.duplicates_merged);
     println!("    links_pruned:       {}", report.links_pruned);
-    println!(
-        "    preferences_decayed: {}",
-        report.preferences_decayed
-    );
+    println!("    preferences_decayed: {}", report.preferences_decayed);
     println!("    impressions_pruned: {}", report.impressions_pruned);
     println!();
 
@@ -508,7 +525,8 @@ fn chapter_6_forgetting(store: &AlayaStore) {
 
     // Demonstrate memory revival through retrieval
     println!("  Now querying 'Rust borrow checker' to revive fading memories...");
-    let results = store.query(&Query::simple("Rust borrow checker"))
+    let results = store
+        .query(&Query::simple("Rust borrow checker"))
         .expect("failed to query after forgetting");
     println!(
         "  Found {} results (retrieval boosts strength on access)",

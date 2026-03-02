@@ -11,8 +11,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use alaya::{
-    AlayaStore, EpisodeContext, KnowledgeFilter, NewEpisode, PurgeFilter, Query, Role,
-    SemanticType,
+    AlayaStore, EpisodeContext, KnowledgeFilter, NewEpisode, PurgeFilter, Query, Role, SemanticType,
 };
 use rmcp::{model::ServerInfo, schemars, tool, ServerHandler, ServiceExt};
 use tokio::io::{stdin, stdout};
@@ -119,13 +118,20 @@ impl AlayaMcp {
 #[tool(tool_box)]
 impl AlayaMcp {
     /// Store a conversation message in memory.
-    #[tool(description = "Store a conversation message in Alaya's episodic memory. Call this for each message in the conversation that should be remembered.")]
+    #[tool(
+        description = "Store a conversation message in Alaya's episodic memory. Call this for each message in the conversation that should be remembered."
+    )]
     fn remember(&self, #[tool(aggr)] params: RememberParams) -> String {
         let role = match params.role.to_lowercase().as_str() {
             "user" => Role::User,
             "assistant" => Role::Assistant,
             "system" => Role::System,
-            _ => return format!("Error: invalid role '{}'. Use: user, assistant, system", params.role),
+            _ => {
+                return format!(
+                    "Error: invalid role '{}'. Use: user, assistant, system",
+                    params.role
+                )
+            }
         };
 
         let now = std::time::SystemTime::now()
@@ -149,7 +155,9 @@ impl AlayaMcp {
     }
 
     /// Search memory for relevant information.
-    #[tool(description = "Search Alaya's memory using hybrid retrieval (BM25 + graph activation). Returns the most relevant memories matching the query.")]
+    #[tool(
+        description = "Search Alaya's memory using hybrid retrieval (BM25 + graph activation). Returns the most relevant memories matching the query."
+    )]
     fn recall(&self, #[tool(aggr)] params: RecallParams) -> String {
         let query = Query {
             text: params.query,
@@ -180,7 +188,9 @@ impl AlayaMcp {
     }
 
     /// Get memory statistics.
-    #[tool(description = "Get Alaya memory statistics: counts of episodes, semantic nodes, preferences, impressions, links, and embeddings.")]
+    #[tool(
+        description = "Get Alaya memory statistics: counts of episodes, semantic nodes, preferences, impressions, links, and embeddings."
+    )]
     fn status(&self) -> String {
         match self.with_store(|s| s.status()) {
             Ok(st) => format!(
@@ -197,7 +207,9 @@ impl AlayaMcp {
     }
 
     /// Get user preferences.
-    #[tool(description = "Get crystallized user preferences learned from past interactions. Optionally filter by domain (e.g. 'style', 'tone', 'format').")]
+    #[tool(
+        description = "Get crystallized user preferences learned from past interactions. Optionally filter by domain (e.g. 'style', 'tone', 'format')."
+    )]
     fn preferences(&self, #[tool(aggr)] params: PreferencesParams) -> String {
         match self.with_store(|s| s.preferences(params.domain.as_deref())) {
             Ok(prefs) if prefs.is_empty() => "No preferences found.".to_string(),
@@ -216,13 +228,12 @@ impl AlayaMcp {
     }
 
     /// Get semantic knowledge.
-    #[tool(description = "Get distilled semantic knowledge (facts, relationships, events, concepts) extracted from past conversations.")]
+    #[tool(
+        description = "Get distilled semantic knowledge (facts, relationships, events, concepts) extracted from past conversations."
+    )]
     fn knowledge(&self, #[tool(aggr)] params: KnowledgeParams) -> String {
         let filter = KnowledgeFilter {
-            node_type: params
-                .node_type
-                .as_deref()
-                .and_then(SemanticType::from_str),
+            node_type: params.node_type.as_deref().and_then(SemanticType::from_str),
             min_confidence: params.min_confidence,
             limit: params.limit.or(Some(20)),
             category: None,
@@ -247,7 +258,9 @@ impl AlayaMcp {
     }
 
     /// Run memory maintenance (dedup, prune weak links, decay preferences).
-    #[tool(description = "Run memory maintenance: deduplicates nodes, prunes weak links, decays stale preferences. Call periodically to keep memory healthy.")]
+    #[tool(
+        description = "Run memory maintenance: deduplicates nodes, prunes weak links, decays stale preferences. Call periodically to keep memory healthy."
+    )]
     fn maintain(&self) -> String {
         let transform = self.with_store(|s| s.transform());
         let forget = self.with_store(|s| s.forget());
@@ -266,7 +279,9 @@ impl AlayaMcp {
     }
 
     /// Purge memories by session, timestamp, or everything.
-    #[tool(description = "Purge memories. Scope: 'session' (requires session_id), 'older_than' (requires before_timestamp), or 'all' (deletes everything).")]
+    #[tool(
+        description = "Purge memories. Scope: 'session' (requires session_id), 'older_than' (requires before_timestamp), or 'all' (deletes everything)."
+    )]
     fn purge(&self, #[tool(aggr)] params: PurgeParams) -> String {
         let filter = match params.scope.as_str() {
             "session" => match params.session_id {

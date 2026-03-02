@@ -1,6 +1,6 @@
-use rusqlite::{params, Connection};
 use crate::error::Result;
 use crate::types::*;
+use rusqlite::{params, Connection};
 
 pub fn init_strength(conn: &Connection, node: NodeRef) -> Result<()> {
     let now = std::time::SystemTime::now()
@@ -15,6 +15,7 @@ pub fn init_strength(conn: &Connection, node: NodeRef) -> Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn get_strength(conn: &Connection, node: NodeRef) -> Result<NodeStrength> {
     let result = conn.query_row(
         "SELECT storage_strength, retrieval_strength, access_count, last_accessed
@@ -22,7 +23,7 @@ pub fn get_strength(conn: &Connection, node: NodeRef) -> Result<NodeStrength> {
         params![node.type_str(), node.id()],
         |row| {
             Ok(NodeStrength {
-                node: node,
+                node,
                 storage_strength: row.get(0)?,
                 retrieval_strength: row.get(1)?,
                 access_count: row.get(2)?,
@@ -65,6 +66,7 @@ pub fn on_access(conn: &Connection, node: NodeRef) -> Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn boost_retrieval(conn: &Connection, node: NodeRef, factor: f32) -> Result<()> {
     conn.execute(
         "UPDATE node_strengths SET retrieval_strength = MIN(1.0, retrieval_strength * ?3)
@@ -74,6 +76,7 @@ pub fn boost_retrieval(conn: &Connection, node: NodeRef, factor: f32) -> Result<
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn suppress_retrieval(conn: &Connection, node: NodeRef, factor: f32) -> Result<()> {
     conn.execute(
         "UPDATE node_strengths SET retrieval_strength = retrieval_strength * ?3
@@ -92,7 +95,11 @@ pub fn decay_all_retrieval(conn: &Connection, decay_factor: f32) -> Result<u64> 
     Ok(changed as u64)
 }
 
-pub fn find_archivable(conn: &Connection, storage_thresh: f32, retrieval_thresh: f32) -> Result<Vec<NodeRef>> {
+pub fn find_archivable(
+    conn: &Connection,
+    storage_thresh: f32,
+    retrieval_thresh: f32,
+) -> Result<Vec<NodeRef>> {
     let mut stmt = conn.prepare(
         "SELECT node_type, node_id FROM node_strengths
          WHERE storage_strength < ?1 AND retrieval_strength < ?2",
@@ -189,7 +196,8 @@ mod tests {
         conn.execute(
             "UPDATE node_strengths SET storage_strength = 0.05 WHERE node_id = 1",
             [],
-        ).unwrap();
+        )
+        .unwrap();
 
         let archivable = find_archivable(&conn, 0.1, 0.05).unwrap();
         // node1 has storage=0.05 < 0.1 AND retrieval=0.01 < 0.05 => archivable

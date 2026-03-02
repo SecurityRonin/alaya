@@ -1,8 +1,14 @@
-use rusqlite::{params, Connection};
 use crate::error::Result;
 use crate::types::*;
+use rusqlite::{params, Connection};
 
-pub fn create_link(conn: &Connection, source: NodeRef, target: NodeRef, link_type: LinkType, weight: f32) -> Result<LinkId> {
+pub fn create_link(
+    conn: &Connection,
+    source: NodeRef,
+    target: NodeRef,
+    link_type: LinkType,
+    weight: f32,
+) -> Result<LinkId> {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -38,6 +44,7 @@ pub fn get_links_from(conn: &Connection, node: NodeRef) -> Result<Vec<Link>> {
     Ok(rows.filter_map(|r| r.ok()).collect())
 }
 
+#[allow(dead_code)]
 pub fn get_links_to(conn: &Connection, node: NodeRef) -> Result<Vec<Link>> {
     let mut stmt = conn.prepare(
         "SELECT id, source_type, source_id, target_type, target_id,
@@ -67,7 +74,14 @@ pub fn on_co_retrieval(conn: &Connection, source: NodeRef, target: NodeRef) -> R
          WHERE source_type = ?1 AND source_id = ?2
            AND target_type = ?3 AND target_id = ?4
            AND link_type = 'co_retrieval'",
-        params![source.type_str(), source.id(), target.type_str(), target.id(), now, learning_rate],
+        params![
+            source.type_str(),
+            source.id(),
+            target.type_str(),
+            target.id(),
+            now,
+            learning_rate
+        ],
     )?;
     if updated == 0 {
         // Create a new co-retrieval link
@@ -76,6 +90,7 @@ pub fn on_co_retrieval(conn: &Connection, source: NodeRef, target: NodeRef) -> R
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn decay_links(conn: &Connection, decay_factor: f32) -> Result<u64> {
     let changed = conn.execute(
         "UPDATE links SET
@@ -108,8 +123,10 @@ fn map_link(row: &rusqlite::Row<'_>) -> rusqlite::Result<Link> {
     let link_type_str: String = row.get(7)?;
     Ok(Link {
         id: LinkId(row.get(0)?),
-        source: NodeRef::from_parts(&source_type, source_id).unwrap_or(NodeRef::Episode(EpisodeId(0))),
-        target: NodeRef::from_parts(&target_type, target_id).unwrap_or(NodeRef::Episode(EpisodeId(0))),
+        source: NodeRef::from_parts(&source_type, source_id)
+            .unwrap_or(NodeRef::Episode(EpisodeId(0))),
+        target: NodeRef::from_parts(&target_type, target_id)
+            .unwrap_or(NodeRef::Episode(EpisodeId(0))),
         forward_weight: row.get(5)?,
         backward_weight: row.get(6)?,
         link_type: LinkType::from_str(&link_type_str).unwrap_or(LinkType::CoRetrieval),
@@ -216,10 +233,24 @@ mod tests {
         let conn = open_memory_db().unwrap();
         assert_eq!(count_links(&conn).unwrap(), 0);
 
-        create_link(&conn, NodeRef::Episode(EpisodeId(1)), NodeRef::Episode(EpisodeId(2)), LinkType::Temporal, 0.5).unwrap();
+        create_link(
+            &conn,
+            NodeRef::Episode(EpisodeId(1)),
+            NodeRef::Episode(EpisodeId(2)),
+            LinkType::Temporal,
+            0.5,
+        )
+        .unwrap();
         assert_eq!(count_links(&conn).unwrap(), 1);
 
-        create_link(&conn, NodeRef::Episode(EpisodeId(2)), NodeRef::Episode(EpisodeId(3)), LinkType::Temporal, 0.5).unwrap();
+        create_link(
+            &conn,
+            NodeRef::Episode(EpisodeId(2)),
+            NodeRef::Episode(EpisodeId(3)),
+            LinkType::Temporal,
+            0.5,
+        )
+        .unwrap();
         assert_eq!(count_links(&conn).unwrap(), 2);
     }
 
@@ -235,7 +266,11 @@ mod tests {
 
         // Co-retrieval should create a SEPARATE CoRetrieval link
         on_co_retrieval(&conn, a, b).unwrap();
-        assert_eq!(count_links(&conn).unwrap(), 2, "should have both Temporal and CoRetrieval links");
+        assert_eq!(
+            count_links(&conn).unwrap(),
+            2,
+            "should have both Temporal and CoRetrieval links"
+        );
 
         // Verify both link types exist
         let links = get_links_from(&conn, a).unwrap();

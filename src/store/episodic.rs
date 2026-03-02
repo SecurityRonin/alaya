@@ -1,13 +1,19 @@
-use rusqlite::{params, Connection};
 use crate::error::{AlayaError, Result};
 use crate::types::*;
+use rusqlite::{params, Connection};
 
 pub fn store_episode(conn: &Connection, ep: &NewEpisode) -> Result<EpisodeId> {
     let ctx_json = serde_json::to_string(&ep.context)?;
     conn.execute(
         "INSERT INTO episodes (content, role, session_id, timestamp, context_json)
          VALUES (?1, ?2, ?3, ?4, ?5)",
-        params![ep.content, ep.role.as_str(), ep.session_id, ep.timestamp, ctx_json],
+        params![
+            ep.content,
+            ep.role.as_str(),
+            ep.session_id,
+            ep.timestamp,
+            ctx_json
+        ],
     )?;
     Ok(EpisodeId(conn.last_insert_rowid()))
 }
@@ -30,9 +36,7 @@ pub fn get_episode(conn: &Connection, id: EpisodeId) -> Result<Episode> {
         },
     )
     .map_err(|e| match e {
-        rusqlite::Error::QueryReturnedNoRows => {
-            AlayaError::NotFound(format!("episode {}", id.0))
-        }
+        rusqlite::Error::QueryReturnedNoRows => AlayaError::NotFound(format!("episode {}", id.0)),
         other => AlayaError::Db(other),
     })
 }
@@ -56,6 +60,7 @@ pub fn get_episodes_by_session(conn: &Connection, session_id: &str) -> Result<Ve
     Ok(rows.filter_map(|r| r.ok()).collect())
 }
 
+#[allow(dead_code)]
 pub fn get_recent_episodes(conn: &Connection, limit: u32) -> Result<Vec<Episode>> {
     let mut stmt = conn.prepare(
         "SELECT id, content, role, session_id, timestamp, context_json
@@ -119,8 +124,10 @@ pub fn delete_episodes(conn: &Connection, ids: &[EpisodeId]) -> Result<u64> {
         placeholders.join(",")
     );
     let mut stmt = conn.prepare(&sql)?;
-    let params: Vec<&dyn rusqlite::types::ToSql> =
-        ids.iter().map(|id| &id.0 as &dyn rusqlite::types::ToSql).collect();
+    let params: Vec<&dyn rusqlite::types::ToSql> = ids
+        .iter()
+        .map(|id| &id.0 as &dyn rusqlite::types::ToSql)
+        .collect();
     let count = stmt.execute(params.as_slice())?;
     Ok(count as u64)
 }
@@ -184,7 +191,7 @@ mod tests {
 
         let recent = get_recent_episodes(&conn, 2).unwrap();
         assert_eq!(recent.len(), 2);
-        assert_eq!(recent[0].content, "new");  // Most recent first
+        assert_eq!(recent[0].content, "new"); // Most recent first
         assert_eq!(recent[1].content, "mid");
     }
 
@@ -209,14 +216,15 @@ mod tests {
 
         // Link episode 1 to a semantic node via the graph
         use crate::graph::links;
-        use crate::types::{NodeRef, NodeId, LinkType};
+        use crate::types::{LinkType, NodeId, NodeRef};
         links::create_link(
             &conn,
             NodeRef::Semantic(NodeId(1)),
             NodeRef::Episode(id1),
             LinkType::Causal,
             0.7,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Now episode 1 should be excluded
         let uncons = get_unconsolidated_episodes(&conn, 10).unwrap();

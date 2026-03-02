@@ -1,8 +1,8 @@
-use std::collections::HashMap;
-use rusqlite::Connection;
 use crate::error::Result;
-use crate::types::*;
 use crate::graph::links;
+use crate::types::*;
+use rusqlite::Connection;
+use std::collections::HashMap;
 
 /// Spread activation from seed nodes through the graph.
 ///
@@ -68,8 +68,8 @@ pub fn spread_activation(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::schema::open_memory_db;
     use crate::graph::links::create_link;
+    use crate::schema::open_memory_db;
 
     #[test]
     fn test_single_hop_spread() {
@@ -108,7 +108,10 @@ mod tests {
         // Note: b can exceed a's activation because it receives spread
         // from a over multiple iterations. This is correct behavior.
         assert!(act_b > act_c, "b ({act_b}) should be > c ({act_c})");
-        assert!(*act_c > 0.0, "c should have nonzero activation from 2-hop spread");
+        assert!(
+            *act_c > 0.0,
+            "c should have nonzero activation from 2-hop spread"
+        );
     }
 
     #[test]

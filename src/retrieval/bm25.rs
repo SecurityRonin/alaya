@@ -1,6 +1,6 @@
-use rusqlite::{Connection, params};
 use crate::error::Result;
 use crate::types::*;
+use rusqlite::{params, Connection};
 
 /// Search episodes via FTS5 BM25 ranking.
 /// Returns (EpisodeId, normalized_score) where score is in [0.0, 1.0].
@@ -12,7 +12,13 @@ pub fn search_bm25(conn: &Connection, query: &str, limit: usize) -> Result<Vec<(
     // Sanitize query for FTS5: remove special characters that FTS5 interprets
     let sanitized: String = query
         .chars()
-        .map(|c| if c.is_alphanumeric() || c.is_whitespace() { c } else { ' ' })
+        .map(|c| {
+            if c.is_alphanumeric() || c.is_whitespace() {
+                c
+            } else {
+                ' '
+            }
+        })
         .collect();
 
     if sanitized.trim().is_empty() {
@@ -66,29 +72,35 @@ mod tests {
     use super::*;
     use crate::schema::open_memory_db;
     use crate::store::episodic;
-    use crate::types::*;
-
     #[test]
     fn test_bm25_search() {
         let conn = open_memory_db().unwrap();
 
-        episodic::store_episode(&conn, &NewEpisode {
-            content: "I love programming in Rust".to_string(),
-            role: Role::User,
-            session_id: "s1".to_string(),
-            timestamp: 1000,
-            context: EpisodeContext::default(),
-            embedding: None,
-        }).unwrap();
+        episodic::store_episode(
+            &conn,
+            &NewEpisode {
+                content: "I love programming in Rust".to_string(),
+                role: Role::User,
+                session_id: "s1".to_string(),
+                timestamp: 1000,
+                context: EpisodeContext::default(),
+                embedding: None,
+            },
+        )
+        .unwrap();
 
-        episodic::store_episode(&conn, &NewEpisode {
-            content: "Python is great for data science".to_string(),
-            role: Role::User,
-            session_id: "s1".to_string(),
-            timestamp: 2000,
-            context: EpisodeContext::default(),
-            embedding: None,
-        }).unwrap();
+        episodic::store_episode(
+            &conn,
+            &NewEpisode {
+                content: "Python is great for data science".to_string(),
+                role: Role::User,
+                session_id: "s1".to_string(),
+                timestamp: 2000,
+                context: EpisodeContext::default(),
+                embedding: None,
+            },
+        )
+        .unwrap();
 
         let results = search_bm25(&conn, "Rust programming", 10).unwrap();
         assert!(!results.is_empty());

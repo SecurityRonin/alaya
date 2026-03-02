@@ -10,8 +10,7 @@
 // This validates the data flow that the MCP tools rely on.
 
 use alaya::{
-    AlayaStore, EpisodeContext, KnowledgeFilter, NewEpisode, PurgeFilter, Query, Role,
-    SemanticType,
+    AlayaStore, EpisodeContext, KnowledgeFilter, NewEpisode, PurgeFilter, Query, Role, SemanticType,
 };
 
 fn make_episode(content: &str, role: Role, session: &str, ts: i64) -> NewEpisode {
@@ -142,9 +141,7 @@ fn test_mcp_purge_session_flow() {
     assert_eq!(store.status().unwrap().episode_count, 2);
 
     // Purge session s1
-    let report = store
-        .purge(PurgeFilter::Session("s1".to_string()))
-        .unwrap();
+    let report = store.purge(PurgeFilter::Session("s1".to_string())).unwrap();
     assert_eq!(report.episodes_deleted, 1);
     assert_eq!(store.status().unwrap().episode_count, 1);
 }

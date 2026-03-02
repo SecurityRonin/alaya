@@ -1,6 +1,6 @@
-use rusqlite::{params, Connection};
 use crate::error::Result;
 use crate::types::*;
+use rusqlite::{params, Connection};
 
 pub fn store_impression(conn: &Connection, imp: &NewImpression) -> Result<ImpressionId> {
     let now = std::time::SystemTime::now()
@@ -15,7 +15,11 @@ pub fn store_impression(conn: &Connection, imp: &NewImpression) -> Result<Impres
     Ok(ImpressionId(conn.last_insert_rowid()))
 }
 
-pub fn get_impressions_by_domain(conn: &Connection, domain: &str, limit: u32) -> Result<Vec<Impression>> {
+pub fn get_impressions_by_domain(
+    conn: &Connection,
+    domain: &str,
+    limit: u32,
+) -> Result<Vec<Impression>> {
     let mut stmt = conn.prepare(
         "SELECT id, domain, observation, valence, timestamp
          FROM impressions WHERE domain = ?1
@@ -42,7 +46,12 @@ pub fn count_impressions_by_domain(conn: &Connection, domain: &str) -> Result<u6
     Ok(count as u64)
 }
 
-pub fn store_preference(conn: &Connection, domain: &str, preference: &str, confidence: f32) -> Result<PreferenceId> {
+pub fn store_preference(
+    conn: &Connection,
+    domain: &str,
+    preference: &str,
+    confidence: f32,
+) -> Result<PreferenceId> {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -89,7 +98,11 @@ fn map_preference(row: &rusqlite::Row<'_>) -> rusqlite::Result<Preference> {
     })
 }
 
-pub fn reinforce_preference(conn: &Connection, id: PreferenceId, additional_evidence: u32) -> Result<()> {
+pub fn reinforce_preference(
+    conn: &Connection,
+    id: PreferenceId,
+    additional_evidence: u32,
+) -> Result<()> {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -130,10 +143,7 @@ pub fn prune_old_impressions(conn: &Connection, max_age_secs: i64) -> Result<u64
         .unwrap_or_default()
         .as_secs() as i64;
     let cutoff = now - max_age_secs;
-    let deleted = conn.execute(
-        "DELETE FROM impressions WHERE timestamp < ?1",
-        [cutoff],
-    )?;
+    let deleted = conn.execute("DELETE FROM impressions WHERE timestamp < ?1", [cutoff])?;
     Ok(deleted as u64)
 }
 
@@ -155,11 +165,15 @@ mod tests {
     #[test]
     fn test_impressions_crud() {
         let conn = open_memory_db().unwrap();
-        let id = store_impression(&conn, &NewImpression {
-            domain: "communication".to_string(),
-            observation: "user prefers short answers".to_string(),
-            valence: 1.0,
-        }).unwrap();
+        let id = store_impression(
+            &conn,
+            &NewImpression {
+                domain: "communication".to_string(),
+                observation: "user prefers short answers".to_string(),
+                valence: 1.0,
+            },
+        )
+        .unwrap();
         assert_eq!(id.0, 1);
         let imps = get_impressions_by_domain(&conn, "communication", 10).unwrap();
         assert_eq!(imps.len(), 1);
@@ -183,25 +197,40 @@ mod tests {
     #[test]
     fn test_count_impressions_by_domain() {
         let conn = open_memory_db().unwrap();
-        store_impression(&conn, &NewImpression {
-            domain: "style".to_string(),
-            observation: "concise".to_string(),
-            valence: 0.8,
-        }).unwrap();
-        store_impression(&conn, &NewImpression {
-            domain: "style".to_string(),
-            observation: "brief".to_string(),
-            valence: 0.7,
-        }).unwrap();
-        store_impression(&conn, &NewImpression {
-            domain: "other".to_string(),
-            observation: "something".to_string(),
-            valence: 0.5,
-        }).unwrap();
+        store_impression(
+            &conn,
+            &NewImpression {
+                domain: "style".to_string(),
+                observation: "concise".to_string(),
+                valence: 0.8,
+            },
+        )
+        .unwrap();
+        store_impression(
+            &conn,
+            &NewImpression {
+                domain: "style".to_string(),
+                observation: "brief".to_string(),
+                valence: 0.7,
+            },
+        )
+        .unwrap();
+        store_impression(
+            &conn,
+            &NewImpression {
+                domain: "other".to_string(),
+                observation: "something".to_string(),
+                valence: 0.5,
+            },
+        )
+        .unwrap();
 
         assert_eq!(count_impressions_by_domain(&conn, "style").unwrap(), 2);
         assert_eq!(count_impressions_by_domain(&conn, "other").unwrap(), 1);
-        assert_eq!(count_impressions_by_domain(&conn, "nonexistent").unwrap(), 0);
+        assert_eq!(
+            count_impressions_by_domain(&conn, "nonexistent").unwrap(),
+            0
+        );
     }
 
     #[test]
@@ -216,7 +245,8 @@ mod tests {
         let future = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_secs() as i64 + 100_000; // ~27 hours later
+            .as_secs() as i64
+            + 100_000; // ~27 hours later
 
         let decayed = decay_preferences(&conn, future, 3600).unwrap(); // half_life = 1 hour
         assert_eq!(decayed, 1);
@@ -259,11 +289,15 @@ mod tests {
     fn test_prune_old_impressions() {
         let conn = open_memory_db().unwrap();
         // Store impressions (they get current timestamp)
-        store_impression(&conn, &NewImpression {
-            domain: "style".to_string(),
-            observation: "recent".to_string(),
-            valence: 0.8,
-        }).unwrap();
+        store_impression(
+            &conn,
+            &NewImpression {
+                domain: "style".to_string(),
+                observation: "recent".to_string(),
+                valence: 0.8,
+            },
+        )
+        .unwrap();
 
         // With a very large max_age, nothing should be pruned
         let pruned = prune_old_impressions(&conn, 999_999_999).unwrap();
@@ -293,11 +327,15 @@ mod tests {
         assert_eq!(count_impressions(&conn).unwrap(), 0);
         assert_eq!(count_preferences(&conn).unwrap(), 0);
 
-        store_impression(&conn, &NewImpression {
-            domain: "a".to_string(),
-            observation: "b".to_string(),
-            valence: 0.5,
-        }).unwrap();
+        store_impression(
+            &conn,
+            &NewImpression {
+                domain: "a".to_string(),
+                observation: "b".to_string(),
+                valence: 0.5,
+            },
+        )
+        .unwrap();
         assert_eq!(count_impressions(&conn).unwrap(), 1);
 
         store_preference(&conn, "a", "b", 0.5).unwrap();
