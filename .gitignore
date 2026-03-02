@@ -13,3 +13,9 @@ paper/*.blg
 paper/*.log
 paper/*.out
 paper/*.pdf
+paper-alaya/*.aux
+paper-alaya/*.bbl
+paper-alaya/*.blg
+paper-alaya/*.log
+paper-alaya/*.out
+paper-alaya/*.pdf
