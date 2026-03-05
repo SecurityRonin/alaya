@@ -127,7 +127,7 @@ Temporal metadata (\texttt{[since:]}, \texttt{[learned:]})
     semantic nodes, enabling provenance queries and temporal filtering. \\
 \addlinespace
 4-layer architecture (SOUL.md + tacit.md + daily notes + PARA vault)
-  & Oblivion Labz
+  & Oblivion Labz~\cite{oblivionlabz2025}
   & Identity layer, tacit knowledge layer, temporal notes, and a
     reference vault---all prepended to the system prompt.
   & Multi-store architecture: separate episodic, semantic, and
@@ -140,8 +140,15 @@ Temporal metadata (\texttt{[since:]}, \texttt{[learned:]})
   & Forgetting model with tiered retrieval strength.  Activation decays
     over time; frequently accessed memories retain high accessibility. \\
 \addlinespace
+Periodic summary (daily/weekly notes)
+  & Claudesidian~\cite{claudesidian2025}, OpenClaw QMD~\cite{casanova2026}
+  & Daily logs consolidated into weekly summaries; raw session history
+    compacted into curated digests on a cron schedule.
+  & Episodic-to-semantic consolidation.  Scheduled batch processing
+    mirrors CLS offline replay~\cite{mcclelland1995}. \\
+\addlinespace
 TELOS identity system (10 structured files)
-  & Miessler, adapted by Swift
+  & Miessler~\cite{miessler2024telos}
   & Values, goals, and background as structured Markdown in an
     Obsidian vault, organized by semantic category.
   & Typed semantic store with category-specific schemas, separating
@@ -159,14 +166,24 @@ Learning Systems (CLS) theory~\cite{mcclelland1995}.  Fisher's temporal
 metadata recreates the bi-temporal provenance tracking that
 Zep/Graphiti~\cite{dempsey2025graphiti} implements at the graph layer.
 
-Second, multi-layer architectures (4-layer and 12-layer) recapitulate
+Second, periodic summary---daily logs compacted into weekly
+digests---has emerged as a community-standard consolidation practice.
+Claudesidian~\cite{claudesidian2025} structures an Obsidian vault with
+daily and weekly notes that accumulate and summarize session history;
+OpenClaw's QMD (Quality Memory Digest) runs weekly via cron to convert
+seven days of raw operational logs into one curated
+summary~\cite{casanova2026}.  Both recapitulate the CLS offline replay
+mechanism~\cite{mcclelland1995}: batch processing during downtime
+distills episodic traces into stable semantic knowledge.
+
+Third, multi-layer architectures (4-layer and 12-layer) recapitulate
 the multi-store models of cognitive psychology.  The 12-layer system is
 particularly notable: its Hot/Warm/Cool activation tiers implement a
 form of retrieval-strength decay, the same principle formalized in the
 Bjork dual-strength model~\cite{bjork1992}, where retrieval strength
 decays over time while storage strength persists.
 
-Third, these workarounds remain fundamentally constrained by the
+Fourth, these workarounds remain fundamentally constrained by the
 flat-file medium.  They impose structure through naming conventions and
 manual discipline, not through schema enforcement or automated
 lifecycle management.  A user who forgets to tag a fact with
