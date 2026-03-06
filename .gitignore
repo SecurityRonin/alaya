@@ -6,16 +6,17 @@ Cargo.lock
 .DS_Store
 
 # LaTeX build artifacts
-paper/build/
-paper/*.aux
-paper/*.bbl
-paper/*.blg
-paper/*.log
-paper/*.out
-paper/*.pdf
-paper-alaya/*.aux
-paper-alaya/*.bbl
-paper-alaya/*.blg
-paper-alaya/*.log
-paper-alaya/*.out
-paper-alaya/*.pdf
+survey-paper/build/
+survey-paper/*.aux
+survey-paper/*.bbl
+survey-paper/*.blg
+survey-paper/*.log
+survey-paper/*.out
+survey-paper/*.pdf
+alaya-paper/build/
+alaya-paper/*.aux
+alaya-paper/*.bbl
+alaya-paper/*.blg
+alaya-paper/*.log
+alaya-paper/*.out
+alaya-paper/*.pdf
