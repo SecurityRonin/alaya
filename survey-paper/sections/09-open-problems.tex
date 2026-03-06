@@ -169,6 +169,35 @@ benchmarks would need to simulate multi-session interactions spanning
 weeks or months, with evaluation criteria that capture the trajectory
 of memory quality rather than point-in-time accuracy alone.
 
+\subsection{Memory Security and Privacy}
+
+Persistent memory introduces a threat surface absent from stateless LLM
+inference.  We identify four attack vectors.  \textbf{Memory poisoning:}
+an adversary who controls even a single conversation turn can inject
+fabricated facts into episodic memory; if the system performs
+consolidation, these fabrications propagate into semantic nodes and become
+indistinguishable from genuine knowledge.  \textbf{Exfiltration via
+retrieval:} a prompt injection that triggers retrieval across conversation
+boundaries can extract private information stored in earlier sessions---a
+risk amplified by multi-user deployments where memory isolation is
+imperfect.  \textbf{Inference from forgetting patterns:} the
+\emph{absence} of a memory can reveal information; if a system's
+forgetting behavior is observable, an adversary can infer what was
+previously stored by probing for retrievals that fail.
+\textbf{Preference fingerprinting:} accumulated preference profiles
+create user fingerprints that persist even if conversation logs are
+deleted, enabling re-identification across sessions.
+
+GDPR Article~17 (right to erasure) and the California Consumer Privacy
+Act (CCPA) require that personal data be deletable upon request, yet
+memory systems with graph links, consolidated nodes, and crystallized
+preferences make complete erasure technically challenging.  No surveyed
+system provides formal guarantees of complete memory erasure, and the
+interaction between consolidation and deletion remains an open
+engineering problem.  Federated approaches---where raw episodes remain
+under user control while only anonymized aggregates enter shared
+memory---represent a promising but unexplored mitigation strategy.
+
 \subsection{Ethical Considerations}
 
 Memory architectures for LLM agents raise ethical questions that the

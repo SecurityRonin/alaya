@@ -23,6 +23,18 @@ the same benchmarks. LoCoMo, LongMemEval, and DMR scores are not
 directly comparable across papers due to variations in evaluation
 setup, model choice, and preprocessing.
 
+\textbf{Reproducibility.} All baseline experiments
+(\S\ref{sec:baseline-replication}, \S\ref{sec:mab-replication}) use
+Gemini-2.0-Flash-001 via OpenRouter (accessed February 2026;
+temperature~0, max\_tokens~512) as the generator and GPT-4o-mini via
+OpenRouter (temperature~0, max\_tokens~10) as the judge.  Embedding
+model: \texttt{all-MiniLM-L6-v2} via ChromaDB.  Total inference cost
+for all three benchmarks: approximately \$12.  Code and raw results are
+available at
+\url{https://github.com/SecurityRonin/alaya/tree/main/bench}.  Model
+behavior may change with API updates; our results reflect model versions
+available in February 2026.
+
 \textbf{No system-level evaluation.} This paper surveys and classifies
 memory architectures but does not evaluate any specific system's
 end-to-end performance. Comparative evaluation of lifecycle operations

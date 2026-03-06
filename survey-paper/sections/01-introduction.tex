@@ -31,6 +31,36 @@ synthesis: six survey papers appeared in 2024--2026
 alone~\cite{sumers2024coala, gao2023rag, zhang2024survey, hu2025memory,
 wu2025memory, du2025memory}, yet none covers the full landscape from
 production deployments through practitioner-invented workarounds.
+Table~\ref{tab:survey-comparison} positions our work relative to the most
+relevant prior surveys.
+
+\begin{table}[!t]
+\centering
+\caption{Comparison with prior surveys on LLM agent memory.
+$\bullet$~=~covered; $\circ$~=~partial; --~=~not covered.}
+\label{tab:survey-comparison}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+& \rotatebox{70}{\textbf{CoALA~\cite{sumers2024coala}}}
+& \rotatebox{70}{\textbf{Gao~\cite{gao2023rag}}}
+& \rotatebox{70}{\textbf{Zhang~\cite{zhang2024survey}}}
+& \rotatebox{70}{\textbf{Hu~\cite{hu2025memory}}}
+& \rotatebox{70}{\textbf{Ours}} \\
+\midrule
+Systems surveyed      & ${\sim}$20 & -- & 40+ & 50+ & 95 \\
+Production systems    & $\circ$ & -- & $\circ$ & $\bullet$ & $\bullet$ \\
+Practitioner tools    & -- & -- & -- & -- & $\bullet$ \\
+Memory structure      & $\bullet$ & -- & $\bullet$ & $\bullet$ & $\bullet$ \\
+Retrieval taxonomy    & $\circ$ & $\bullet$ & $\circ$ & $\circ$ & $\bullet$ \\
+Lifecycle operations  & -- & -- & $\bullet$ & $\bullet$ & $\bullet$ \\
+Preference emergence  & -- & -- & -- & $\circ$ & $\bullet$ \\
+Benchmark evaluation  & -- & -- & -- & $\circ$ & $\bullet$ \\
+Neuro.\ grounding     & $\bullet$ & -- & $\circ$ & $\circ$ & $\bullet$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 % Gap this paper fills
 This paper provides the first comprehensive taxonomy that bridges three

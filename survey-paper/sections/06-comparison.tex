@@ -156,6 +156,47 @@ deployment has actually declined slightly in relative terms, as the
 Memory) trend toward multi-service architectures with Neo4j, Redis, and
 managed vector databases.
 
+Figure~\ref{fig:temporal} visualizes these trends, showing the steady
+rise in graph structure and forgetting adoption against the flat
+trajectory of consolidation and zero-dependency deployment.
+
+\begin{figure}[!t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    ybar,
+    bar width=5pt,
+    width=0.95\columnwidth,
+    height=5.5cm,
+    ylabel={\% of systems},
+    symbolic x coords={2023, 2024, 2025, 2026},
+    xtick=data,
+    ymin=0, ymax=60,
+    ytick={0,10,20,30,40,50,60},
+    legend style={at={(0.5,1.08)}, anchor=south, legend columns=2,
+                  font=\scriptsize},
+    x tick label style={font=\small},
+    y tick label style={font=\small},
+    ylabel style={font=\small},
+]
+\addplot[fill=blue!50] coordinates
+    {(2023, 11.1) (2024, 28.6) (2025, 33.3) (2026, 39.1)};
+\addplot[fill=red!50] coordinates
+    {(2023, 33.3) (2024, 28.6) (2025, 40.5) (2026, 47.8)};
+\addplot[fill=green!50] coordinates
+    {(2023, 22.2) (2024, 14.3) (2025, 19.0) (2026, 21.7)};
+\addplot[fill=orange!50] coordinates
+    {(2023, 33.3) (2024, 28.6) (2025, 31.0) (2026, 30.4)};
+\legend{Graph, Forgetting, Consolid., 0-dep}
+\end{axis}
+\end{tikzpicture}
+\caption{Capability adoption trends 2023--2026.  Graph structure and
+forgetting show clear upward trajectories, while consolidation and
+zero-dependency deployment remain flat.  Data from
+Table~\ref{tab:temporal-trends}.}
+\label{fig:temporal}
+\end{figure}
+
 The 2025--2026 period also marks the emergence of RL-trained memory
 policies as a distinct paradigm. Memory-R1, MemRL, AgeMem, and
 Mem-alpha~\cite{wang2025memalpha} all appeared in this window, collectively

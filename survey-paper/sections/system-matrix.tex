@@ -5,13 +5,13 @@
 \label{sec:system-matrix}
 
 Table~\ref{tab:system-matrix} presents per-feature classifications for
-41~systems with complete capability data across the eight discriminating
+47~systems with complete capability data across the eight discriminating
 features defined in \S\ref{sec:long-tail}.  Systems are grouped by category
 and sorted alphabetically within each group.
 
 \begin{table*}[!t]
 \centering
-\caption{Per-system capability matrix for 41 classified systems.
+\caption{Per-system capability matrix for 47 classified systems.
 $\bullet$~=~capability present.
 RAG tier: N~=~Naive, A~=~Advanced, M~=~Modular~\cite{gao2023rag}.
 An interactive visualization with filtering is available at
@@ -276,6 +276,128 @@ Marker shapes distinguish system categories.}
 \label{fig:quadrant}
 \end{figure*}
 
-For interactive exploration with filtering by category,
-capability, and RAG tier, see the companion
-visualization.\footnote{\url{https://securityronin.github.io/alaya/docs/memory-landscape.html}}
+Table~\ref{tab:rag-breadth} cross-tabulates RAG tier with mean feature
+breadth count.  The progression is monotonic: Naive RAG systems average
+1.9 features, Advanced 3.9, and Modular 4.4---confirming that retrieval
+sophistication is a reliable proxy for overall architectural investment
+in memory lifecycle operations.
+
+\begin{table}[!t]
+\centering
+\caption{Mean feature breadth by RAG tier for 47 classified systems.
+Feature count tallies the same eight capabilities as
+Table~\ref{tab:capability-distribution}.}
+\label{tab:rag-breadth}
+\small
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{RAG Tier} & \textbf{$N$} & \textbf{Mean} & \textbf{Min} & \textbf{Max} \\
+\midrule
+Naive    & 14 & 1.9 & 1 & 5 \\
+Advanced & 26 & 3.9 & 2 & 7 \\
+Modular  &  7 & 4.4 & 2 & 7 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:cooccurrence} reveals pairwise feature co-occurrence
+across the 47 classified systems.  Two correlations are striking.
+First, consolidation and forgetting are perfectly co-occurrent: all 8
+systems with consolidation also implement forgetting, consistent with
+the architectural argument that consolidation creates a growing semantic
+store that requires active management.  Second, graph structure and
+fusion are strongly correlated (13 of 19 graph systems also use fusion),
+confirming that graph traversal provides a third retrieval signal that
+motivates principled fusion.  Contradiction resolution is the most
+isolated feature: only 3 systems implement it, all of which also have
+episodic, semantic, fusion, and forgetting---suggesting it requires a
+mature architectural foundation.
+
+\begin{table}[!t]
+\centering
+\caption{Feature co-occurrence matrix (lower triangle) for 47 classified
+systems.  Diagonal (bold) shows total count per feature.  Notable:
+Consolidation $\leftrightarrow$ Forgetting = 8/8 (100\%);
+Graph $\leftrightarrow$ Fusion = 13/19 (68\%).}
+\label{tab:cooccurrence}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lrrrrrrrr@{}}
+\toprule
+& \rotatebox{70}{\textbf{Ep.}}
+& \rotatebox{70}{\textbf{Sem.}}
+& \rotatebox{70}{\textbf{Graph}}
+& \rotatebox{70}{\textbf{Fusion}}
+& \rotatebox{70}{\textbf{Consol.}}
+& \rotatebox{70}{\textbf{Forget.}}
+& \rotatebox{70}{\textbf{Contrad.}}
+& \rotatebox{70}{\textbf{Pref.}} \\
+\midrule
+Episodic      & \textbf{35} \\
+Semantic      & 21 & \textbf{32} \\
+Graph         & 11 & 18 & \textbf{19} \\
+Fusion        & 15 & 20 & 13 & \textbf{21} \\
+Consolidation &  8 &  8 &  4 &  5 & \textbf{8} \\
+Forgetting    & 23 & 18 & 10 & 10 &  8 & \textbf{24} \\
+Contradiction &  3 &  3 &  2 &  3 &  1 &  3 & \textbf{3} \\
+Preference    & 16 & 11 &  5 &  8 &  3 & 11 &  2 & \textbf{17} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Figure~\ref{fig:decision-tree} provides a practitioner-facing decision
+tree for selecting a memory architecture based on deployment requirements.
+The tree routes through three questions---memory volume, associative
+retrieval needs, and lifecycle requirements---to arrive at representative
+systems for each configuration.
+
+\begin{figure*}[!t]
+\centering
+\begin{tikzpicture}[
+    decision/.style={diamond, draw, fill=blue!8, text width=2.2cm,
+                     align=center, inner sep=1pt, font=\scriptsize},
+    result/.style={rectangle, draw, rounded corners, fill=green!10,
+                   text width=2.6cm, align=center, font=\scriptsize,
+                   minimum height=0.8cm},
+    arr/.style={->, >=Stealth, thick},
+    lab/.style={font=\tiny, fill=white, inner sep=1pt},
+]
+% Level 0
+\node[decision] (q1) at (0,0) {Memory\\$>$100K tokens?};
+% Level 1 - No
+\node[result] (r0) at (-5,-2) {Windowed context\\LangChain, LlamaIndex,\\Letta};
+% Level 1 - Yes
+\node[decision] (q2) at (3,-2) {Need graph/\\relational\\queries?};
+% Level 2 - Yes
+\node[decision] (q3) at (0,-4.5) {Need lifecycle\\(forget, consol.)?};
+% Level 2 - No
+\node[decision] (q4) at (6,-4.5) {Need user\\personalization?};
+% Level 3
+\node[result] (r1) at (-2,-6.8) {Full-stack\\Zep, SYNAPSE,\\MemOS, Mem0};
+\node[result] (r2) at (2,-6.8) {Graph retrieval\\HippoRAG~2, LightRAG,\\Cognee, Neo4j};
+\node[result] (r3) at (4.5,-6.8) {Preference\\Hindsight, ChatGPT\\Mem., OpenMemory};
+\node[result] (r4) at (7.5,-6.8) {Standard RAG\\Engram, Memvid,\\basic vector store};
+% Edges
+\draw[arr] (q1) -| node[lab,above left] {no} (r0);
+\draw[arr] (q1) -- node[lab,right] {yes} (q2);
+\draw[arr] (q2) -- node[lab,left] {yes} (q3);
+\draw[arr] (q2) -- node[lab,right] {no} (q4);
+\draw[arr] (q3) -- node[lab,left] {yes} (r1);
+\draw[arr] (q3) -- node[lab,right] {no} (r2);
+\draw[arr] (q4) -- node[lab,left] {yes} (r3);
+\draw[arr] (q4) -- node[lab,right] {no} (r4);
+\end{tikzpicture}
+\caption{Practitioner decision tree for selecting a memory architecture.
+Each decision node corresponds to a deployment requirement; leaf nodes
+list representative systems.  The tree reflects the feature clustering
+in \S\ref{sec:long-tail}: graph traversal and lifecycle operations
+partition the landscape into distinct architectural tiers.}
+\label{fig:decision-tree}
+\end{figure*}
+
+For interactive exploration with filtering by category, capability, RAG
+tier, and lifecycle operations, see the companion
+visualization.\footnote{\url{https://securityronin.github.io/alaya/docs/memory-landscape.html}
+The visualization includes the full 47-system matrix with sortable
+columns, the quadrant plot with hover details, and the co-occurrence
+heatmap with color encoding.}
