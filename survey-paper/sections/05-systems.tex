@@ -361,12 +361,14 @@ overlap.
 
 HippoRAG achieves 20\% improvement on multi-hop question answering at
 10--30$\times$ lower cost than iterative retrieval
-approaches. HippoRAG~2~\cite{gutierrez2025rag2memory} extends this
-with online knowledge graph updates and a deeper integration of the
-complementary learning systems (CLS) framework. The knowledge graph
-is static (constructed by LLM extraction), and the system has no
-forgetting, consolidation, or preference learning---it is a retrieval
-architecture rather than a full memory lifecycle system. PPR on a
+approaches. HippoRAG~2~\cite{gutierrez2025rag2memory} (ICML~2025)
+extends this with deeper passage integration---full passages become
+first-class graph nodes alongside phrase nodes---and more effective
+online LLM use for knowledge graph construction, adding episodic
+storage and hybrid fusion (PPR + dense embedding) to the original
+semantic-plus-graph design.  Neither version implements forgetting,
+consolidation, or preference learning; both are retrieval
+architectures rather than full memory lifecycle systems. PPR on a
 knowledge graph is comparable in cognitive inspiration to spreading
 activation on associative graphs, though the two mechanisms differ:
 PPR computes a global stationary distribution, while spreading

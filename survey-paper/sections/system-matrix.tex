@@ -5,13 +5,13 @@
 \label{sec:system-matrix}
 
 Table~\ref{tab:system-matrix} presents per-feature classifications for
-40~systems with complete capability data across the eight discriminating
+41~systems with complete capability data across the eight discriminating
 features defined in \S\ref{sec:long-tail}.  Systems are grouped by category
 and sorted by capability score within each group.
 
 \begin{table*}[!t]
 \centering
-\caption{Per-system capability matrix for 40 classified systems.
+\caption{Per-system capability matrix for 41 classified systems.
 $\bullet$~=~capability present.  Score counts eight discriminating features:
 episodic memory, semantic memory, graph structure, hybrid fusion,
 consolidation, forgetting, contradiction resolution, and preference learning.
@@ -80,7 +80,7 @@ Engram               & N & $\bullet$ &           &           &           &      
 Claudesidian         & A & $\bullet$ &           & $\bullet$ &           &           & $\bullet$ &           &           & 3 \\
 Claude Code          & N & $\bullet$ &           &           &           &           &           &           & $\bullet$ & 2 \\
 \midrule
-\multicolumn{11}{@{}l}{\textit{Research Architectures (9)}} \\
+\multicolumn{11}{@{}l}{\textit{Research Architectures (10)}} \\
 Generative Agents    & A & $\bullet$ & $\bullet$ &           & $\bullet$ & $\bullet$ & $\bullet$ &           & $\bullet$ & 6 \\
 SYNAPSE              & M & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           &           & 6 \\
 LightMem             & A & $\bullet$ & $\bullet$ &           &           & $\bullet$ & $\bullet$ &           &           & 4 \\
@@ -88,7 +88,8 @@ A-MEM                & A &           & $\bullet$ & $\bullet$ & $\bullet$ &      
 LightRAG             & M &           & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &           & 3 \\
 Mem-alpha            & A & $\bullet$ & $\bullet$ &           &           &           & $\bullet$ &           &           & 3 \\
 MemoRAG              & A & $\bullet$ & $\bullet$ &           & $\bullet$ &           &           &           &           & 3 \\
-HippoRAG            & M &           & $\bullet$ & $\bullet$ &           &           &           &           &           & 2 \\
+HippoRAG             & M &           & $\bullet$ & $\bullet$ &           &           &           &           &           & 2 \\
+HippoRAG~2           & M & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &           & 4 \\
 MemAgent             & A & $\bullet$ &           &           &           &           & $\bullet$ &           &           & 2 \\
 \bottomrule
 \end{tabular}
@@ -96,7 +97,7 @@ MemAgent             & A & $\bullet$ &           &           &           &      
 
 Three patterns emerge from the per-system view that are not visible in the
 aggregate statistics.  First, contradiction resolution is the rarest
-capability: only 3 of 40~systems implement it (Mem0, Zep/Graphiti,
+capability: only 3 of 41~systems implement it (Mem0, Zep/Graphiti,
 and Hindsight), all dedicated memory systems.  Second, Modular RAG systems
 average 4.5/8 on the capability score, versus 4.0 for Advanced RAG and 1.9
 for Naive RAG---retrieval sophistication correlates strongly with
@@ -113,7 +114,7 @@ and graph-based retrieval.
     width=0.7\columnwidth,
     height=5cm,
     xlabel={Mean Capability Score (out of 8)},
-    symbolic y coords={File-Based (2), Coding Agent (4), Framework (6), Research (9), Dedicated (19)},
+    symbolic y coords={File-Based (2), Coding Agent (4), Framework (6), Research (10), Dedicated (25)},
     ytick=data,
     xmin=0, xmax=7,
     xtick={0,1,2,3,4,5,6,7},
@@ -129,8 +130,8 @@ and graph-based retrieval.
     (2.5,File-Based (2))
     (2.8,Coding Agent (4))
     (2.8,Framework (6))
-    (3.6,Research (9))
-    (4.2,Dedicated (19))
+    (3.6,Research (10))
+    (3.6,Dedicated (25))
 };
 \end{axis}
 \end{tikzpicture}
