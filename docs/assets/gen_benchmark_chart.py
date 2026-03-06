@@ -39,25 +39,25 @@ bars1 = ax_left.bar(left_x - bar_width/2, fc_vals, bar_width,
 bars2 = ax_left.bar(left_x + bar_width/2, rag_vals, bar_width,
                     color=rag_color, label="Naive RAG", zorder=3, alpha=0.85)
 
-# Value labels on bars
+# The X: connect FC tops and RAG tops with lines — BEHIND bars
+ax_left.plot(left_x, fc_vals, color=fc_color, linewidth=2.5, zorder=2,
+             marker="o", markersize=7, markeredgecolor="white", markeredgewidth=1.5,
+             linestyle="--", alpha=0.7)
+ax_left.plot(left_x, rag_vals, color=rag_color, linewidth=2.5, zorder=2,
+             marker="o", markersize=7, markeredgecolor="white", markeredgewidth=1.5,
+             linestyle="--", alpha=0.7)
+
+# Value labels on bars — white background so lines don't obscure
 for bar in bars1:
     ax_left.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1.5,
                  f"{bar.get_height():.1f}", ha="center", va="bottom",
-                 fontsize=8.5, fontweight="bold", color=fc_color)
+                 fontsize=8.5, fontweight="bold", color=fc_color, zorder=5,
+                 bbox=dict(facecolor="white", edgecolor="none", pad=1, alpha=0.8))
 for bar in bars2:
     ax_left.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1.5,
                  f"{bar.get_height():.1f}", ha="center", va="bottom",
-                 fontsize=8.5, fontweight="bold", color=rag_color)
-
-# The X: connect FC tops and RAG tops with lines
-fc_centers = left_x - bar_width/2 + bar_width/2  # center of FC bars = left_x
-rag_centers = left_x + bar_width/2 + bar_width/2 - bar_width/2  # = left_x
-
-# Lines connecting the bar tops across benchmarks — these form the X
-ax_left.plot(left_x, fc_vals, color=fc_color, linewidth=2.5, zorder=4,
-             marker="o", markersize=6, markeredgecolor="white", markeredgewidth=1.5)
-ax_left.plot(left_x, rag_vals, color=rag_color, linewidth=2.5, zorder=4,
-             marker="o", markersize=6, markeredgecolor="white", markeredgewidth=1.5)
+                 fontsize=8.5, fontweight="bold", color=rag_color, zorder=5,
+                 bbox=dict(facecolor="white", edgecolor="none", pad=1, alpha=0.8))
 
 # "X" label at intersection point
 # Lines: FC goes 61.4 -> 46.2, RAG goes 26.0 -> 54.6
