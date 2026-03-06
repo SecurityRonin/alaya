@@ -1,14 +1,14 @@
 \section{Comparative Analysis}
 \label{sec:comparison}
 
-This section provides a quantitative cross-sectional analysis of the 90 memory
+This section provides a quantitative cross-sectional analysis of the 94 memory
 systems surveyed in \S\ref{sec:systems}, organized along three axes: feature
 prevalence across the full landscape, temporal trends showing how the field has
 evolved from 2023 to 2026, and the distribution of retrieval sophistication
 mapped to the RAG taxonomy of Gao et al.~\cite{gao2023rag}. We exclude vector
 databases (Pinecone, ChromaDB, Weaviate, Milvus, etc.) from all counts, as
 these are infrastructure components rather than memory architectures. The
-remaining 90 systems span five categories: Dedicated Memory Systems (29),
+remaining 94 systems span five categories: Dedicated Memory Systems (33),
 Framework Memory Modules (13), Coding Agent Memory (12), File-Based Memory (2),
 and Research Architectures (12), plus 22 additional systems described in
 sufficient detail to classify but not included in the primary comparison
@@ -29,7 +29,7 @@ infrastructure requirements.
 
 \begin{table}[!t]
 \centering
-\caption{Feature prevalence across 90 surveyed memory systems (excluding vector databases). Counts reflect systems with explicit support for each capability based on documentation, publications, and source code analysis.}
+\caption{Feature prevalence across 94 surveyed memory systems (excluding vector databases). Counts reflect systems with explicit support for each capability based on documentation, publications, and source code analysis.}
 \label{tab:feature-prevalence}
 \small
 \begin{tabular}{@{}lrr@{}}
@@ -709,7 +709,7 @@ lifecycle management that identifies and resolves conflicting facts.
 
 The feature prevalence data in Table~\ref{tab:feature-prevalence} reveals a
 pronounced long-tail distribution: most capabilities are concentrated in a
-small number of systems, while the majority of the 90 surveyed systems
+small number of systems, while the majority of the 94 surveyed systems
 implement only basic memory functionality. To quantify this, we define a
 \emph{capability score} as the count of features present from a set of eight
 discriminating capabilities: episodic memory, semantic memory, graph structure,
@@ -719,7 +719,7 @@ distribution.
 
 \begin{table}[!t]
 \centering
-\caption{Distribution of capability scores across 90 systems.  The score counts eight features: episodic memory, semantic memory, graph structure, forgetting, consolidation, contradiction resolution, preference learning, and hybrid retrieval.}
+\caption{Distribution of capability scores across 94 systems.  The score counts eight features: episodic memory, semantic memory, graph structure, forgetting, consolidation, contradiction resolution, preference learning, and hybrid retrieval.}
 \label{tab:capability-distribution}
 \small
 \begin{tabular}{@{}crrp{3.8cm}@{}}

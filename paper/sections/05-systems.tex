@@ -168,6 +168,64 @@ MEMORY.md problem analyzed in \S\ref{sec:memorymd}: full-context
 injection with no retrieval, no lifecycle management, and a linear
 scaling cost in memory size.
 
+\paragraph{Gemini Memory (Google).}
+Google's Gemini~\cite{gemini2026memory} deploys persistent memory across
+its consumer assistant and Workspace applications (Gmail, Docs, Sheets,
+Slides, Drive).  The architecture uses vector embeddings to store
+``important user facts'' extracted from conversations, injected as
+context in subsequent sessions.  A ``Recent chats'' panel (rolled out
+March 2026) enables users to revisit and continue prior conversations
+with full context preservation across Workspace apps.  Notably, Gemini
+adopts an \emph{opt-out} privacy model---memory is enabled by default,
+the opposite of ChatGPT's opt-in approach.  Memory management is
+currently all-or-nothing: users can disable memory entirely or clear
+all memories, but selective deletion of individual memories was not
+yet available during testing.  Despite Gemini's industry-leading 1M-token
+context window, the memory system remains Naive RAG: stored facts are
+injected without ranking, graph structure, or lifecycle operations.
+
+\paragraph{Grok Memory (xAI).}
+xAI introduced memory for Grok in April 2025~\cite{grok2025memory},
+enabling the chatbot to retain user preferences, names, and topical
+interests across conversations on X (formerly Twitter), Grok.com, and
+mobile apps.  The implementation follows the ChatGPT pattern: the model
+decides what to remember, stored memories are transparent and
+individually deletable, and a ``Personalize with Memories'' toggle
+provides user control.  Architecturally, Grok Memory is Naive RAG with
+implicit preference storage---no retrieval ranking, no graph, no
+forgetting mechanism.  Its primary distinguishing feature is integration
+with the X social platform, providing conversational context that other
+assistants lack.
+
+\paragraph{Meta AI Memory.}
+Meta deploys memory across WhatsApp, Instagram, Messenger, and
+meta.ai~\cite{meta2025aimemory}, potentially reaching the largest user
+base of any platform memory system.  Memory stores names, preferences,
+and recent topics across 1:1 chats, injected at runtime into the
+model's context window.  Crucially, memory content \emph{consumes}
+active context tokens---unlike systems that maintain a separate memory
+store, Meta AI's injected memories reduce the available window for
+conversation, creating implicit pressure toward concise memory as
+histories grow.  The system provides no retrieval: all stored memories
+are injected regardless of relevance, placing it firmly in the Naive
+RAG category.
+
+\paragraph{Perplexity Memory.}
+Perplexity~\cite{perplexity2025memory} stands apart from the other
+platform memory systems with two distinctive features.  First,
+\emph{cross-model portability}: memory persists across every model
+Perplexity offers (Claude, GPT, Gemini, and others), allowing users
+to switch models between questions while retaining their full context
+history---unique among all platforms surveyed.  Second,
+\emph{citation-based transparency}: when memory influences a response,
+Perplexity explicitly shows which memories contributed alongside
+traditional web sources, making memory's impact auditable.  The
+underlying architecture retrieves relevant context from a user's memory
+store rather than injecting all memories, placing Perplexity in the
+Advanced RAG category---the only consumer platform to exceed Naive RAG
+for memory retrieval.  Like its peers, Perplexity lacks graph structure,
+consolidation, and principled forgetting.
+
 %% ===============================================================
 \subsection{Standalone Memory Servers}
 \label{sec:standalone}
