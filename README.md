@@ -438,14 +438,7 @@ competencies). Generator: Gemini-2.0-Flash-001; Judge: GPT-4o-mini. Full
 methodology and statistical analysis:
 [docs/benchmark-evaluation.md](docs/benchmark-evaluation.md).
 
-```mermaid
-xychart-beta
-    title "Full-Context (blue) vs Naive RAG (red) — Accuracy (%)"
-    x-axis ["LoCoMo", "LongMemEval", "MAB:AR", "MAB:TTL", "MAB:LRU", "MAB:CR"]
-    y-axis "Accuracy (%)" 0 --> 100
-    bar [61.4, 46.2, 94.0, 86.0, 82.4, 50.0]
-    bar [26.0, 54.6, 90.4, 44.0, 67.6, 41.0]
-```
+![Benchmark Results](docs/assets/benchmark-chart.svg)
 
 **Key findings:**
 - **Retrieval crossover:** Full-context dominates on shorter conversations
