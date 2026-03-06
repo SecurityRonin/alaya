@@ -45,6 +45,13 @@ LLM-agent-focused & General database systems \\
 \end{tabular}
 \end{table}
 
+We note that multi-agent context management frameworks such as
+Chain-of-Agents~\cite{zhang2024coa}, which partition long inputs across
+collaborating workers within a single inference pass, fall on the
+excluded side of this boundary: they address context-window limits
+\emph{within} an interaction rather than maintaining persistent memory
+\emph{across} interactions.
+
 \subsection{Analysis Framework}
 
 Each system is analyzed along four axes using three complementary
