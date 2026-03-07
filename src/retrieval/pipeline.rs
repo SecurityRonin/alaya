@@ -73,10 +73,35 @@ pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemor
                         ep.context,
                     )
                 }),
-                _ => {
-                    // For semantic/preference nodes, use minimal context
-                    None // TODO: enrich semantic and preference nodes
+                NodeRef::Semantic(nid) => {
+                    crate::store::semantic::get_semantic_node(conn, nid)
+                        .ok()
+                        .map(|node| {
+                            (
+                                node_ref,
+                                score,
+                                node.content,
+                                None,
+                                node.created_at,
+                                EpisodeContext::default(),
+                            )
+                        })
                 }
+                NodeRef::Preference(pid) => {
+                    crate::store::implicit::get_preference(conn, pid)
+                        .ok()
+                        .map(|pref| {
+                            (
+                                node_ref,
+                                score,
+                                format!("preference: {}: {}", pref.domain, pref.preference),
+                                None,
+                                pref.first_observed,
+                                EpisodeContext::default(),
+                            )
+                        })
+                }
+                NodeRef::Category(_) => None,
             }
         })
         .collect();
@@ -153,6 +178,71 @@ mod tests {
 
         assert!(!results.is_empty());
         assert!(results[0].content.contains("Rust"));
+    }
+
+    #[test]
+    fn test_query_returns_semantic_nodes() {
+        let conn = open_memory_db().unwrap();
+        use crate::store::{embeddings, semantic, strengths};
+
+        // Store a semantic node with embedding
+        let node_id = semantic::store_semantic_node(
+            &conn,
+            &NewSemanticNode {
+                content: "Rust has zero-cost abstractions".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.9,
+                source_episodes: vec![],
+                embedding: None,
+            },
+        )
+        .unwrap();
+
+        // Store embedding for vector search
+        let emb = vec![1.0, 0.0, 0.0];
+        embeddings::store_embedding(&conn, "semantic", node_id.0, &emb, "").unwrap();
+        strengths::init_strength(&conn, NodeRef::Semantic(node_id)).unwrap();
+
+        // Also store an episode so BM25 can potentially match
+        episodic::store_episode(
+            &conn,
+            &NewEpisode {
+                content: "Rust has zero-cost abstractions and great memory safety".to_string(),
+                role: Role::User,
+                session_id: "s1".to_string(),
+                timestamp: 1000,
+                context: EpisodeContext::default(),
+                embedding: None,
+            },
+        )
+        .unwrap();
+
+        // Query with embedding that matches the semantic node
+        let results = execute_query(
+            &conn,
+            &Query {
+                text: "Rust abstractions".to_string(),
+                embedding: Some(vec![0.9, 0.1, 0.0]),
+                context: QueryContext {
+                    current_timestamp: Some(2000),
+                    ..Default::default()
+                },
+                max_results: 10,
+                boost_categories: None,
+            },
+        )
+        .unwrap();
+
+        // Should find results — at minimum the episode via BM25
+        assert!(!results.is_empty(), "should have results");
+
+        // Check if any result is a semantic node
+        let has_semantic = results.iter().any(|r| matches!(r.node, NodeRef::Semantic(_)));
+        assert!(
+            has_semantic,
+            "should include semantic node in results, got: {:?}",
+            results.iter().map(|r| r.node).collect::<Vec<_>>()
+        );
     }
 
     #[test]

@@ -64,6 +64,21 @@ pub fn store_preference(
     Ok(PreferenceId(conn.last_insert_rowid()))
 }
 
+pub fn get_preference(conn: &Connection, id: PreferenceId) -> Result<Preference> {
+    conn.query_row(
+        "SELECT id, domain, preference, confidence, evidence_count, first_observed, last_reinforced
+         FROM preferences WHERE id = ?1",
+        [id.0],
+        map_preference,
+    )
+    .map_err(|e| match e {
+        rusqlite::Error::QueryReturnedNoRows => {
+            crate::error::AlayaError::NotFound(format!("preference {}", id.0))
+        }
+        other => crate::error::AlayaError::Db(other),
+    })
+}
+
 pub fn get_preferences(conn: &Connection, domain: Option<&str>) -> Result<Vec<Preference>> {
     let (sql, param): (&str, Option<&str>) = match domain {
         Some(d) => (
