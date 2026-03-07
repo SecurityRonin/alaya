@@ -20,9 +20,10 @@ let store = AlayaStore::open("memory.db")?;
 store.store_episode(&episode)?;           // store
 let results = store.query(&query)?;       // retrieve
 store.consolidate(&provider)?;            // distill knowledge
-store.transform()?;                       // discover categories, dedup
+store.transform()?;                       // dedup, LTD, discover categories
 store.forget()?;                          // decay what's stale
 let cats = store.categories(None)?;       // emergent ontology
+store.purge(PurgeFilter::Session("s1"))?; // cascade delete + tombstones
 ```
 
 ## The Problem
@@ -173,7 +174,7 @@ store.forget()?;
 
 ### Run the Demo
 
-The demo walks through all six capabilities with annotated output and no
+The demo walks through all ten capabilities with annotated output and no
 external dependencies:
 
 ```bash
@@ -206,8 +207,9 @@ Via Rust library:                   AlayaStore struct
   knowledge()                        ──▶ consolidated semantic nodes
   consolidate(provider)              ──▶ episodes → semantic knowledge
   perfume(interaction, provider)     ──▶ impressions → preferences
-  transform()                        ──▶ dedup, prune, decay
+  transform()                        ──▶ dedup, LTD, prune, discover categories
   forget()                           ──▶ Bjork strength decay + archival
+  purge(scope)                       ──▶ cascade deletion + tombstones
 ```
 
 ### Three Stores
@@ -231,9 +233,9 @@ flowchart LR
     GR --> RRF
 
     RRF --> RR[Context-Weighted Reranking]
-    RR --> SA[Spreading Activation]
+    RR --> SA[Spreading Activation + Enrichment]
     SA --> RIF[Retrieval-Induced Forgetting]
-    RIF --> OUT[Top 3-5 Results]
+    RIF --> OUT[Top 3-5 Results<br/>Episodes + Semantic + Preferences]
 ```
 
 ### Lifecycle Processes
@@ -242,8 +244,9 @@ flowchart LR
 |---------|-------------|--------------|
 | **Consolidation** | CLS theory (McClelland et al.) | Distills episodes into semantic knowledge |
 | **Perfuming** | Vasana (Yogacara Buddhist psychology) | Accumulates impressions, crystallizes preferences |
-| **Transformation** | Asraya-paravrtti | Deduplicates, resolves contradictions, prunes |
+| **Transformation** | Asraya-paravrtti | Deduplicates, LTD link decay, prunes, discovers categories |
 | **Forgetting** | Bjork & Bjork (1992) | Decays retrieval strength, archives weak nodes |
+| **RIF** | Anderson et al. (1994) | Retrieval-induced forgetting suppresses competing memories |
 | **Emergent Ontology** | Vikalpa (conceptual construction) | Categories emerge from semantic node clustering |
 
 ## Integration Guide
@@ -285,8 +288,9 @@ works without consolidation.
 |--------|-------------|--------------|
 | `consolidate()` | After accumulating 10+ episodes | Extracts semantic knowledge from episodes |
 | `perfume()` | On every user interaction | Extracts behavioral impressions, crystallizes preferences |
-| `transform()` | Daily or weekly | Deduplicates, prunes weak links, decays stale preferences |
+| `transform()` | Daily or weekly | Deduplicates, LTD link decay, prunes weak links, discovers categories |
 | `forget()` | Daily or weekly | Decays retrieval strength, archives truly forgotten nodes |
+| `purge()` | On user request | Cascade deletes by session/age/all with tombstone tracking |
 
 ## API Reference
 
@@ -413,12 +417,15 @@ lateral inhibition).
 ## v0.1.0 — What's In This Release
 
 - **Three-store architecture** (episodic/semantic/implicit) + Hebbian graph overlay
-- **5 lifecycle operations:** consolidate, transform, forget, perfume, emergent ontology
-- **Modular RAG retrieval:** BM25 + vector + graph + RRF fusion
-- **Bjork dual-strength forgetting** with retrieval-induced suppression
+- **7 lifecycle operations:** consolidate, transform, forget, perfume, emergent ontology, RIF, purge
+- **Modular RAG retrieval:** BM25 + vector + graph + RRF fusion + semantic/preference enrichment
+- **Bjork dual-strength forgetting** with retrieval-induced suppression (RIF)
+- **LTD (Long-Term Depression):** Hebbian link decay weakens unused associations each transform cycle
+- **Enriched retrieval:** query results include semantic knowledge and preferences alongside episodes
 - **Emergent flat categories** via dual-signal clustering (embedding + graph)
+- **Tombstone tracking:** cascade deletion records audit trail for every purged node
 - **Zero-dependency Rust library** with SQLite WAL + FTS5
-- **181 tests** (154 unit + 9 integration + 18 doc), CI across 3 OS x 2 toolchains
+- **201 tests** (174 unit + 9 integration + 18 doc) + property-based tests via proptest
 - **MCP server** (optional `mcp` feature flag)
 
 ## v0.2.0 Roadmap

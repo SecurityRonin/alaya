@@ -2,7 +2,7 @@
 \label{sec:architecture}
 
 \alaya{} is organized around three memory stores connected by a Hebbian graph
-overlay, with five lifecycle operations that manage memory health over time.
+overlay, with seven lifecycle operations that manage memory health over time.
 \Cref{fig:architecture} illustrates the overall structure.
 
 \begin{figure}[t]
@@ -43,7 +43,7 @@ overlay, with five lifecycle operations that manage memory health over time.
 \end{tikzpicture}
 \caption{\alaya{} architecture. Three stores hold different memory types;
 the Hebbian graph overlay connects them with weighted, use-adaptive links.
-Five lifecycle operations (dashed) manage memory beyond storage and
+Seven lifecycle operations (dashed) manage memory beyond storage and
 retrieval.}
 \label{fig:architecture}
 \end{figure}
@@ -97,11 +97,13 @@ All three stores are connected by a shared graph with six link types:
     emergent ontology system (\Cref{sec:ontology}).
 \end{itemize}
 
-Link weights evolve through use: co-retrieval strengthens weights (LTP),
-while the passage of time without co-activation allows weights to decay
-(LTD). This produces emergent small-world topology in the graph, where
-frequently co-accessed memories form tightly connected clusters while rarely
-used associations weaken. The graph is used during retrieval for spreading
+Link weights evolve through use: co-retrieval strengthens weights via LTP
+($w \mathrel{+}= 0.1 \cdot (1 - w)$), while the \texttt{transform()}
+lifecycle operation applies LTD (Long-Term Depression), decaying all link
+weights by a factor of 0.95 per cycle. Links that fall below a threshold
+of~0.02 are pruned entirely. This produces emergent small-world topology
+in the graph, where frequently co-accessed memories form tightly connected
+clusters while unused associations weaken and eventually disappear. The graph is used during retrieval for spreading
 activation---a query activates seed nodes, and activation propagates through
 weighted links with distance-based decay, surfacing indirectly related
 memories that pure similarity search would miss.
@@ -126,19 +128,24 @@ input. Episodes are specific, contextual, and time-bound; semantic nodes
 are decontextualized, typed, and reusable.
 
 \paragraph{Transformation (\texttt{transform()})}
-Periodic reorganization of the semantic store, implementing
-\emph{\=a\'sraya-par\=av\d{r}tti} (transformation of the basis). Three
+Periodic reorganization of the memory system, implementing
+\emph{\=a\'sraya-par\=av\d{r}tti} (transformation of the basis). Five
 sub-operations run in sequence:
 \begin{enumerate}[nosep]
+    \item \textbf{LTD link decay:} All Hebbian link weights are decayed by
+    a factor of~0.95 (Long-Term Depression), weakening unused associations.
+    \item \textbf{Link pruning:} Links whose weight has fallen below~0.02
+    are removed from the graph.
     \item \textbf{Deduplication:} Semantic nodes with high embedding
-    similarity and matching type are merged, combining corroboration counts
-    and source links.
-    \item \textbf{Contradiction resolution:} Nodes flagged as contradictory
-    (opposing confidence signals from corroboration) are resolved by
-    retaining the more strongly supported version.
+    similarity ($\geq 0.95$) and matching type are merged, combining
+    corroboration counts and source links.
+    \item \textbf{Preference decay:} Stale preferences are decayed with a
+    30-day half-life; weak preferences and old impressions are pruned.
     \item \textbf{Category discovery:} Uncategorized semantic nodes are
     clustered to discover emergent categories (\Cref{sec:ontology}).
 \end{enumerate}
+The \texttt{TransformationReport} returns counts for each sub-operation,
+enabling monitoring of memory system health over time.
 
 \paragraph{Forgetting (\texttt{forget()})}
 Implements Bjork dual-strength decay. Retrieval strength decays as a
@@ -163,9 +170,17 @@ a user mentioning Python once does not generate a ``prefers Python''
 preference, but mentioning it across fifty sessions does.
 
 \paragraph{Emergent ontology}
-The newest lifecycle operation, detailed in \Cref{sec:ontology}. Categories
-emerge from clustering patterns in the semantic store, providing a
-lightweight taxonomic structure without manual curation or supervision.
+Categories emerge from clustering patterns in the semantic store, providing
+a lightweight taxonomic structure without manual curation or supervision.
+Detailed in \Cref{sec:ontology}.
+
+\paragraph{Purge (\texttt{purge()})}
+Cascade deletion with tombstone tracking. Supports three modes:
+session-scoped (delete all episodes from a specific session),
+time-scoped (\texttt{OlderThan} TTL-based deletion), and full reset.
+Each deleted node records a tombstone entry (node type, ID, timestamp,
+reason) for audit trail purposes. Tombstones enable post-hoc analysis
+of deletion patterns and support GDPR Article~17 erasure compliance.
 
 \subsection{Retrieval Pipeline}
 \label{sec:retrieval}
@@ -192,3 +207,24 @@ where $r(d)$ is the rank of document $d$ in ranked list $r$ and $k$ is a
 constant (default 60). This is robust to heterogeneous score distributions
 across signals, which is critical when combining sparse, dense, and
 graph-based scores.
+
+\paragraph{Enriched retrieval.}
+Query results are not limited to raw episodes. When vector search or
+spreading activation reaches semantic nodes or preference nodes in the
+graph, the pipeline enriches them with their stored content and returns
+them alongside episodic results. Semantic nodes surface as consolidated
+knowledge (e.g., \emph{``User programs in Rust and SQLite''}); preference
+nodes surface as behavioral patterns (e.g., \emph{``preference:
+communication\_style: prefers concise answers''}). This enrichment
+allows the agent to retrieve both raw memories and distilled knowledge in
+a single query, without separate API calls.
+
+\paragraph{Retrieval-induced forgetting.}
+After retrieval, competing memories from the same session as retrieved
+results have their Bjork retrieval strength suppressed by a factor
+of~0.9~\cite{anderson1994}. This implements the \emph{part-set cuing
+inhibition} effect: accessing a subset of related memories actively
+impairs the accessibility of the non-accessed members. Over repeated
+retrievals, this sharpens the retrieval landscape---frequently useful
+memories become more accessible while similar but less relevant
+competitors fade.

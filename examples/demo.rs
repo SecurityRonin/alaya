@@ -1,18 +1,23 @@
 //! # Alaya Demo: A Scripted Walkthrough
 //!
-//! This demo walks through Alaya's six core capabilities:
+//! This demo walks through Alaya's ten core capabilities:
 //! 1. Episodic Memory (store + query)
 //! 2. Hebbian Graph (temporal links + co-retrieval + spreading activation)
 //! 3. Consolidation (episodic -> semantic knowledge)
 //! 4. Perfuming (vasana -> preference crystallization)
-//! 5. Transformation (dedup, prune, decay)
-//! 6. Forgetting (Bjork dual-strength model)
+//! 5. Transformation + LTD (dedup, prune, link decay, emergent categories)
+//! 6. Emergent Ontology (categories emerge from clustering)
+//! 7. Enriched Retrieval (semantic nodes in query results)
+//! 8. Retrieval-Induced Forgetting (competitor suppression)
+//! 9. Forgetting (Bjork dual-strength model)
+//! 10. Purge (cascade deletion with tombstone tracking)
 //!
 //! Run: `cargo run --example demo`
 
 use alaya::{
     AlayaStore, ConsolidationProvider, Episode, EpisodeContext, EpisodeId, Interaction, NewEpisode,
-    NewImpression, NewSemanticNode, NodeRef, Query, Role, SemanticNode, SemanticType,
+    NewImpression, NewSemanticNode, NodeRef, PurgeFilter, Query, QueryContext, Role, SemanticNode,
+    SemanticType,
 };
 
 // ============================================================================
@@ -47,7 +52,8 @@ impl ConsolidationProvider for KeywordProvider {
                 node_type: SemanticType::Relationship,
                 confidence: 0.75,
                 source_episodes: ep_ids.clone(),
-                embedding: None,
+                // Embedding: tech-tools cluster
+                embedding: Some(vec![1.0, 0.0, 0.0, 0.0]),
             });
         }
 
@@ -59,12 +65,21 @@ impl ConsolidationProvider for KeywordProvider {
                     || lower.contains("powerful")
                     || lower.contains("simple"))
             {
+                // Assign embeddings that cluster together (cos >= 0.7)
+                // but don't dedup (cos < 0.95)
+                let emb = if lower.contains("powerful") {
+                    vec![0.8, 0.5, 0.0, 0.0]
+                } else if lower.contains("simple") {
+                    vec![0.8, 0.0, 0.5, 0.0]
+                } else {
+                    vec![0.7, 0.3, 0.3, 0.0]
+                };
                 nodes.push(NewSemanticNode {
                     content: ep.content.clone(),
                     node_type: SemanticType::Fact,
                     confidence: 0.60,
                     source_episodes: vec![ep.id],
-                    embedding: None,
+                    embedding: Some(emb),
                 });
             }
             if lower.contains("prefer")
@@ -77,7 +92,7 @@ impl ConsolidationProvider for KeywordProvider {
                     node_type: SemanticType::Fact,
                     confidence: 0.65,
                     source_episodes: vec![ep.id],
-                    embedding: None,
+                    embedding: Some(vec![0.5, 0.2, 0.5, 0.0]),
                 });
             }
         }
@@ -89,7 +104,8 @@ impl ConsolidationProvider for KeywordProvider {
                 node_type: SemanticType::Concept,
                 confidence: 0.70,
                 source_episodes: ep_ids,
-                embedding: None,
+                // Different cluster — won't group with tech nodes
+                embedding: Some(vec![0.0, 0.0, 0.0, 1.0]),
             });
         }
 
@@ -158,12 +174,22 @@ fn print_status(store: &AlayaStore) {
     println!("    impressions:    {}", s.impression_count);
     println!("    links:          {}", s.link_count);
     println!("    embeddings:     {}", s.embedding_count);
+    let cats = store.categories(None).unwrap_or_default();
+    println!("    categories:     {}", cats.len());
     println!();
 }
 
 fn print_insight(text: &str) {
     println!("  \u{2605} Insight: {text}");
     println!();
+}
+
+fn truncate(s: &str, max: usize) -> String {
+    if s.len() > max {
+        format!("{}...", &s[..max])
+    } else {
+        s.to_string()
+    }
 }
 
 // ============================================================================
@@ -296,11 +322,7 @@ fn chapter_1_episodic(store: &AlayaStore) -> Vec<EpisodeId> {
             "    {}. [score {:.4}] \"{}\"",
             i + 1,
             mem.score,
-            if mem.content.len() > 55 {
-                format!("{}...", &mem.content[..55])
-            } else {
-                mem.content.clone()
-            }
+            truncate(&mem.content, 55)
         );
     }
     println!();
@@ -481,8 +503,8 @@ fn chapter_4_perfuming(store: &AlayaStore) {
 fn chapter_5_transformation(store: &AlayaStore) {
     print_chapter(
         5,
-        "Transformation",
-        "Dedup + Prune + Decay (Asraya-Paravrtti)",
+        "Transformation + LTD",
+        "Dedup + Prune + Link Decay + Category Discovery",
     );
 
     println!("  Status before transformation:");
@@ -491,11 +513,32 @@ fn chapter_5_transformation(store: &AlayaStore) {
     let report = store.transform().expect("transformation failed");
 
     println!("  TransformationReport:");
-    println!("    duplicates_merged:  {}", report.duplicates_merged);
-    println!("    links_pruned:       {}", report.links_pruned);
-    println!("    preferences_decayed: {}", report.preferences_decayed);
-    println!("    impressions_pruned: {}", report.impressions_pruned);
+    println!("    duplicates_merged:      {}", report.duplicates_merged);
+    println!("    links_decayed:          {}", report.links_decayed);
+    println!("    links_pruned:           {}", report.links_pruned);
+    println!("    preferences_decayed:    {}", report.preferences_decayed);
+    println!("    impressions_pruned:     {}", report.impressions_pruned);
+    println!(
+        "    categories_discovered:  {}",
+        report.categories_discovered
+    );
+    println!("    categories_merged:      {}", report.categories_merged);
+    println!("    categories_dissolved:   {}", report.categories_dissolved);
     println!();
+
+    if report.links_decayed > 0 {
+        println!("  LTD (Long-Term Depression): {} links decayed by factor 0.95", report.links_decayed);
+        println!("  Unused associations weaken -- only active pathways persist.");
+        println!();
+    }
+
+    if report.categories_discovered > 0 {
+        println!(
+            "  Emergent categories discovered: {} (from semantic node clustering)",
+            report.categories_discovered
+        );
+        println!();
+    }
 
     println!("  Status after transformation:");
     print_status(store);
@@ -503,13 +546,196 @@ fn chapter_5_transformation(store: &AlayaStore) {
     print_insight(
         "Asraya-paravrtti ('transformation of the storehouse'): periodic\n\
          \x20 refinement removes duplicates, prunes weak links (< 0.02),\n\
-         \x20 and decays old preferences (30-day half-life). The memory\n\
-         \x20 system trends toward clarity, not accumulation.",
+         \x20 decays old preferences (30-day half-life), and applies LTD\n\
+         \x20 (Long-Term Depression) to unused graph links. Categories\n\
+         \x20 emerge organically from semantic node embedding similarity.",
     );
 }
 
-fn chapter_6_forgetting(store: &AlayaStore) {
-    print_chapter(6, "Forgetting", "Bjork Dual-Strength Model");
+fn chapter_6_emergent_ontology(store: &AlayaStore) {
+    print_chapter(6, "Emergent Ontology", "Categories from Clustering");
+
+    let categories = store.categories(None).expect("failed to get categories");
+
+    if categories.is_empty() {
+        println!("  (No categories formed yet -- need 3+ semantic nodes with");
+        println!("   similar embeddings. Run more consolidation cycles.)");
+    } else {
+        println!("  {} categories emerged from semantic node clustering:", categories.len());
+        println!();
+        for cat in &categories {
+            println!(
+                "    [cat#{}] \"{}\" (members: {}, stability: {:.2})",
+                cat.id.0, cat.label, cat.member_count, cat.stability
+            );
+
+            // Show which nodes belong to this category
+            let knowledge = store.knowledge(None).expect("failed to get knowledge");
+            for node in &knowledge {
+                if let Ok(Some(node_cat)) = store.node_category(node.id) {
+                    if node_cat.id == cat.id {
+                        println!("      -> \"{}\"", truncate(&node.content, 50));
+                    }
+                }
+            }
+        }
+    }
+    println!();
+
+    // Show node_category API
+    let knowledge = store.knowledge(None).expect("failed to get knowledge");
+    if let Some(node) = knowledge.first() {
+        match store.node_category(node.id) {
+            Ok(Some(cat)) => {
+                println!(
+                    "  node_category(node#{}): belongs to \"{}\"",
+                    node.id.0, cat.label
+                );
+            }
+            Ok(None) => {
+                println!("  node_category(node#{}): uncategorized", node.id.0);
+            }
+            Err(e) => {
+                println!("  node_category error: {e}");
+            }
+        }
+    }
+    println!();
+
+    print_insight(
+        "Vikalpa ('conceptual construction'): categories are not declared\n\
+         \x20 -- they emerge when 3+ semantic nodes cluster by embedding\n\
+         \x20 similarity (threshold 0.7). The label comes from the prototype\n\
+         \x20 node's content. Categories gain stability with each member\n\
+         \x20 added, and dissolve if stability drops below 0.1.",
+    );
+}
+
+fn chapter_7_enriched_retrieval(store: &AlayaStore) {
+    print_chapter(
+        7,
+        "Enriched Retrieval",
+        "Semantic Nodes in Query Results",
+    );
+
+    println!("  Standard BM25 query returns only episodes:");
+    let bm25_results = store
+        .query(&Query::simple("Rust programming tools"))
+        .expect("query failed");
+    for (i, mem) in bm25_results.iter().enumerate() {
+        println!(
+            "    {}. [{}] \"{}\"",
+            i + 1,
+            mem.node.type_str(),
+            truncate(&mem.content, 50)
+        );
+    }
+    println!();
+
+    println!("  Vector-enriched query also surfaces semantic knowledge:");
+    let enriched_query = Query {
+        text: "Rust programming tools".to_string(),
+        // Embedding close to the tech-tools cluster
+        embedding: Some(vec![0.9, 0.1, 0.0, 0.0]),
+        context: QueryContext {
+            current_timestamp: Some(5000),
+            ..Default::default()
+        },
+        max_results: 10,
+        boost_categories: None,
+    };
+    let enriched_results = store.query(&enriched_query).expect("enriched query failed");
+    for (i, mem) in enriched_results.iter().enumerate() {
+        let tag = match mem.node {
+            NodeRef::Episode(_) => "episode   ",
+            NodeRef::Semantic(_) => "SEMANTIC  ",
+            NodeRef::Preference(_) => "PREFERENCE",
+            NodeRef::Category(_) => "category  ",
+            _ => "unknown   ",
+        };
+        println!(
+            "    {}. [{}] [score {:.4}] \"{}\"",
+            i + 1,
+            tag,
+            mem.score,
+            truncate(&mem.content, 45)
+        );
+    }
+    println!();
+
+    let has_semantic = enriched_results
+        .iter()
+        .any(|r| matches!(r.node, NodeRef::Semantic(_)));
+    if has_semantic {
+        println!("  Semantic nodes surfaced alongside episodes in results.");
+    } else {
+        println!("  (Semantic enrichment requires graph links from episodes");
+        println!("   to semantic nodes, created during consolidation.)");
+    }
+    println!();
+
+    print_insight(
+        "The retrieval pipeline enriches results beyond raw episodes.\n\
+         \x20 When vector search finds semantic nodes (via embeddings),\n\
+         \x20 their content appears alongside episodic results. This\n\
+         \x20 surfaces consolidated knowledge -- not just raw memories.",
+    );
+}
+
+fn chapter_8_rif(store: &AlayaStore) {
+    print_chapter(
+        8,
+        "Retrieval-Induced Forgetting",
+        "Competitor Suppression (Anderson et al. 1994)",
+    );
+
+    println!("  When you retrieve specific memories, competing memories");
+    println!("  from the same session are suppressed (RS *= 0.9).");
+    println!();
+
+    // Query specifically for borrow checker content
+    println!("  Query 1: \"Rust borrow checker\" (retrieves specific day-1 memories)");
+    let results = store
+        .query(&Query::simple("Rust borrow checker"))
+        .expect("query failed");
+    let retrieved: Vec<String> = results
+        .iter()
+        .map(|r| truncate(&r.content, 50))
+        .collect();
+    for (i, content) in retrieved.iter().enumerate() {
+        println!("    Retrieved: {}. \"{}\"", i + 1, content);
+    }
+    println!();
+    println!("  Behind the scenes: non-retrieved day-1 episodes now have");
+    println!("  reduced retrieval strength (RS suppressed by factor 0.9).");
+    println!();
+
+    // Query for something that was suppressed
+    println!("  Query 2: \"SQLite database\" (may show suppression effect)");
+    let results2 = store
+        .query(&Query::simple("SQLite embedded database"))
+        .expect("query failed");
+    for (i, mem) in results2.iter().enumerate() {
+        println!(
+            "    {}. [score {:.4}] \"{}\"",
+            i + 1,
+            mem.score,
+            truncate(&mem.content, 50)
+        );
+    }
+    println!();
+
+    print_insight(
+        "Retrieval-Induced Forgetting (Anderson et al. 1994): retrieving\n\
+         \x20 one memory actively suppresses competitors sharing the same\n\
+         \x20 cues (here: same session). This models the 'part-set cuing\n\
+         \x20 inhibition' effect -- studying a subset of items impairs\n\
+         \x20 recall of the unstudied items from the same category.",
+    );
+}
+
+fn chapter_9_forgetting(store: &AlayaStore) {
+    print_chapter(9, "Forgetting", "Bjork Dual-Strength Model");
 
     println!("  Running 5 forgetting cycles (retrieval strength decays 0.95x each)...");
     println!();
@@ -534,7 +760,7 @@ fn chapter_6_forgetting(store: &AlayaStore) {
     );
     println!();
 
-    println!("  Final status:");
+    println!("  Status after forgetting:");
     print_status(store);
 
     print_insight(
@@ -544,6 +770,52 @@ fn chapter_6_forgetting(store: &AlayaStore) {
          \x20 A memory can have high storage but low retrieval -- it exists\n\
          \x20 but is hard to find. Retrieving it revives the retrieval\n\
          \x20 strength, modeling the 'tip of the tongue' phenomenon.",
+    );
+}
+
+fn chapter_10_purge(store: &AlayaStore) {
+    print_chapter(10, "Purge", "Cascade Deletion with Tombstone Tracking");
+
+    println!("  Status before purge:");
+    print_status(store);
+
+    // Purge a specific session
+    println!("  Purging session 'day-1' (cascade deletes episodes + tombstones)...");
+    let report = store
+        .purge(PurgeFilter::Session("day-1".into()))
+        .expect("purge failed");
+
+    println!();
+    println!("  PurgeReport:");
+    println!("    episodes_deleted:   {}", report.episodes_deleted);
+    println!("    nodes_deleted:      {}", report.nodes_deleted);
+    println!("    links_deleted:      {}", report.links_deleted);
+    println!("    embeddings_deleted: {}", report.embeddings_deleted);
+    println!();
+
+    println!("  Status after purge:");
+    print_status(store);
+
+    println!("  Remaining episodes (day-2 preserved):");
+    let remaining = store
+        .query(&Query::simple("building memory engine"))
+        .expect("query failed");
+    for (i, mem) in remaining.iter().enumerate() {
+        println!(
+            "    {}. [score {:.4}] \"{}\"",
+            i + 1,
+            mem.score,
+            truncate(&mem.content, 50)
+        );
+    }
+    println!();
+
+    print_insight(
+        "Purge supports three modes: PurgeFilter::Session (delete one\n\
+         \x20 session), PurgeFilter::OlderThan (TTL-based), and\n\
+         \x20 PurgeFilter::All (factory reset). Each deleted episode\n\
+         \x20 records a tombstone internally for audit trail. Tombstones\n\
+         \x20 track node_type, node_id, deletion timestamp, and reason.",
     );
 }
 
@@ -566,10 +838,14 @@ fn main() {
     chapter_3_consolidation(&store);
     chapter_4_perfuming(&store);
     chapter_5_transformation(&store);
-    chapter_6_forgetting(&store);
+    chapter_6_emergent_ontology(&store);
+    chapter_7_enriched_retrieval(&store);
+    chapter_8_rif(&store);
+    chapter_9_forgetting(&store);
+    chapter_10_purge(&store);
 
     println!("  ═══════════════════════════════════════════════════");
-    println!("   Demo Complete");
+    println!("   Demo Complete — 10 Chapters");
     println!("  ═══════════════════════════════════════════════════");
     println!();
     println!("  To learn more:");

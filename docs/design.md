@@ -203,8 +203,11 @@ flowchart TD
 
 - **Consolidation**: Episodic -> semantic (CLS interleaved replay)
 - **Perfuming**: Interactions -> impressions -> crystallized preferences
-- **Transformation**: Dedup, contradiction resolution, pattern extraction, pruning
+- **Transformation**: LTD link decay, dedup, category discovery, preference decay, pruning
 - **Forgetting**: Dual-strength decay (storage vs retrieval strength)
+- **RIF**: Retrieval-induced forgetting suppresses competing same-session memories
+- **Emergent Ontology**: Categories emerge from semantic node embedding clustering
+- **Purge**: Cascade deletion with tombstone tracking (session, TTL, or full reset)
 
 ## Public API
 
