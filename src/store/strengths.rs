@@ -76,7 +76,6 @@ pub fn boost_retrieval(conn: &Connection, node: NodeRef, factor: f32) -> Result<
     Ok(())
 }
 
-#[allow(dead_code)]
 pub fn suppress_retrieval(conn: &Connection, node: NodeRef, factor: f32) -> Result<()> {
     conn.execute(
         "UPDATE node_strengths SET retrieval_strength = retrieval_strength * ?3
@@ -119,6 +118,48 @@ pub fn find_archivable(
 mod tests {
     use super::*;
     use crate::schema::open_memory_db;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn prop_on_access_ss_bounded(access_count in 1u32..100) {
+            let conn = open_memory_db().unwrap();
+            let node = NodeRef::Episode(EpisodeId(1));
+            init_strength(&conn, node).unwrap();
+
+            for _ in 0..access_count {
+                on_access(&conn, node).unwrap();
+            }
+
+            let s = get_strength(&conn, node).unwrap();
+            prop_assert!(s.storage_strength >= 0.0, "SS below 0: {}", s.storage_strength);
+            prop_assert!(s.storage_strength <= 1.0, "SS above 1: {}", s.storage_strength);
+            prop_assert!(s.retrieval_strength >= 0.0, "RS below 0: {}", s.retrieval_strength);
+            prop_assert!(s.retrieval_strength <= 1.0, "RS above 1: {}", s.retrieval_strength);
+        }
+
+        #[test]
+        fn prop_suppress_keeps_rs_non_negative(factor in 0.0f32..1.0f32) {
+            let conn = open_memory_db().unwrap();
+            let node = NodeRef::Episode(EpisodeId(1));
+            init_strength(&conn, node).unwrap();
+
+            suppress_retrieval(&conn, node, factor).unwrap();
+            let s = get_strength(&conn, node).unwrap();
+            prop_assert!(s.retrieval_strength >= 0.0, "RS should be >= 0, got {}", s.retrieval_strength);
+        }
+
+        #[test]
+        fn prop_decay_all_keeps_rs_non_negative(factor in 0.0f32..1.0f32) {
+            let conn = open_memory_db().unwrap();
+            let node = NodeRef::Episode(EpisodeId(1));
+            init_strength(&conn, node).unwrap();
+
+            decay_all_retrieval(&conn, factor).unwrap();
+            let s = get_strength(&conn, node).unwrap();
+            prop_assert!(s.retrieval_strength >= 0.0, "RS should be >= 0, got {}", s.retrieval_strength);
+        }
+    }
 
     #[test]
     fn test_init_and_access() {

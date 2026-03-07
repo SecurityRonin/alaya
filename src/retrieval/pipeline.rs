@@ -122,6 +122,34 @@ pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemor
         }
     }
 
+    // RIF: suppress competing memories from the same session
+    let rif_suppression_factor = 0.9;
+    let retrieved_set: std::collections::HashSet<NodeRef> =
+        results.iter().map(|r| r.node).collect();
+    let mut suppressed_sessions: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
+
+    // Collect session IDs from retrieved episodes
+    for scored in &results {
+        if let NodeRef::Episode(eid) = scored.node {
+            if let Ok(ep) = episodic::get_episode(conn, eid) {
+                suppressed_sessions.insert(ep.session_id.clone());
+            }
+        }
+    }
+
+    // For each session, suppress non-retrieved episodes
+    for session_id in &suppressed_sessions {
+        if let Ok(session_episodes) = episodic::get_episodes_by_session(conn, session_id) {
+            for ep in &session_episodes {
+                let node = NodeRef::Episode(ep.id);
+                if !retrieved_set.contains(&node) {
+                    let _ = strengths::suppress_retrieval(conn, node, rif_suppression_factor);
+                }
+            }
+        }
+    }
+
     Ok(results)
 }
 
@@ -242,6 +270,76 @@ mod tests {
             has_semantic,
             "should include semantic node in results, got: {:?}",
             results.iter().map(|r| r.node).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn test_rif_suppresses_competing_memories() {
+        let conn = open_memory_db().unwrap();
+        use crate::store::strengths;
+
+        // Store 3 episodes in the same session
+        for i in 0..3 {
+            episodic::store_episode(
+                &conn,
+                &NewEpisode {
+                    content: format!("session topic {} about Rust programming", i),
+                    role: Role::User,
+                    session_id: "s1".to_string(),
+                    timestamp: 1000 + i as i64,
+                    context: EpisodeContext::default(),
+                    embedding: None,
+                },
+            )
+            .unwrap();
+        }
+
+        // Init strengths for all 3
+        for id in 1..=3 {
+            strengths::init_strength(&conn, NodeRef::Episode(EpisodeId(id))).unwrap();
+        }
+
+        // Query should retrieve some but not all episodes from the session
+        // The query "Rust programming 0" should match episode 0 most strongly
+        let results = execute_query(
+            &conn,
+            &Query {
+                text: "topic 0 Rust".to_string(),
+                embedding: None,
+                context: QueryContext {
+                    current_timestamp: Some(2000),
+                    ..Default::default()
+                },
+                max_results: 1, // Only retrieve 1
+                boost_categories: None,
+            },
+        )
+        .unwrap();
+
+        assert!(!results.is_empty(), "should have at least 1 result");
+
+        // The retrieved episode(s) should have RS = 1.0 (refreshed by on_access)
+        let retrieved_ids: Vec<i64> = results
+            .iter()
+            .filter_map(|r| match r.node {
+                NodeRef::Episode(eid) => Some(eid.0),
+                _ => None,
+            })
+            .collect();
+
+        // Check that at least one NON-retrieved same-session episode got suppressed
+        let mut any_suppressed = false;
+        for id in 1..=3i64 {
+            if !retrieved_ids.contains(&id) {
+                let s = strengths::get_strength(&conn, NodeRef::Episode(EpisodeId(id))).unwrap();
+                if s.retrieval_strength < 1.0 {
+                    any_suppressed = true;
+                }
+            }
+        }
+        assert!(
+            any_suppressed,
+            "at least one non-retrieved same-session episode should have suppressed RS"
         );
     }
 
