@@ -14,6 +14,14 @@ use crate::{
 };
 use rmcp::{model::ServerInfo, schemars, tool, ServerHandler};
 
+/// Result of parsing a Claude Code JSONL file: (episodes, session_ids, error_count, first_error).
+type ParsedClaudeCodeJsonl = (
+    Vec<NewEpisode>,
+    std::collections::HashSet<String>,
+    u32,
+    Option<String>,
+);
+
 // ---------------------------------------------------------------------------
 // Parameter types (schemars::JsonSchema for MCP tool schemas)
 // ---------------------------------------------------------------------------
@@ -290,7 +298,7 @@ fn format_neighbors(neighbors: &[(NodeRef, f32)]) -> String {
             NodeRef::Preference(id) => ("preference", id.0),
             NodeRef::Category(id) => ("category", id.0),
         };
-        out.push_str(&format!("- {} #{} (weight: {:.3})\n", ntype, nid, weight));
+        out.push_str(&format!("- {ntype} #{nid} (weight: {weight:.3})\n"));
     }
     out
 }
@@ -423,17 +431,7 @@ fn parse_claude_mem_db(path: &str) -> Result<(u32, Vec<crate::NewSemanticNode>),
 }
 
 /// Parse a Claude Code JSONL file and return (episodes, sessions, errors, first_error).
-fn parse_claude_code_jsonl(
-    path: &str,
-) -> Result<
-    (
-        Vec<NewEpisode>,
-        std::collections::HashSet<String>,
-        u32,
-        Option<String>,
-    ),
-    String,
-> {
+fn parse_claude_code_jsonl(path: &str) -> Result<ParsedClaudeCodeJsonl, String> {
     let file = std::fs::File::open(path).map_err(|e| format!("Cannot read file '{path}': {e}"))?;
 
     let mut episodes = Vec::new();
@@ -602,7 +600,7 @@ impl AlayaMcp {
                         }
                         Err(e) => {
                             // Provider error or no provider — fall back to prompt with note
-                            let err_msg = format!("{e}");
+                            let err_msg = e.to_string();
                             let is_no_provider = err_msg.contains("extraction provider");
                             if let Ok(episodes) = self.with_store(|s| s.unconsolidated_episodes(20))
                             {
@@ -649,7 +647,7 @@ impl AlayaMcp {
                         }
                         (Err(e), _) | (_, Err(e)) => {
                             response
-                                .push_str(&format!("\n\n--- Auto-maintenance error: {} ---", e));
+                                .push_str(&format!("\n\n--- Auto-maintenance error: {e} ---"));
                         }
                     }
                 }
@@ -884,7 +882,7 @@ impl AlayaMcp {
         let source_episodes = match &params.session_id {
             Some(sid) => match self.with_store(|s| s.episodes_by_session(sid)) {
                 Ok(eps) => eps.iter().map(|e| e.id).collect::<Vec<_>>(),
-                Err(e) => return format!("Error resolving session '{}': {}", sid, e),
+                Err(e) => return format!("Error resolving session '{sid}': {e}"),
             },
             None => vec![],
         };
@@ -2029,7 +2027,7 @@ mod tests {
         let file_path = dir.path().join("test.jsonl");
 
         // Create a realistic Claude Code JSONL file
-        let lines = vec![
+        let lines = [
             serde_json::json!({
                 "type": "human",
                 "message": {"role": "user", "content": "How do I sort a vec in Rust?"},
@@ -2783,6 +2781,9 @@ mod tests {
         let path = dir.path().join("full_test.jsonl");
 
         let long_content = "x".repeat(3000);
+        let long_line = format!(
+            r#"{{"type":"human","message":{{"role":"user","content":"{long_content}"}},"timestamp":"1003","sessionId":"s1"}}"#
+        );
         let lines = format!(
             "{}\n{}\n{}\n{}\n{}\n{}\n",
             // Valid human message
@@ -2792,9 +2793,7 @@ mod tests {
             // Skipped type (not human/assistant)
             r#"{"type":"system_prompt","message":{"content":"skip me"},"timestamp":"1002","sessionId":"s1"}"#,
             // Very long content that gets truncated
-            format!(
-                r#"{{"type":"human","message":{{"role":"user","content":"{long_content}"}},"timestamp":"1003","sessionId":"s1"}}"#
-            ),
+            long_line,
             // Message without content field
             r#"{"type":"human","message":{"role":"user"},"timestamp":"1004","sessionId":"s1"}"#,
             // Invalid JSON line
@@ -3213,7 +3212,7 @@ mod tests {
     fn parse_claude_code_jsonl_valid_entries() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("test.jsonl");
-        let lines = vec![
+        let lines = [
             r#"{"type":"human","message":{"role":"user","content":"hello"},"timestamp":"1000","sessionId":"s1"}"#,
             r#"{"type":"assistant","message":{"role":"assistant","content":[{"text":"hi there"}]},"timestamp":"1001","sessionId":"s1"}"#,
             r#"{"type":"human","message":{"role":"user","content":"bye"},"timestamp":"1002","sessionId":"s2"}"#,
@@ -3235,7 +3234,7 @@ mod tests {
     fn parse_claude_code_jsonl_skips_system_type() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("sys.jsonl");
-        let lines = vec![
+        let lines = [
             r#"{"type":"system","message":{"content":"skip me"},"timestamp":"1000"}"#,
             r#"{"type":"human","message":{"role":"user","content":"keep me"},"timestamp":"1001","sessionId":"s1"}"#,
         ];
@@ -3250,7 +3249,7 @@ mod tests {
     fn parse_claude_code_jsonl_skips_empty_content() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("empty.jsonl");
-        let lines = vec![
+        let lines = [
             r#"{"type":"human","message":{"role":"user","content":""},"timestamp":"1000","sessionId":"s1"}"#,
             r#"{"type":"human","message":{"role":"user","content":"  "},"timestamp":"1001","sessionId":"s1"}"#,
             r#"{"type":"human","message":{"role":"user","content":"real content"},"timestamp":"1002","sessionId":"s1"}"#,

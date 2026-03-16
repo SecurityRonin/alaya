@@ -280,7 +280,7 @@ mod tests {
             episodic::store_episode(
                 &conn,
                 &NewEpisode {
-                    content: format!("session topic {} about Rust programming", i),
+                    content: format!("session topic {i} about Rust programming"),
                     role: Role::User,
                     session_id: "s1".to_string(),
                     timestamp: 1000 + i as i64,

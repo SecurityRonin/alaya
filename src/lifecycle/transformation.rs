@@ -530,8 +530,8 @@ fn split_large_categories(conn: &Connection) -> Result<u32> {
                     sub_centroid[d] += val;
                 }
             }
-            for d in 0..dim {
-                sub_centroid[d] /= cluster.len() as f32;
+            for val in sub_centroid.iter_mut().take(dim) {
+                *val /= cluster.len() as f32;
             }
 
             let sub_id = categories::store_category(
@@ -780,15 +780,15 @@ mod tests {
             ],
         ];
         let mut node_ids = Vec::new();
-        for i in 0..10 {
+        for (i, emb) in test_embs.iter().enumerate() {
             conn.execute(
                 "INSERT INTO semantic_nodes (content, node_type, confidence, created_at, last_corroborated, corroboration_count)
                  VALUES (?1, 'fact', 0.8, 1000, 1000, 1)",
-                rusqlite::params![format!("split node {}", i)],
+                rusqlite::params![format!("split node {i}")],
             )
             .unwrap();
             let nid = NodeId(conn.last_insert_rowid());
-            embeddings::store_embedding(&conn, "semantic", nid.0, &test_embs[i], "").unwrap();
+            embeddings::store_embedding(&conn, "semantic", nid.0, emb, "").unwrap();
             node_ids.push(nid);
         }
 
@@ -835,15 +835,15 @@ mod tests {
             vec![0.89, 0.30, 0.10, 0.04],
         ];
         let mut node_ids = Vec::new();
-        for i in 0..8 {
+        for (i, emb) in coherent_embs.iter().enumerate() {
             conn.execute(
                 "INSERT INTO semantic_nodes (content, node_type, confidence, created_at, last_corroborated, corroboration_count)
                  VALUES (?1, 'fact', 0.8, 1000, 1000, 1)",
-                rusqlite::params![format!("coherent node {}", i)],
+                rusqlite::params![format!("coherent node {i}")],
             )
             .unwrap();
             let nid = NodeId(conn.last_insert_rowid());
-            embeddings::store_embedding(&conn, "semantic", nid.0, &coherent_embs[i], "").unwrap();
+            embeddings::store_embedding(&conn, "semantic", nid.0, emb, "").unwrap();
             node_ids.push(nid);
         }
 
@@ -1218,7 +1218,7 @@ mod tests {
 
         for i in 1..=10 {
             categories::assign_node_to_category(&conn, NodeId(i), cat_id).unwrap();
-            embeddings::store_embedding(&conn, "semantic", i as i64, &[1.0, 0.0, 0.0], "").unwrap();
+            embeddings::store_embedding(&conn, "semantic", i, &[1.0, 0.0, 0.0], "").unwrap();
         }
 
         let splits = split_large_categories(&conn).unwrap();

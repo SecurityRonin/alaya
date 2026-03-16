@@ -15,8 +15,7 @@ use alaya::{
     AlayaStore, EpisodeContext, EpisodeId, KnowledgeFilter, NewEpisode, NewSemanticNode, NodeRef,
     PurgeFilter, Query, Role, SemanticType,
 };
-use rusqlite;
-use serde_json;
+
 
 fn make_episode(content: &str, role: Role, session: &str, ts: i64) -> NewEpisode {
     NewEpisode {
@@ -218,7 +217,7 @@ fn test_mcp_role_parsing() {
         let id = store
             .store_episode(&make_episode("test", role, "s1", 1000))
             .unwrap();
-        assert!(id.0 > 0, "role '{}' should be accepted", role_str);
+        assert!(id.0 > 0, "role '{role_str}' should be accepted");
     }
 }
 

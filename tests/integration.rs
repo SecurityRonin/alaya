@@ -840,8 +840,7 @@ fn test_learn_creates_causal_links() {
             .any(|(nr, _)| *nr == NodeRef::Episode(*ep_id));
         assert!(
             has_ep,
-            "episode {:?} should be a neighbor of the semantic node",
-            ep_id
+            "episode {ep_id:?} should be a neighbor of the semantic node",
         );
     }
 }

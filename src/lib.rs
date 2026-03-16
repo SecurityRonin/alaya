@@ -1703,8 +1703,7 @@ mod tests {
         let label = content.unwrap();
         assert!(
             label.ends_with("..."),
-            "long content should be truncated with ..., got: {}",
-            label
+            "long content should be truncated with ..., got: {label}",
         );
         // 30 chars + "..." = 33
         assert!(

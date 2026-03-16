@@ -412,14 +412,14 @@ mod tests {
         // Create 3 existing semantic nodes assigned to that category.
         // For each, create both directions of Causal links so that
         // get_links_from(Episode) returns Semantic targets.
-        for i in 0..3 {
+        for (i, &ep_id) in ep_ids.iter().enumerate().take(3) {
             let node_id = semantic::store_semantic_node(
                 &conn,
                 &NewSemanticNode {
                     content: format!("existing rust node {i}"),
                     node_type: SemanticType::Fact,
                     confidence: 0.8,
-                    source_episodes: vec![ep_ids[i]],
+                    source_episodes: vec![ep_id],
                     embedding: None,
                 },
             )
@@ -429,7 +429,7 @@ mod tests {
             // Create link FROM episode TO semantic (so get_links_from(episode) finds it)
             links::create_link(
                 &conn,
-                NodeRef::Episode(ep_ids[i]),
+                NodeRef::Episode(ep_id),
                 NodeRef::Semantic(node_id),
                 LinkType::Causal,
                 0.7,
