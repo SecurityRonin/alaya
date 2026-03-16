@@ -24,7 +24,6 @@ exclude = [
     "*.mcpb",
     "*.pdf",
     "glama.json",
-    "smithery.yaml",
     "Dockerfile",
     "CLAUDE.md",
     "bug.png",
