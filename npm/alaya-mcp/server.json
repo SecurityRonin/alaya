@@ -1,18 +1,18 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.h4x0r/alaya-mcp",
+  "name": "io.github.SecurityRonin/alaya-mcp",
   "description": "Local memory engine for AI agents with knowledge graphs, forgetting, and semantic recall",
   "repository": {
     "url": "https://github.com/SecurityRonin/alaya",
     "source": "github",
     "subfolder": "npm/alaya-mcp"
   },
-  "version": "0.2.5",
+  "version": "0.2.6",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "alaya-mcp",
-      "version": "0.2.5",
+      "version": "0.2.6",
       "transport": {
         "type": "stdio"
       },

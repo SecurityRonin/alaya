@@ -8,7 +8,7 @@
     "url": "https://github.com/SecurityRonin/alaya"
   },
   "homepage": "https://github.com/SecurityRonin/alaya",
-  "mcpName": "io.github.h4x0r/alaya-mcp",
+  "mcpName": "io.github.SecurityRonin/alaya-mcp",
   "bin": {
     "alaya-mcp": "bin/run.js"
   },
