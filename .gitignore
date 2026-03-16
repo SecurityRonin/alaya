@@ -21,6 +21,16 @@ alaya-paper/*.log
 alaya-paper/*.out
 alaya-paper/*.pdf
 
+# Secrets / tokens
+.mcpregistry_*
+*.mcpb
+
+# Playwright MCP
+.playwright-mcp/
+
+# Screenshots (temporary)
+*.png
+
 # Git worktrees
 .worktrees/
 survey-paper/main.fdb_latexmk
