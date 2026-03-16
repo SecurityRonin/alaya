@@ -11,6 +11,24 @@ documentation = "https://docs.rs/alaya"
 readme = "README.md"
 keywords = ["memory", "ai", "rag", "conversational", "embedding"]
 categories = ["database", "science"]
+exclude = [
+    "alaya-paper/",
+    "bench/",
+    "docs/",
+    "npm/",
+    "survey-paper/",
+    "north-star-advisor/",
+    ".github/",
+    ".playwright-mcp/",
+    "*.png",
+    "*.mcpb",
+    "*.pdf",
+    "glama.json",
+    "smithery.yaml",
+    "Dockerfile",
+    "CLAUDE.md",
+    "bug.png",
+]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin_include)'] }
