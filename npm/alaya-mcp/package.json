@@ -27,10 +27,14 @@
   },
   "keywords": [
     "mcp",
+    "mcp-server",
+    "claude",
     "memory",
+    "knowledge-graph",
     "ai",
     "agent",
     "alaya",
-    "llm"
+    "llm",
+    "rag"
   ]
 }
