@@ -6,7 +6,7 @@ COPY src/ src/
 COPY examples/ examples/
 COPY tests/ tests/
 
-RUN cargo build --release --features mcp
+RUN cargo build --release --features "mcp llm"
 
 FROM debian:bookworm-slim
 
