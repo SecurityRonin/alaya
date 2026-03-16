@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 env:
   CARGO_TERM_COLOR: always
@@ -112,8 +113,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          registry-url: "https://registry.npmjs.org"
+          node-version: "22"
 
       - name: Download all npm packages
         uses: actions/download-artifact@v4
@@ -126,8 +126,6 @@ jobs:
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
       - name: Publish platform packages
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
 
@@ -137,13 +135,11 @@ jobs:
             cp npm-artifacts/npm-${platform}/* npm/${platform}/
             cd npm/${platform}
             npm version "${VERSION}" --no-git-tag-version --allow-same-version
-            npm publish --access public
+            npm publish --access public --provenance
             cd ../..
           done
 
       - name: Publish wrapper package
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           cd npm/alaya-mcp
@@ -156,4 +152,4 @@ jobs:
             }
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
           "
-          npm publish --access public
+          npm publish --access public --provenance
