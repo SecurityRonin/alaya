@@ -5,7 +5,9 @@
 [![Rust](https://img.shields.io/badge/Rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
 [![crates.io](https://img.shields.io/crates/v/alaya.svg)](https://crates.io/crates/alaya)
 [![docs.rs](https://docs.rs/alaya/badge.svg)](https://docs.rs/alaya)
+[![npm](https://img.shields.io/npm/v/alaya-mcp.svg)](https://www.npmjs.com/package/alaya-mcp)
 [![MCP](https://img.shields.io/badge/MCP-compatible-green.svg)](https://modelcontextprotocol.io/)
+[![alaya MCP server](https://glama.ai/mcp/servers/SecurityRonin/alaya/badges/score.svg)](https://glama.ai/mcp/servers/SecurityRonin/alaya)
 [![GitHub stars](https://img.shields.io/github/stars/SecurityRonin/alaya?style=social)](https://github.com/SecurityRonin/alaya)
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub-ea4aaa?logo=github)](https://github.com/sponsors/h4x0r)
 [![CI](https://github.com/SecurityRonin/alaya/actions/workflows/ci.yml/badge.svg)](https://github.com/SecurityRonin/alaya/actions)
@@ -73,36 +75,64 @@ by text similarity but cannot connect them
 ### MCP Server (recommended for agents)
 
 The fastest way to add Alaya memory to any MCP-compatible agent (Claude Desktop,
-OpenClaw, Cline, etc.):
+Claude Code, Cursor, Cline, etc.):
 
-```bash
-# Build the MCP server
-git clone https://github.com/SecurityRonin/alaya.git
-cd alaya
-cargo build --release --features mcp
+#### Via npm (no Rust toolchain needed)
 
-# With auto-consolidation (calls an LLM to extract knowledge automatically)
-cargo build --release --features "mcp llm"
-```
-
-Add to your agent's MCP config (e.g. `claude_desktop_config.json`):
+Add to your Claude Code config (`~/.claude/claude_code_config.json`):
 
 ```json
 {
   "mcpServers": {
     "alaya": {
-      "command": "/path/to/alaya/target/release/alaya-mcp",
+      "command": "npx",
+      "args": ["-y", "alaya-mcp"]
+    }
+  }
+}
+```
+
+Or for Claude Desktop / other MCP clients (with optional LLM auto-consolidation):
+
+```json
+{
+  "mcpServers": {
+    "alaya": {
+      "command": "npx",
+      "args": ["-y", "alaya-mcp"],
       "env": {
-        "ALAYA_LLM_API_KEY": "sk-..."
+        "ALAYA_LLM_API_KEY": "sk-...",
+        "ALAYA_LLM_API_URL": "https://api.openai.com/v1/chat/completions",
+        "ALAYA_LLM_MODEL": "gpt-4o-mini"
       }
     }
   }
 }
 ```
 
-The `env` block is optional — without it, the server works in prompt mode
-(reminds the agent to call `learn` after 10 episodes). With an API key and
-the `llm` feature, it auto-consolidates instead.
+#### From source (requires Rust 1.75+)
+
+```bash
+git clone https://github.com/SecurityRonin/alaya.git
+cd alaya
+cargo build --release --features "mcp llm"
+```
+
+Then add to your MCP config:
+
+```json
+{
+  "mcpServers": {
+    "alaya": {
+      "command": "/path/to/alaya/target/release/alaya-mcp"
+    }
+  }
+}
+```
+
+The `ALAYA_LLM_*` env vars are optional — without them, the server works in
+prompt mode (reminds the agent to call `learn` after 10 episodes). With an API
+key and the `llm` feature, it auto-consolidates instead.
 
 That's it. Your agent now has 13 memory tools:
 
@@ -163,7 +193,7 @@ For embedding Alaya directly into a Rust application:
 
 ```toml
 [dependencies]
-alaya = "0.2.0"
+alaya = "0.2.2"
 ```
 
 ### Quick Start (Rust)
