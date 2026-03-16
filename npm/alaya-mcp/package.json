@@ -27,15 +27,13 @@
     "postinstall": "node scripts/postinstall.js"
   },
   "keywords": [
-    "mcp",
-    "mcp-server",
-    "claude",
     "memory",
     "knowledge-graph",
+    "mcp",
+    "mcp-server",
     "ai",
     "agent",
-    "alaya",
-    "llm",
-    "rag"
+    "sqlite",
+    "local"
   ]
 }
