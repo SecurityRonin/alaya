@@ -9,7 +9,7 @@ license = "MIT"
 repository = "https://github.com/SecurityRonin/alaya"
 documentation = "https://docs.rs/alaya"
 readme = "README.md"
-keywords = ["memory", "ai", "rag", "conversational", "embedding"]
+keywords = ["memory", "knowledge-graph", "mcp-server", "ai-agent", "sqlite"]
 categories = ["database", "science"]
 exclude = [
     "alaya-paper/",
