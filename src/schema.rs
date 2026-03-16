@@ -244,7 +244,8 @@ pub(crate) fn record_tombstone(
     Ok(())
 }
 
-/// Count tombstones (for testing/diagnostics).
+#[cfg(test)]
+/// Count tombstones (for testing).
 pub(crate) fn count_tombstones(conn: &Connection) -> Result<u64> {
     let count: i64 = conn.query_row("SELECT COUNT(*) FROM tombstones", [], |row| row.get(0))?;
     Ok(count as u64)
