@@ -1,0 +1,51 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.h4x0r/alaya-mcp",
+  "description": "Local memory engine for AI agents with knowledge graphs, forgetting, and semantic recall",
+  "repository": {
+    "url": "https://github.com/SecurityRonin/alaya",
+    "source": "github",
+    "subfolder": "npm/alaya-mcp"
+  },
+  "version": "0.2.2",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "alaya-mcp",
+      "version": "0.2.2",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "description": "API key for auto-consolidation (enables LLM-powered knowledge extraction)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true,
+          "name": "ALAYA_LLM_API_KEY"
+        },
+        {
+          "description": "OpenAI-compatible chat completions endpoint",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "ALAYA_LLM_API_URL"
+        },
+        {
+          "description": "Model name (e.g. gpt-4o-mini, haiku, gemini-flash)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "ALAYA_LLM_MODEL"
+        },
+        {
+          "description": "Path to SQLite database",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "ALAYA_DB"
+        }
+      ]
+    }
+  ]
+}
