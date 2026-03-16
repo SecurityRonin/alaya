@@ -2,7 +2,7 @@
 
 [![DOI](https://zenodo.org/badge/1167077192.svg)](https://zenodo.org/badge/latestdoi/1167077192)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Rust](https://img.shields.io/badge/Rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
+[![Rust](https://img.shields.io/badge/Rust-1.85%2B-orange.svg)](https://www.rust-lang.org/)
 [![crates.io](https://img.shields.io/crates/v/alaya.svg)](https://crates.io/crates/alaya)
 [![docs.rs](https://docs.rs/alaya/badge.svg)](https://docs.rs/alaya)
 [![npm](https://img.shields.io/npm/v/alaya-mcp.svg)](https://www.npmjs.com/package/alaya-mcp)
