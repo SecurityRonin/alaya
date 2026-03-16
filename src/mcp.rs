@@ -646,8 +646,7 @@ impl AlayaMcp {
                             ));
                         }
                         (Err(e), _) | (_, Err(e)) => {
-                            response
-                                .push_str(&format!("\n\n--- Auto-maintenance error: {e} ---"));
+                            response.push_str(&format!("\n\n--- Auto-maintenance error: {e} ---"));
                         }
                     }
                 }

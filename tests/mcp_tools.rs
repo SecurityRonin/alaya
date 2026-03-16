@@ -16,7 +16,6 @@ use alaya::{
     PurgeFilter, Query, Role, SemanticType,
 };
 
-
 fn make_episode(content: &str, role: Role, session: &str, ts: i64) -> NewEpisode {
     NewEpisode {
         content: content.to_string(),
