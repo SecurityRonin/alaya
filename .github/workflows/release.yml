@@ -157,3 +157,36 @@ jobs:
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
           "
           npm publish --access public --provenance
+
+      - name: Publish to MCP Registry
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          curl -L -o /tmp/mcp-publisher.tar.gz \
+            https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz
+          tar xzf /tmp/mcp-publisher.tar.gz -C /tmp
+          cd npm/alaya-mcp
+          node -e "
+            const fs = require('fs');
+            const sj = JSON.parse(fs.readFileSync('server.json', 'utf8'));
+            sj.version = '${VERSION}';
+            if (sj.packages) sj.packages.forEach(p => p.version = '${VERSION}');
+            fs.writeFileSync('server.json', JSON.stringify(sj, null, 2) + '\n');
+          "
+          /tmp/mcp-publisher login github-oidc
+          /tmp/mcp-publisher publish
+
+  crates-publish:
+    name: Publish crates.io
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Publish to crates.io
+        run: cargo publish --allow-dirty
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
