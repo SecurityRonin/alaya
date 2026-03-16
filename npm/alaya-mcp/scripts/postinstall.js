@@ -80,3 +80,6 @@ function main() {
 }
 
 main();
+
+// Report anonymous install event (fire-and-forget, respects opt-out)
+require("../lib/analytics").reportInstall().catch(() => {});

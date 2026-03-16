@@ -75,3 +75,5 @@ All data stays on your machine in `~/.alaya/memory.db`.
 ## License
 
 MIT
+
+<img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=c18dc510-7aec-427a-868b-2753233f9a35" />
