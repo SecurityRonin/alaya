@@ -604,6 +604,49 @@ impl AlayaStore {
     }
 
     // -----------------------------------------------------------------------
+    // Dream (convenience lifecycle)
+    // -----------------------------------------------------------------------
+
+    /// Run the full cognitive lifecycle in one call: consolidate, optionally
+    /// perfume, transform, and forget.
+    ///
+    /// This is a convenience method for periodic maintenance. Pass an
+    /// `Interaction` to include perfuming (impression extraction); pass `None`
+    /// to skip it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use alaya::{AlayaStore, NoOpProvider};
+    ///
+    /// let store = AlayaStore::open_in_memory().unwrap();
+    /// let report = store.dream(&NoOpProvider, None).unwrap();
+    /// assert_eq!(report.consolidation.episodes_processed, 0);
+    /// assert!(report.perfuming.is_none());
+    /// ```
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self, provider)))]
+    pub fn dream(
+        &self,
+        provider: &dyn ConsolidationProvider,
+        interaction: Option<&Interaction>,
+    ) -> Result<DreamReport> {
+        let consolidation = self.consolidate(provider)?;
+        let perfuming = match interaction {
+            Some(inter) => Some(self.perfume(inter, provider)?),
+            None => None,
+        };
+        let transformation = self.transform()?;
+        let forgetting = self.forget()?;
+
+        Ok(DreamReport {
+            consolidation,
+            perfuming,
+            transformation,
+            forgetting,
+        })
+    }
+
+    // -----------------------------------------------------------------------
     // Admin
     // -----------------------------------------------------------------------
 
@@ -1917,5 +1960,77 @@ mod tests {
         // Verify knowledge is queryable
         let knowledge = store.knowledge(None).unwrap();
         assert_eq!(knowledge.len(), 2);
+    }
+
+    #[test]
+    fn test_dream_empty_store_without_interaction() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        let noop = NoOpProvider;
+        let report = store.dream(&noop, None).unwrap();
+
+        // All sub-reports should be zero/empty on an empty store
+        assert_eq!(report.consolidation.episodes_processed, 0);
+        assert!(report.perfuming.is_none());
+        assert_eq!(report.transformation.duplicates_merged, 0);
+        assert_eq!(report.forgetting.nodes_decayed, 0);
+    }
+
+    #[test]
+    fn test_dream_with_interaction() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        let noop = NoOpProvider;
+
+        let interaction = Interaction {
+            text: "I prefer dark mode".to_string(),
+            role: Role::User,
+            session_id: "s1".to_string(),
+            timestamp: 1000,
+            context: EpisodeContext::default(),
+        };
+
+        let report = store.dream(&noop, Some(&interaction)).unwrap();
+
+        // Perfuming should have run (even if noop produces nothing)
+        assert!(report.perfuming.is_some());
+        let perf = report.perfuming.unwrap();
+        // NoOpProvider extracts no impressions
+        assert_eq!(perf.impressions_stored, 0);
+    }
+
+    #[test]
+    fn test_dream_runs_full_lifecycle() {
+        let store = AlayaStore::open_in_memory().unwrap();
+
+        // Store enough episodes to trigger consolidation (min 3)
+        for i in 0..5 {
+            store
+                .store_episode(&NewEpisode {
+                    content: format!("episode about topic {i}"),
+                    role: Role::User,
+                    session_id: "s1".to_string(),
+                    timestamp: 1000 + i * 100,
+                    context: EpisodeContext::default(),
+                    embedding: None,
+                })
+                .unwrap();
+        }
+
+        let mock = MockProvider::empty();
+        let report = store.dream(&mock, None).unwrap();
+
+        // MockProvider creates semantic nodes from episodes
+        assert!(report.consolidation.episodes_processed > 0);
+        // transform and forget ran (even if they did nothing)
+        // The key point: dream() returns without error
+    }
+
+    #[test]
+    fn test_dream_report_type_has_all_fields() {
+        // Verify DreamReport composes all four sub-reports
+        let report = DreamReport::default();
+        let _c: ConsolidationReport = report.consolidation;
+        let _p: Option<PerfumingReport> = report.perfuming;
+        let _t: TransformationReport = report.transformation;
+        let _f: ForgettingReport = report.forgetting;
     }
 }

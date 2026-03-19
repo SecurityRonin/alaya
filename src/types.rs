@@ -421,6 +421,14 @@ pub struct ForgettingReport {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DreamReport {
+    pub consolidation: ConsolidationReport,
+    pub perfuming: Option<PerfumingReport>,
+    pub transformation: TransformationReport,
+    pub forgetting: ForgettingReport,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PurgeReport {
     pub episodes_deleted: u32,
     pub nodes_deleted: u32,
@@ -480,6 +488,17 @@ impl std::fmt::Display for ForgettingReport {
             "archived: {}, decayed: {}",
             self.nodes_archived, self.nodes_decayed
         )
+    }
+}
+
+impl std::fmt::Display for DreamReport {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "dream: {}, ", self.consolidation)?;
+        match &self.perfuming {
+            Some(p) => write!(f, "perfuming: {} impressions, ", p.impressions_stored)?,
+            None => write!(f, "perfuming: skipped, ")?,
+        }
+        write!(f, "{}, {}", self.transformation, self.forgetting)
     }
 }
 
@@ -739,6 +758,55 @@ mod tests {
         };
         assert!(r.to_string().contains("archived: 5"));
         assert!(r.to_string().contains("decayed: 2"));
+    }
+
+    #[test]
+    fn test_display_dream_report_without_perfuming() {
+        let r = DreamReport {
+            consolidation: ConsolidationReport {
+                episodes_processed: 5,
+                nodes_created: 2,
+                links_created: 1,
+                categories_assigned: 0,
+            },
+            perfuming: None,
+            transformation: TransformationReport {
+                duplicates_merged: 1,
+                links_decayed: 0,
+                links_pruned: 0,
+                preferences_decayed: 0,
+                impressions_pruned: 0,
+                categories_discovered: 0,
+                categories_merged: 0,
+                categories_dissolved: 0,
+                categories_split: 0,
+            },
+            forgetting: ForgettingReport {
+                nodes_archived: 3,
+                nodes_decayed: 1,
+            },
+        };
+        let s = r.to_string();
+        assert!(s.contains("consolidated 5 episodes"));
+        assert!(s.contains("perfuming: skipped"));
+        assert!(s.contains("archived: 3"));
+    }
+
+    #[test]
+    fn test_display_dream_report_with_perfuming() {
+        let r = DreamReport {
+            consolidation: ConsolidationReport::default(),
+            perfuming: Some(PerfumingReport {
+                impressions_stored: 2,
+                preferences_crystallized: 1,
+                preferences_reinforced: 0,
+            }),
+            transformation: TransformationReport::default(),
+            forgetting: ForgettingReport::default(),
+        };
+        let s = r.to_string();
+        assert!(s.contains("2 impressions"));
+        assert!(!s.contains("skipped"));
     }
 
     #[test]
