@@ -1,0 +1,17 @@
+[package]
+name = "alaya-py"
+version = "0.3.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "alaya"
+crate-type = ["cdylib"]
+
+[features]
+default = ["encryption"]
+encryption = ["alaya/sqlcipher"]
+
+[dependencies]
+alaya = { path = "../alaya", default-features = false, features = ["bundled-sqlite"] }
+pyo3 = { version = "0.24", features = ["abi3-py39", "extension-module"] }

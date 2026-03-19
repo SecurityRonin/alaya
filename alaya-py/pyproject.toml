@@ -1,0 +1,13 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "alaya"
+requires-python = ">=3.9"
+description = "A memory engine for conversational AI agents"
+license = {text = "MIT"}
+keywords = ["memory", "ai-agent", "knowledge-graph", "sqlite"]
+
+[tool.maturin]
+features = ["pyo3/abi3-py39"]
