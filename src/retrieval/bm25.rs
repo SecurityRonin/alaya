@@ -147,4 +147,73 @@ mod tests {
             results[0].1
         );
     }
+
+    #[test]
+    fn test_bm25_limit_truncates_results() {
+        let conn = open_memory_db().unwrap();
+        // Store 5 episodes all containing "widget"
+        for i in 0..5 {
+            episodic::store_episode(
+                &conn,
+                &NewEpisode {
+                    content: format!("widget number {i} description"),
+                    role: Role::User,
+                    session_id: "s1".to_string(),
+                    timestamp: 1000 + i * 100,
+                    context: EpisodeContext::default(),
+                    embedding: None,
+                },
+            )
+            .unwrap();
+        }
+        // Request only 2 results
+        let results = search_bm25(&conn, "widget", 2).unwrap();
+        assert!(
+            results.len() <= 2,
+            "should respect limit of 2, got {}",
+            results.len()
+        );
+    }
+
+    #[test]
+    fn test_bm25_whitespace_only_query() {
+        let conn = open_memory_db().unwrap();
+        // A query that is only whitespace sanitizes to empty after trim
+        let results = search_bm25(&conn, "   ", 10).unwrap();
+        assert!(results.is_empty(), "whitespace-only query should return empty");
+    }
+
+    #[test]
+    fn test_bm25_multiple_results_scores_in_range() {
+        let conn = open_memory_db().unwrap();
+        episodic::store_episode(
+            &conn,
+            &NewEpisode {
+                content: "programming Rust systems".to_string(),
+                role: Role::User,
+                session_id: "s1".to_string(),
+                timestamp: 1000,
+                context: EpisodeContext::default(),
+                embedding: None,
+            },
+        )
+        .unwrap();
+        episodic::store_episode(
+            &conn,
+            &NewEpisode {
+                content: "Rust ownership and borrowing".to_string(),
+                role: Role::User,
+                session_id: "s1".to_string(),
+                timestamp: 2000,
+                context: EpisodeContext::default(),
+                embedding: None,
+            },
+        )
+        .unwrap();
+        let results = search_bm25(&conn, "Rust", 10).unwrap();
+        assert!(results.len() >= 1);
+        for (_, score) in &results {
+            assert!(*score >= 0.0 && *score <= 1.0, "score out of [0,1]: {score}");
+        }
+    }
 }

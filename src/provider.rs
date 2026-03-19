@@ -277,4 +277,94 @@ mod tests {
         fn assert_send_sync<T: Send + Sync>() {}
         assert_send_sync::<MockExtractionProvider>();
     }
+
+    #[test]
+    fn test_noop_provider_extract_knowledge() {
+        let provider = NoOpProvider;
+        let result = provider.extract_knowledge(&[]).unwrap();
+        assert!(result.is_empty(), "NoOpProvider.extract_knowledge should return empty");
+    }
+
+    #[test]
+    fn test_mock_provider_with_knowledge() {
+        let nodes = vec![NewSemanticNode {
+            content: "test fact".into(),
+            node_type: SemanticType::Fact,
+            confidence: 0.8,
+            source_episodes: vec![],
+            embedding: None,
+        }];
+        let provider = MockProvider::with_knowledge(nodes);
+        let result = provider.extract_knowledge(&[]).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].content, "test fact");
+    }
+
+    #[test]
+    fn test_mock_provider_with_impressions() {
+        let imps = vec![NewImpression {
+            domain: "style".to_string(),
+            observation: "prefers bullet points".to_string(),
+            valence: 0.9,
+        }];
+        let provider = MockProvider::with_impressions(imps);
+        let interaction = Interaction {
+            text: "test".to_string(),
+            role: Role::User,
+            session_id: "s1".to_string(),
+            timestamp: 1000,
+            context: EpisodeContext::default(),
+        };
+        let result = provider.extract_impressions(&interaction).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].domain, "style");
+    }
+
+    #[test]
+    fn test_mock_provider_empty() {
+        let provider = MockProvider::empty();
+        let result = provider.extract_knowledge(&[]).unwrap();
+        assert!(result.is_empty());
+        let interaction = Interaction {
+            text: "test".to_string(),
+            role: Role::User,
+            session_id: "s1".to_string(),
+            timestamp: 1000,
+            context: EpisodeContext::default(),
+        };
+        let imps = provider.extract_impressions(&interaction).unwrap();
+        assert!(imps.is_empty());
+    }
+
+    #[test]
+    fn test_mock_provider_detect_contradiction() {
+        let provider = MockProvider::empty();
+        let a = SemanticNode {
+            id: NodeId(1),
+            content: "a".into(),
+            node_type: SemanticType::Fact,
+            confidence: 0.8,
+            source_episodes: vec![],
+            created_at: 0,
+            last_corroborated: 0,
+            corroboration_count: 1,
+        };
+        let b = SemanticNode {
+            id: NodeId(2),
+            content: "b".into(),
+            node_type: SemanticType::Fact,
+            confidence: 0.8,
+            source_episodes: vec![],
+            created_at: 0,
+            last_corroborated: 0,
+            corroboration_count: 1,
+        };
+        assert!(!provider.detect_contradiction(&a, &b).unwrap());
+    }
+
+    #[test]
+    fn test_embedding_provider_is_send_sync() {
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<MockEmbeddingProvider>();
+    }
 }

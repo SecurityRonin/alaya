@@ -336,6 +336,44 @@ mod tests {
     }
 
     #[test]
+    fn test_store_semantic_node_with_embedding() {
+        let conn = open_memory_db().unwrap();
+        let id = store_semantic_node(
+            &conn,
+            &NewSemanticNode {
+                content: "embedded fact".to_string(),
+                node_type: SemanticType::Concept,
+                confidence: 0.6,
+                source_episodes: vec![],
+                embedding: Some(vec![0.1, 0.2, 0.3]),
+            },
+        )
+        .unwrap();
+        // Embedding should be stored and retrievable
+        let emb = crate::store::embeddings::get_embedding(&conn, "semantic", id.0).unwrap();
+        assert!(emb.is_some(), "embedding should be stored");
+        let emb = emb.unwrap();
+        assert_eq!(emb.len(), 3);
+        assert!((emb[0] - 0.1).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_get_semantic_node_unknown_type_falls_back_to_fact() {
+        let conn = open_memory_db().unwrap();
+        // Insert with unknown node_type to trigger the from_str fallback
+        conn.execute(
+            "INSERT INTO semantic_nodes (content, node_type, confidence, source_episodes_json, created_at, last_corroborated, corroboration_count)
+             VALUES ('test', 'unknown_type', 0.5, '[]', 1000, 1000, 1)",
+            [],
+        )
+        .unwrap();
+        let id = NodeId(conn.last_insert_rowid());
+        let node = get_semantic_node(&conn, id).unwrap();
+        // SemanticType::from_str returns None for unknown, code falls back to SemanticType::Fact
+        assert_eq!(node.node_type, SemanticType::Fact);
+    }
+
+    #[test]
     fn test_count_nodes_by_type() {
         let conn = open_memory_db().unwrap();
 

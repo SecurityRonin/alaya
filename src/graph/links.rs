@@ -413,4 +413,72 @@ mod tests {
         assert_eq!(strongest.0, NodeRef::Episode(EpisodeId(2)));
         assert_eq!(strongest.1, NodeRef::Episode(EpisodeId(3)));
     }
+
+    #[test]
+    fn test_get_links_to() {
+        let conn = open_memory_db().unwrap();
+        let a = NodeRef::Episode(EpisodeId(1));
+        let b = NodeRef::Episode(EpisodeId(2));
+        let c = NodeRef::Episode(EpisodeId(3));
+
+        // a → b, c → b
+        create_link(&conn, a, b, LinkType::Temporal, 0.7).unwrap();
+        create_link(&conn, c, b, LinkType::Topical, 0.5).unwrap();
+
+        let to_b = get_links_to(&conn, b).unwrap();
+        assert_eq!(to_b.len(), 2, "b should have 2 incoming links");
+        let sources: Vec<NodeRef> = to_b.iter().map(|l| l.source).collect();
+        assert!(sources.contains(&a), "a should be a source of b");
+        assert!(sources.contains(&c), "c should be a source of b");
+    }
+
+    #[test]
+    fn test_get_links_to_empty() {
+        let conn = open_memory_db().unwrap();
+        let a = NodeRef::Episode(EpisodeId(1));
+        let to_a = get_links_to(&conn, a).unwrap();
+        assert!(to_a.is_empty(), "node with no incoming links should return empty");
+    }
+
+    #[test]
+    fn test_get_links_from_empty() {
+        let conn = open_memory_db().unwrap();
+        let a = NodeRef::Episode(EpisodeId(99));
+        let from_a = get_links_from(&conn, a).unwrap();
+        assert!(from_a.is_empty(), "node with no outgoing links should return empty");
+    }
+
+    #[test]
+    fn test_prune_weak_returns_count() {
+        let conn = open_memory_db().unwrap();
+        let a = NodeRef::Episode(EpisodeId(1));
+        let b = NodeRef::Episode(EpisodeId(2));
+        let c = NodeRef::Episode(EpisodeId(3));
+
+        create_link(&conn, a, b, LinkType::Temporal, 0.5).unwrap();
+        create_link(&conn, a, c, LinkType::Topical, 0.01).unwrap(); // below threshold
+
+        let pruned = prune_weak_links(&conn, 0.02).unwrap();
+        assert_eq!(pruned, 1, "should prune exactly 1 weak link");
+
+        let remaining = get_links_from(&conn, a).unwrap();
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].target, b);
+    }
+
+    #[test]
+    fn test_link_types_stored_correctly() {
+        let conn = open_memory_db().unwrap();
+        let a = NodeRef::Episode(EpisodeId(1));
+        let b = NodeRef::Semantic(crate::types::NodeId(1));
+
+        for lt in [LinkType::Temporal, LinkType::Topical, LinkType::Entity,
+                   LinkType::Causal, LinkType::CoRetrieval, LinkType::MemberOf] {
+            let _ = create_link(&conn, a, b, lt, 0.5); // may fail on dup, ok
+        }
+
+        let links = get_links_from(&conn, a).unwrap();
+        // All link types should be stored and retrievable
+        assert!(!links.is_empty());
+    }
 }

@@ -378,4 +378,119 @@ mod tests {
             crate::error::AlayaError::NotFound(_)
         ));
     }
+
+    #[test]
+    fn test_reinforce_preference_increases_confidence() {
+        let conn = open_memory_db().unwrap();
+        let id = store_preference(&conn, "coding", "modular code", 0.5).unwrap();
+
+        // Reinforce with 3 additional pieces of evidence
+        reinforce_preference(&conn, id, 3).unwrap();
+
+        let pref = get_preference(&conn, id).unwrap();
+        assert_eq!(pref.evidence_count, 4, "evidence_count should be 1 + 3");
+        assert!(
+            pref.confidence > 0.5,
+            "confidence should increase after reinforce, got {}",
+            pref.confidence
+        );
+        // confidence = MIN(1.0, 0.5 + 0.1 * 3) = MIN(1.0, 0.8) = 0.8
+        assert!((pref.confidence - 0.8).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_reinforce_preference_caps_at_one() {
+        let conn = open_memory_db().unwrap();
+        let id = store_preference(&conn, "ui", "dark theme", 0.95).unwrap();
+        reinforce_preference(&conn, id, 10).unwrap(); // would push to 1.95 without cap
+        let pref = get_preference(&conn, id).unwrap();
+        assert!(
+            pref.confidence <= 1.0,
+            "confidence should be capped at 1.0, got {}",
+            pref.confidence
+        );
+    }
+
+    #[test]
+    fn test_get_impressions_by_domain_ordering() {
+        let conn = open_memory_db().unwrap();
+        // Insert two impressions with different timestamps
+        store_impression(
+            &conn,
+            &NewImpression {
+                domain: "x".to_string(),
+                observation: "old".to_string(),
+                valence: 0.5,
+            },
+        )
+        .unwrap();
+        // Manually update to older timestamp
+        conn.execute(
+            "UPDATE impressions SET timestamp = 100 WHERE observation = 'old'",
+            [],
+        )
+        .unwrap();
+        store_impression(
+            &conn,
+            &NewImpression {
+                domain: "x".to_string(),
+                observation: "new".to_string(),
+                valence: 0.8,
+            },
+        )
+        .unwrap();
+
+        let imps = get_impressions_by_domain(&conn, "x", 10).unwrap();
+        assert_eq!(imps.len(), 2);
+        // Should be ordered DESC by timestamp: "new" first
+        assert_eq!(imps[0].observation, "new");
+        assert_eq!(imps[1].observation, "old");
+    }
+
+    #[test]
+    fn test_get_impressions_by_domain_limit() {
+        let conn = open_memory_db().unwrap();
+        for i in 0..5 {
+            store_impression(
+                &conn,
+                &NewImpression {
+                    domain: "test".to_string(),
+                    observation: format!("obs {i}"),
+                    valence: 0.5,
+                },
+            )
+            .unwrap();
+        }
+        let imps = get_impressions_by_domain(&conn, "test", 3).unwrap();
+        assert_eq!(imps.len(), 3, "should respect limit of 3");
+    }
+
+    #[test]
+    fn test_prune_weak_preferences_empty_db() {
+        let conn = open_memory_db().unwrap();
+        let pruned = prune_weak_preferences(&conn, 0.1).unwrap();
+        assert_eq!(pruned, 0, "pruning empty db should return 0");
+    }
+
+    #[test]
+    fn test_decay_preferences_low_confidence_skipped() {
+        let conn = open_memory_db().unwrap();
+        // Store a preference with very low confidence (at boundary)
+        store_preference(&conn, "style", "minimal", 0.01).unwrap();
+        // Decay won't touch confidence <= 0.01
+        let future = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64
+            + 200_000;
+        let decayed = decay_preferences(&conn, future, 3600).unwrap();
+        assert_eq!(decayed, 0, "confidence at 0.01 should not be decayed (already at floor)");
+    }
+
+    #[test]
+    fn test_count_impressions_by_domain_empty() {
+        let conn = open_memory_db().unwrap();
+        let count = count_impressions_by_domain(&conn, "nonexistent").unwrap();
+        assert_eq!(count, 0);
+    }
 }

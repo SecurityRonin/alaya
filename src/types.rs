@@ -569,4 +569,148 @@ mod tests {
         assert!(ctx.mentioned_entities.is_empty());
         assert!(ctx.preceding_episode.is_none());
     }
+
+    #[test]
+    fn test_knowledge_filter_default() {
+        let f = KnowledgeFilter::default();
+        assert!(f.node_type.is_none());
+        assert!(f.min_confidence.is_none());
+        assert!(f.limit.is_none());
+        assert!(f.category.is_none());
+    }
+
+    #[test]
+    fn test_purge_filter_variants() {
+        // Session variant
+        let s = PurgeFilter::Session("sess-1".to_string());
+        if let PurgeFilter::Session(id) = s {
+            assert_eq!(id, "sess-1");
+        } else {
+            panic!("expected Session variant");
+        }
+
+        // OlderThan variant
+        let o = PurgeFilter::OlderThan(12345);
+        if let PurgeFilter::OlderThan(ts) = o {
+            assert_eq!(ts, 12345);
+        } else {
+            panic!("expected OlderThan variant");
+        }
+
+        // All variant
+        let a = PurgeFilter::All;
+        assert!(matches!(a, PurgeFilter::All));
+    }
+
+    #[test]
+    fn test_report_defaults() {
+        let cr = ConsolidationReport::default();
+        assert_eq!(cr.episodes_processed, 0);
+        assert_eq!(cr.nodes_created, 0);
+        assert_eq!(cr.links_created, 0);
+        assert_eq!(cr.categories_assigned, 0);
+
+        let pr = PerfumingReport::default();
+        assert_eq!(pr.impressions_stored, 0);
+        assert_eq!(pr.preferences_crystallized, 0);
+        assert_eq!(pr.preferences_reinforced, 0);
+
+        let tr = TransformationReport::default();
+        assert_eq!(tr.duplicates_merged, 0);
+        assert_eq!(tr.links_decayed, 0);
+        assert_eq!(tr.categories_discovered, 0);
+
+        let fr = ForgettingReport::default();
+        assert_eq!(fr.nodes_decayed, 0);
+        assert_eq!(fr.nodes_archived, 0);
+
+        let purge = PurgeReport::default();
+        assert_eq!(purge.episodes_deleted, 0);
+        assert_eq!(purge.nodes_deleted, 0);
+        assert_eq!(purge.links_deleted, 0);
+        assert_eq!(purge.embeddings_deleted, 0);
+    }
+
+    #[test]
+    fn test_memory_status_fields() {
+        let ms = MemoryStatus {
+            episode_count: 1,
+            semantic_node_count: 2,
+            preference_count: 3,
+            impression_count: 4,
+            link_count: 5,
+            embedding_count: 6,
+            category_count: 7,
+        };
+        assert_eq!(ms.episode_count, 1);
+        assert_eq!(ms.category_count, 7);
+    }
+
+    #[test]
+    fn test_query_context_default() {
+        let qc = QueryContext::default();
+        assert!(qc.topics.is_empty());
+        assert_eq!(qc.sentiment, 0.0);
+        assert!(qc.mentioned_entities.is_empty());
+        assert!(qc.current_timestamp.is_none());
+    }
+
+    #[test]
+    fn test_node_strength_fields() {
+        let ns = NodeStrength {
+            node: NodeRef::Episode(EpisodeId(1)),
+            storage_strength: 0.5,
+            retrieval_strength: 1.0,
+            access_count: 3,
+            last_accessed: 9999,
+        };
+        assert_eq!(ns.access_count, 3);
+        assert!((ns.storage_strength - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_interaction_fields() {
+        let i = Interaction {
+            text: "hello".to_string(),
+            role: Role::User,
+            session_id: "s1".to_string(),
+            timestamp: 42,
+            context: EpisodeContext::default(),
+        };
+        assert_eq!(i.text, "hello");
+        assert_eq!(i.timestamp, 42);
+    }
+
+    #[test]
+    fn test_node_ref_id_all_variants() {
+        assert_eq!(NodeRef::Episode(EpisodeId(10)).id(), 10);
+        assert_eq!(NodeRef::Semantic(NodeId(20)).id(), 20);
+        assert_eq!(NodeRef::Preference(PreferenceId(30)).id(), 30);
+        assert_eq!(NodeRef::Category(CategoryId(40)).id(), 40);
+    }
+
+    #[test]
+    fn test_link_type_from_str_all_variants() {
+        assert_eq!(LinkType::from_str("temporal"), Some(LinkType::Temporal));
+        assert_eq!(LinkType::from_str("topical"), Some(LinkType::Topical));
+        assert_eq!(LinkType::from_str("entity"), Some(LinkType::Entity));
+        assert_eq!(LinkType::from_str("causal"), Some(LinkType::Causal));
+        assert_eq!(LinkType::from_str("co_retrieval"), Some(LinkType::CoRetrieval));
+        assert_eq!(LinkType::from_str("member_of"), Some(LinkType::MemberOf));
+        assert_eq!(LinkType::from_str("bogus"), None);
+    }
+
+    #[test]
+    fn test_scored_memory_fields() {
+        let sm = ScoredMemory {
+            node: NodeRef::Episode(EpisodeId(1)),
+            content: "some content".to_string(),
+            score: 0.75,
+            role: Some(Role::Assistant),
+            timestamp: 1000,
+        };
+        assert_eq!(sm.content, "some content");
+        assert!((sm.score - 0.75).abs() < 1e-6);
+        assert_eq!(sm.role, Some(Role::Assistant));
+    }
 }

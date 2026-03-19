@@ -574,4 +574,173 @@ mod tests {
             "should assign category via neighbor vote with embedding (line 162)"
         );
     }
+
+    #[test]
+    fn test_learn_direct_empty_nodes() {
+        let conn = open_memory_db().unwrap();
+        let report = learn_direct(&conn, vec![]).unwrap();
+        assert_eq!(report.nodes_created, 0);
+        assert_eq!(report.links_created, 0);
+        assert_eq!(report.categories_assigned, 0);
+    }
+
+    #[test]
+    fn test_learn_direct_no_source_episodes() {
+        // Node with no source_episodes — links_created should stay 0
+        let conn = open_memory_db().unwrap();
+        let report = learn_direct(
+            &conn,
+            vec![NewSemanticNode {
+                content: "standalone fact".to_string(),
+                node_type: SemanticType::Concept,
+                confidence: 0.7,
+                source_episodes: vec![],
+                embedding: None,
+            }],
+        )
+        .unwrap();
+        assert_eq!(report.nodes_created, 1);
+        assert_eq!(report.links_created, 0);
+    }
+
+    #[test]
+    fn test_assign_and_update_no_old_centroid() {
+        // Category has no centroid embedding — assign_and_update should not update centroid
+        // but still assign the node and create the MemberOf link.
+        let conn = open_memory_db().unwrap();
+        let proto = insert_prototype(&conn);
+        let cat_id = categories::store_category(&conn, "no-centroid", proto, None, None).unwrap();
+
+        // Insert an episode so learn_direct gets the 3-episode threshold bypassed
+        let mut ep_ids = vec![];
+        for i in 0..3 {
+            let id = episodic::store_episode(
+                &conn,
+                &NewEpisode {
+                    content: format!("ep {i}"),
+                    role: Role::User,
+                    session_id: "s1".to_string(),
+                    timestamp: 1000 + i * 100,
+                    context: EpisodeContext::default(),
+                    embedding: None,
+                },
+            )
+            .unwrap();
+            ep_ids.push(id);
+        }
+
+        // Learn a node with embedding similar to cat's (but cat has no centroid)
+        // Embedding signal 1 won't fire (no centroid), category still exists.
+        // Neighbor vote won't fire (no linked categorized nodes).
+        // Result: categories_assigned = 0
+        let report = learn_direct(
+            &conn,
+            vec![NewSemanticNode {
+                content: "test no-centroid assign".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.8,
+                source_episodes: ep_ids,
+                embedding: Some(vec![1.0, 0.0, 0.0]),
+            }],
+        )
+        .unwrap();
+        assert_eq!(report.nodes_created, 1);
+        // No centroid → no assignment via signal 1; no neighbors → signal 2 also fires 0
+        assert_eq!(report.categories_assigned, 0);
+
+        // Verify category exists and node is uncategorized
+        let cats = categories::list_categories(&conn, None).unwrap();
+        assert_eq!(cats.len(), 1);
+        assert_eq!(cats[0].id, cat_id);
+    }
+
+    #[test]
+    fn test_neighbor_vote_no_majority() {
+        // Two different categories each get one vote — no >50% majority, no assignment
+        use crate::graph::links;
+        use crate::store::strengths;
+
+        let conn = open_memory_db().unwrap();
+
+        let p1 = insert_prototype(&conn);
+        let p2 = insert_prototype(&conn);
+        let cat1 = categories::store_category(&conn, "cat-a", p1, None, None).unwrap();
+        let cat2 = categories::store_category(&conn, "cat-b", p2, None, None).unwrap();
+
+        // Create two episodes
+        let ep1 = episodic::store_episode(
+            &conn,
+            &NewEpisode {
+                content: "ep1".to_string(),
+                role: Role::User,
+                session_id: "s1".to_string(),
+                timestamp: 1000,
+                context: EpisodeContext::default(),
+                embedding: None,
+            },
+        )
+        .unwrap();
+        let ep2 = episodic::store_episode(
+            &conn,
+            &NewEpisode {
+                content: "ep2".to_string(),
+                role: Role::User,
+                session_id: "s1".to_string(),
+                timestamp: 2000,
+                context: EpisodeContext::default(),
+                embedding: None,
+            },
+        )
+        .unwrap();
+
+        // Create semantic node assigned to cat1 and linked to ep1
+        let n1 = semantic::store_semantic_node(
+            &conn,
+            &NewSemanticNode {
+                content: "node1".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.8,
+                source_episodes: vec![],
+                embedding: None,
+            },
+        )
+        .unwrap();
+        categories::assign_node_to_category(&conn, n1, cat1).unwrap();
+        strengths::init_strength(&conn, NodeRef::Semantic(n1)).unwrap();
+        links::create_link(&conn, NodeRef::Episode(ep1), NodeRef::Semantic(n1), LinkType::Causal, 0.7).unwrap();
+
+        // Create semantic node assigned to cat2 and linked to ep2
+        let n2 = semantic::store_semantic_node(
+            &conn,
+            &NewSemanticNode {
+                content: "node2".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.8,
+                source_episodes: vec![],
+                embedding: None,
+            },
+        )
+        .unwrap();
+        categories::assign_node_to_category(&conn, n2, cat2).unwrap();
+        strengths::init_strength(&conn, NodeRef::Semantic(n2)).unwrap();
+        links::create_link(&conn, NodeRef::Episode(ep2), NodeRef::Semantic(n2), LinkType::Causal, 0.7).unwrap();
+
+        // Learn a new node referencing both episodes — tied vote, no majority
+        let report = learn_direct(
+            &conn,
+            vec![NewSemanticNode {
+                content: "split vote node".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.8,
+                source_episodes: vec![ep1, ep2],
+                embedding: None, // no embedding so signal 1 skipped
+            }],
+        )
+        .unwrap();
+        assert_eq!(report.nodes_created, 1);
+        assert_eq!(
+            report.categories_assigned, 0,
+            "tied vote (1-1) should not assign any category"
+        );
+    }
 }

@@ -151,4 +151,106 @@ mod tests {
         assert_eq!(report.preferences_crystallized, 0);
         assert_eq!(report.preferences_reinforced, 0);
     }
+
+    #[test]
+    fn test_reinforce_existing_preference() {
+        // First crystallize a preference, then perfume again — should reinforce, not re-crystallize
+        let conn = open_memory_db().unwrap();
+        let provider = MockProvider::with_impressions(vec![NewImpression {
+            domain: "format".to_string(),
+            observation: "prefers tables".to_string(),
+            valence: 0.8,
+        }]);
+
+        // Crystallize by reaching threshold (5 impressions)
+        for i in 0..6 {
+            let interaction = Interaction {
+                text: format!("interaction {i}"),
+                role: Role::User,
+                session_id: "s1".to_string(),
+                timestamp: 1000 + i * 100,
+                context: EpisodeContext::default(),
+            };
+            perfume(&conn, &interaction, &provider).unwrap();
+        }
+
+        // Now there should be a preference for "format"
+        let prefs_before = implicit::get_preferences(&conn, Some("format")).unwrap();
+        assert!(!prefs_before.is_empty(), "should have crystallized a preference");
+        let evidence_before = prefs_before[0].evidence_count;
+
+        // Perfume again — should reinforce the existing preference
+        let interaction = Interaction {
+            text: "one more".to_string(),
+            role: Role::User,
+            session_id: "s1".to_string(),
+            timestamp: 9000,
+            context: EpisodeContext::default(),
+        };
+        let report = perfume(&conn, &interaction, &provider).unwrap();
+        assert!(
+            report.preferences_reinforced >= 1,
+            "should reinforce existing preference"
+        );
+        assert_eq!(
+            report.preferences_crystallized, 0,
+            "should not crystallize again"
+        );
+
+        // Evidence count should have increased
+        let prefs_after = implicit::get_preferences(&conn, Some("format")).unwrap();
+        assert!(
+            prefs_after[0].evidence_count > evidence_before,
+            "evidence_count should increase after reinforce"
+        );
+    }
+
+    #[test]
+    fn test_summarize_impressions_non_empty() {
+        // summarize_impressions returns the first impression's observation
+        let imps = vec![
+            Impression {
+                id: ImpressionId(1),
+                domain: "style".to_string(),
+                observation: "first observation".to_string(),
+                valence: 0.9,
+                timestamp: 1000,
+            },
+            Impression {
+                id: ImpressionId(2),
+                domain: "style".to_string(),
+                observation: "second observation".to_string(),
+                valence: 0.5,
+                timestamp: 900,
+            },
+        ];
+        let result = summarize_impressions(&imps);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), "first observation");
+    }
+
+    #[test]
+    fn test_perfume_below_threshold_no_crystallization() {
+        // Only 3 impressions (below threshold of 5) — should not crystallize
+        let conn = open_memory_db().unwrap();
+        let provider = MockProvider::with_impressions(vec![NewImpression {
+            domain: "tone".to_string(),
+            observation: "formal tone".to_string(),
+            valence: 0.7,
+        }]);
+
+        for i in 0..3 {
+            let interaction = Interaction {
+                text: format!("interaction {i}"),
+                role: Role::User,
+                session_id: "s1".to_string(),
+                timestamp: 1000 + i * 100,
+                context: EpisodeContext::default(),
+            };
+            perfume(&conn, &interaction, &provider).unwrap();
+        }
+
+        let prefs = implicit::get_preferences(&conn, Some("tone")).unwrap();
+        assert!(prefs.is_empty(), "should not crystallize with only 3 impressions (threshold=5)");
+    }
 }

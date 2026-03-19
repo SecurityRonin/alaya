@@ -189,4 +189,83 @@ mod tests {
             .unwrap();
         assert_eq!(cat_count, 1, "category strength record should still exist");
     }
+
+    #[test]
+    fn test_archive_episode_node() {
+        let conn = open_memory_db().unwrap();
+
+        // Store an episode
+        episodic::store_episode(
+            &conn,
+            &NewEpisode {
+                content: "soon to be forgotten".to_string(),
+                role: crate::types::Role::User,
+                session_id: "s1".to_string(),
+                timestamp: 1000,
+                context: crate::types::EpisodeContext::default(),
+                embedding: None,
+            },
+        )
+        .unwrap();
+        let ep_id = EpisodeId(conn.last_insert_rowid());
+        let node = NodeRef::Episode(ep_id);
+
+        // Init strength and immediately set both to below archival thresholds
+        strengths::init_strength(&conn, node).unwrap();
+        conn.execute(
+            "UPDATE node_strengths SET storage_strength = 0.05, retrieval_strength = 0.01
+             WHERE node_type = 'episode' AND node_id = ?1",
+            [ep_id.0],
+        )
+        .unwrap();
+
+        // Verify the episode exists before forget
+        let count_before: i64 = conn
+            .query_row("SELECT COUNT(*) FROM episodes WHERE id = ?1", [ep_id.0], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count_before, 1);
+
+        let report = forget(&conn).unwrap();
+        assert_eq!(report.nodes_archived, 1, "episode should be archived");
+
+        // Verify the episode was deleted
+        let count_after: i64 = conn
+            .query_row("SELECT COUNT(*) FROM episodes WHERE id = ?1", [ep_id.0], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count_after, 0, "episode should be deleted after archiving");
+
+        // Verify strength record was cleaned up
+        let strength_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM node_strengths WHERE node_type = 'episode' AND node_id = ?1",
+                [ep_id.0],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(strength_count, 0, "strength record should be removed after archive");
+    }
+
+    #[test]
+    fn test_forget_nodes_decayed_count() {
+        let conn = open_memory_db().unwrap();
+        let node = NodeRef::Episode(EpisodeId(1));
+
+        episodic::store_episode(
+            &conn,
+            &NewEpisode {
+                content: "content".to_string(),
+                role: crate::types::Role::User,
+                session_id: "s1".to_string(),
+                timestamp: 1000,
+                context: crate::types::EpisodeContext::default(),
+                embedding: None,
+            },
+        )
+        .unwrap();
+        strengths::init_strength(&conn, node).unwrap();
+
+        let report = forget(&conn).unwrap();
+        // nodes_decayed = rows updated by decay_all_retrieval
+        assert_eq!(report.nodes_decayed, 1, "one strength row should have been decayed");
+    }
 }

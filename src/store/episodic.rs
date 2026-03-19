@@ -252,4 +252,77 @@ mod tests {
         let count = delete_episodes(&conn, &[]).unwrap();
         assert_eq!(count, 0);
     }
+
+    #[test]
+    fn test_get_episodes_by_session_empty() {
+        let conn = open_memory_db().unwrap();
+        let eps = get_episodes_by_session(&conn, "nonexistent-session").unwrap();
+        assert!(eps.is_empty(), "no episodes for unknown session");
+    }
+
+    #[test]
+    fn test_get_episodes_by_session_multiple_sessions() {
+        let conn = open_memory_db().unwrap();
+        store_episode(&conn, &NewEpisode {
+            content: "session-a message".to_string(),
+            role: Role::User,
+            session_id: "session-a".to_string(),
+            timestamp: 1000,
+            context: EpisodeContext::default(),
+            embedding: None,
+        }).unwrap();
+        store_episode(&conn, &NewEpisode {
+            content: "session-b message".to_string(),
+            role: Role::Assistant,
+            session_id: "session-b".to_string(),
+            timestamp: 2000,
+            context: EpisodeContext::default(),
+            embedding: None,
+        }).unwrap();
+
+        let a_eps = get_episodes_by_session(&conn, "session-a").unwrap();
+        assert_eq!(a_eps.len(), 1);
+        assert_eq!(a_eps[0].content, "session-a message");
+
+        let b_eps = get_episodes_by_session(&conn, "session-b").unwrap();
+        assert_eq!(b_eps.len(), 1);
+        assert_eq!(b_eps[0].role, Role::Assistant);
+    }
+
+    #[test]
+    fn test_role_unknown_falls_back_to_user() {
+        // Force an unknown role value into the DB and verify Role::from_str fallback
+        let conn = open_memory_db().unwrap();
+        conn.execute(
+            "INSERT INTO episodes (content, role, session_id, timestamp, context_json)
+             VALUES ('test', 'unknown_role', 'sx', 1000, '{}')",
+            [],
+        )
+        .unwrap();
+        let id = EpisodeId(conn.last_insert_rowid());
+        let ep = get_episode(&conn, id).unwrap();
+        // Role::from_str returns None for unknown, code falls back to Role::User
+        assert_eq!(ep.role, Role::User);
+    }
+
+    #[test]
+    fn test_get_unconsolidated_episodes_limit() {
+        let conn = open_memory_db().unwrap();
+        for i in 0..10 {
+            store_episode(&conn, &make_episode(&format!("msg {i}"), 1000 + i * 100)).unwrap();
+        }
+        // All 10 are unconsolidated; request only 5
+        let uncons = get_unconsolidated_episodes(&conn, 5).unwrap();
+        assert_eq!(uncons.len(), 5);
+    }
+
+    #[test]
+    fn test_count_episodes_increments() {
+        let conn = open_memory_db().unwrap();
+        assert_eq!(count_episodes(&conn).unwrap(), 0);
+        store_episode(&conn, &make_episode("a", 1000)).unwrap();
+        assert_eq!(count_episodes(&conn).unwrap(), 1);
+        store_episode(&conn, &make_episode("b", 2000)).unwrap();
+        assert_eq!(count_episodes(&conn).unwrap(), 2);
+    }
 }
