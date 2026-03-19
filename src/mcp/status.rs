@@ -125,4 +125,104 @@ mod tests {
         assert!(result.contains("5 this session"));
         assert!(result.contains("5 unconsolidated"));
     }
+
+    #[test]
+    fn status_shows_knowledge_after_learn() {
+        use super::super::{LearnFactEntry, LearnParams};
+        let srv = make_server();
+        srv.learn(LearnParams {
+            facts: vec![
+                LearnFactEntry {
+                    content: "Rust is a systems language".into(),
+                    node_type: "fact".into(),
+                    confidence: None,
+                },
+                LearnFactEntry {
+                    content: "Alaya is a memory system".into(),
+                    node_type: "concept".into(),
+                    confidence: None,
+                },
+            ],
+            session_id: None,
+        });
+        let result = srv.status();
+        // knowledge_line should be populated (non-empty path in handle_status)
+        assert!(
+            !result.contains("Knowledge: none"),
+            "Status should show knowledge after learn: {result}"
+        );
+        assert!(
+            result.contains("Knowledge:"),
+            "Status should include Knowledge line: {result}"
+        );
+        // Both node types should appear in the breakdown
+        assert!(
+            result.contains("facts") || result.contains("concepts"),
+            "Knowledge breakdown should mention node types: {result}"
+        );
+    }
+
+    #[test]
+    fn status_coverage_nonzero_when_nodes_exist() {
+        use super::super::{LearnFactEntry, LearnParams};
+        let srv = make_server();
+        // Store an episode (contributes to total_nodes as episode_count)
+        srv.remember(RememberParams {
+            content: "Episode for coverage".into(),
+            role: "user".into(),
+            session_id: "s1".into(),
+        });
+        srv.learn(LearnParams {
+            facts: vec![LearnFactEntry {
+                content: "Fact for coverage".into(),
+                node_type: "fact".into(),
+                confidence: None,
+            }],
+            session_id: None,
+        });
+        let result = srv.status();
+        // With nodes present, coverage shows "N/M nodes" (not "0/0 nodes")
+        assert!(
+            result.contains("Embedding coverage:"),
+            "Status should include embedding coverage: {result}"
+        );
+        assert!(
+            result.contains("nodes"),
+            "Coverage line should mention nodes: {result}"
+        );
+    }
+
+    #[test]
+    fn status_graph_line_present() {
+        let srv = server_with_episodes(2);
+        let result = srv.status();
+        // Graph line always present with link count
+        assert!(
+            result.contains("Graph:"),
+            "Status should always include Graph line: {result}"
+        );
+        assert!(
+            result.contains("links"),
+            "Graph line should mention links: {result}"
+        );
+    }
+
+    #[test]
+    fn status_preferences_line_present() {
+        let srv = make_server();
+        let result = srv.status();
+        // Preferences line always present
+        assert!(
+            result.contains("Preferences:"),
+            "Status should always include Preferences line: {result}"
+        );
+        assert!(
+            result.contains("crystallized"),
+            "Preferences line should mention crystallized: {result}"
+        );
+        assert!(
+            result.contains("impressions"),
+            "Preferences line should mention impressions: {result}"
+        );
+    }
 }

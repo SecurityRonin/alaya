@@ -527,4 +527,266 @@ mod tests {
             "Import should increment unconsolidated_count: {status}"
         );
     }
+
+    // -----------------------------------------------------------------------
+    // parse_claude_code_jsonl edge cases
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn import_claude_code_content_truncated_at_2000_chars() {
+        // Content longer than 2000 chars must be truncated to 2000 chars + "..."
+        // Verify via parse_claude_code_jsonl directly (it is pub(crate)).
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("long.jsonl");
+
+        let long_content = "a".repeat(2500);
+        let line = serde_json::to_string(&serde_json::json!({
+            "type": "human",
+            "message": {"role": "user", "content": long_content},
+            "timestamp": "1700000000",
+            "sessionId": "s1"
+        }))
+        .unwrap();
+        std::fs::write(&file_path, line).unwrap();
+
+        let (episodes, _sessions, errors, _first_err) =
+            super::parse_claude_code_jsonl(file_path.to_str().unwrap()).unwrap();
+
+        assert_eq!(errors, 0, "No parse errors expected");
+        assert_eq!(episodes.len(), 1, "Should produce exactly one episode");
+
+        let content = &episodes[0].content;
+        // The truncation adds "..." after taking 2000 chars, so total chars = 2003
+        assert!(
+            content.ends_with("..."),
+            "Truncated content should end with '...': {content}"
+        );
+        assert!(
+            content.chars().count() == 2003,
+            "Truncated content should be 2003 chars (2000 + '...'): got {}",
+            content.chars().count()
+        );
+    }
+
+    #[test]
+    fn import_claude_code_missing_session_id_uses_default() {
+        // When sessionId is absent the entry should use "imported" as session_id
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("no-session.jsonl");
+
+        let line = serde_json::to_string(&serde_json::json!({
+            "type": "human",
+            "message": {"role": "user", "content": "No session here"},
+            "timestamp": "1700000000"
+            // no "sessionId" key
+        }))
+        .unwrap();
+        std::fs::write(&file_path, line).unwrap();
+
+        let srv = make_server();
+        let result = srv.import_claude_code(ImportClaudeCodeParams {
+            path: file_path.to_str().unwrap().into(),
+        });
+        // Should import successfully and report 1 session (the default "imported")
+        assert!(
+            result.contains("Imported 1 messages"),
+            "Missing sessionId should fall back to 'imported': {result}"
+        );
+        assert!(
+            result.contains("1 sessions"),
+            "Should count one session: {result}"
+        );
+    }
+
+    #[test]
+    fn import_claude_code_invalid_timestamp_defaults_to_zero() {
+        // An unparseable timestamp string must fall back to 0 without crashing
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("bad-ts.jsonl");
+
+        let line = serde_json::to_string(&serde_json::json!({
+            "type": "assistant",
+            "message": {"role": "assistant", "content": "Some response"},
+            "timestamp": "not-a-number",
+            "sessionId": "s1"
+        }))
+        .unwrap();
+        std::fs::write(&file_path, line).unwrap();
+
+        let srv = make_server();
+        let result = srv.import_claude_code(ImportClaudeCodeParams {
+            path: file_path.to_str().unwrap().into(),
+        });
+        assert!(
+            result.contains("Imported 1 messages"),
+            "Invalid timestamp should default to 0 and still import: {result}"
+        );
+    }
+
+    #[test]
+    fn import_claude_code_only_bad_lines_shows_error_detail() {
+        // File with only unparseable JSON produces "No importable messages" + error detail
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("all-bad.jsonl");
+        std::fs::write(&file_path, "not json at all\nalso bad\n").unwrap();
+
+        let srv = make_server();
+        let result = srv.import_claude_code(ImportClaudeCodeParams {
+            path: file_path.to_str().unwrap().into(),
+        });
+        assert!(
+            result.contains("No importable messages found"),
+            "All-bad file should report no importable messages: {result}"
+        );
+        // The error detail branch: (Some(e), n) if n > 0 → includes "(N errors, first: ...)"
+        assert!(
+            result.contains("errors"),
+            "Should include error count in detail: {result}"
+        );
+    }
+
+    #[test]
+    fn import_claude_code_skips_non_human_assistant_entries() {
+        // Entries with type != "human" | "assistant" are silently skipped
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("mixed-types.jsonl");
+
+        let lines = [
+            serde_json::json!({
+                "type": "system",
+                "message": {"role": "system", "content": "System init"},
+                "sessionId": "s1"
+            }),
+            serde_json::json!({
+                "type": "tool_result",
+                "message": {"content": "tool output"},
+                "sessionId": "s1"
+            }),
+            serde_json::json!({
+                "type": "human",
+                "message": {"role": "user", "content": "Kept message"},
+                "sessionId": "s1"
+            }),
+        ];
+        let content: String = lines
+            .iter()
+            .map(|l| serde_json::to_string(l).unwrap())
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::fs::write(&file_path, content).unwrap();
+
+        let srv = make_server();
+        let result = srv.import_claude_code(ImportClaudeCodeParams {
+            path: file_path.to_str().unwrap().into(),
+        });
+        assert!(
+            result.contains("Imported 1 messages"),
+            "Only the 'human' entry should be imported: {result}"
+        );
+    }
+
+    #[test]
+    fn import_claude_code_skips_entries_with_empty_content() {
+        // Entries where content is whitespace-only are silently skipped
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("empty-content.jsonl");
+
+        let lines = [
+            serde_json::json!({
+                "type": "human",
+                "message": {"role": "user", "content": "   "},  // whitespace only
+                "sessionId": "s1"
+            }),
+            serde_json::json!({
+                "type": "human",
+                "message": {"role": "user", "content": "Real content"},
+                "sessionId": "s1"
+            }),
+        ];
+        let content: String = lines
+            .iter()
+            .map(|l| serde_json::to_string(l).unwrap())
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::fs::write(&file_path, content).unwrap();
+
+        let srv = make_server();
+        let result = srv.import_claude_code(ImportClaudeCodeParams {
+            path: file_path.to_str().unwrap().into(),
+        });
+        assert!(
+            result.contains("Imported 1 messages"),
+            "Whitespace-only content should be skipped: {result}"
+        );
+    }
+
+    #[test]
+    fn import_claude_code_skips_entries_without_message_field() {
+        // Entries where the "message" key is absent are silently skipped
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("no-message.jsonl");
+
+        let lines = [
+            serde_json::json!({
+                "type": "human",
+                // no "message" key
+                "sessionId": "s1"
+            }),
+            serde_json::json!({
+                "type": "human",
+                "message": {"role": "user", "content": "Has message"},
+                "sessionId": "s1"
+            }),
+        ];
+        let content: String = lines
+            .iter()
+            .map(|l| serde_json::to_string(l).unwrap())
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::fs::write(&file_path, content).unwrap();
+
+        let srv = make_server();
+        let result = srv.import_claude_code(ImportClaudeCodeParams {
+            path: file_path.to_str().unwrap().into(),
+        });
+        assert!(
+            result.contains("Imported 1 messages"),
+            "Entry with no message field should be skipped: {result}"
+        );
+    }
+
+    #[test]
+    fn import_claude_code_skips_entries_without_content_field() {
+        // Entries where "message.content" is absent are silently skipped
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("no-content.jsonl");
+
+        let lines = [
+            serde_json::json!({
+                "type": "assistant",
+                "message": {"role": "assistant"},  // no "content" key
+                "sessionId": "s1"
+            }),
+            serde_json::json!({
+                "type": "assistant",
+                "message": {"role": "assistant", "content": "Valid"},
+                "sessionId": "s1"
+            }),
+        ];
+        let content: String = lines
+            .iter()
+            .map(|l| serde_json::to_string(l).unwrap())
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::fs::write(&file_path, content).unwrap();
+
+        let srv = make_server();
+        let result = srv.import_claude_code(ImportClaudeCodeParams {
+            path: file_path.to_str().unwrap().into(),
+        });
+        assert!(
+            result.contains("Imported 1 messages"),
+            "Entry with no content field should be skipped: {result}"
+        );
+    }
 }

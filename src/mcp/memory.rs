@@ -158,7 +158,6 @@ pub fn handle_recall(server: &super::AlayaMcp, params: RecallParams) -> String {
 
 #[cfg(all(test, feature = "mcp"))]
 mod tests {
-    use super::*;
     use crate::{AlayaStore, MockExtractionProvider, NewSemanticNode, SemanticType};
 
     use super::super::{AlayaMcp, LearnFactEntry, LearnParams, RememberParams};
@@ -455,5 +454,71 @@ mod tests {
             boost_category: Some(9999),
         });
         assert!(!result.starts_with("Error:"));
+    }
+
+    #[test]
+    fn recall_output_format_contains_numbered_entries() {
+        // Verify the "N. [role] (score: X.XXX) content" format for found memories
+        let srv = make_server();
+        srv.remember(RememberParams {
+            content: "Rust is memory safe".into(),
+            role: "user".into(),
+            session_id: "s1".into(),
+        });
+        srv.remember(RememberParams {
+            content: "Rust has zero-cost abstractions".into(),
+            role: "assistant".into(),
+            session_id: "s1".into(),
+        });
+
+        let result = srv.recall(super::super::RecallParams {
+            query: "Rust".into(),
+            max_results: Some(5),
+            boost_category: None,
+        });
+        assert!(result.starts_with("Found"), "Should start with 'Found': {result}");
+        assert!(result.contains("memories:"), "Should say 'memories:': {result}");
+        // Each result line starts with an ordinal and includes a role label and score
+        assert!(result.contains("1."), "Should number results starting at 1: {result}");
+        assert!(result.contains("score:"), "Should include score in output: {result}");
+        assert!(
+            result.contains("[user]") || result.contains("[assistant]"),
+            "Should include role in brackets: {result}"
+        );
+    }
+
+    #[test]
+    fn recall_default_max_results_is_five() {
+        // When max_results is None, the default of 5 is used
+        let srv = make_server();
+        for i in 0..10 {
+            srv.remember(RememberParams {
+                content: format!("Rust fact number {i}"),
+                role: "user".into(),
+                session_id: "s1".into(),
+            });
+        }
+        let result = srv.recall(super::super::RecallParams {
+            query: "Rust fact".into(),
+            max_results: None,
+            boost_category: None,
+        });
+        // Count result lines (start with digit + ".")
+        let count = result
+            .lines()
+            .filter(|l| {
+                let t = l.trim();
+                t.starts_with("1.")
+                    || t.starts_with("2.")
+                    || t.starts_with("3.")
+                    || t.starts_with("4.")
+                    || t.starts_with("5.")
+                    || t.starts_with("6.")
+            })
+            .count();
+        assert!(
+            count <= 5,
+            "Default max_results=5 should return at most 5 results, got {count}"
+        );
     }
 }
