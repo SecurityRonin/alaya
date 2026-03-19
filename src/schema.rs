@@ -17,6 +17,11 @@ pub fn open_memory_db() -> Result<Connection> {
     Ok(conn)
 }
 
+/// Initialize schema on an already-open connection (used by encrypted open).
+pub(crate) fn initialize(conn: &Connection) -> Result<()> {
+    init_db(conn)
+}
+
 /// Start a write transaction with IMMEDIATE locking.
 /// This prevents SQLITE_BUSY errors under concurrent readers by acquiring
 /// the write lock at BEGIN rather than at first write statement.

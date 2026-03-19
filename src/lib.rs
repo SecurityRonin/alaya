@@ -113,6 +113,33 @@ impl AlayaStore {
         })
     }
 
+    /// Open an encrypted database. The key is passed to SQLCipher via `PRAGMA key`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the key is incorrect or the file is not an encrypted database.
+    #[cfg(feature = "sqlcipher")]
+    pub fn open_encrypted(path: impl AsRef<Path>, key: &str) -> Result<Self> {
+        let conn = Connection::open(path)?;
+        conn.pragma_update(None, "key", key)?;
+        // Verify the key works by reading from the database
+        conn.execute_batch("SELECT count(*) FROM sqlite_master")
+            .map_err(|_| AlayaError::InvalidInput("wrong encryption key or not an encrypted database".into()))?;
+        schema::initialize(&conn)?;
+        Ok(Self {
+            conn,
+            embedding_provider: None,
+            extraction_provider: None,
+        })
+    }
+
+    /// Re-encrypt the database with a new key via `PRAGMA rekey`.
+    #[cfg(feature = "sqlcipher")]
+    pub fn rekey(&self, new_key: &str) -> Result<()> {
+        self.conn.pragma_update(None, "rekey", new_key)?;
+        Ok(())
+    }
+
     /// Set an embedding provider for automatic embedding generation.
     ///
     /// When set, `store_episode` and `query` will auto-generate embeddings
@@ -2035,5 +2062,76 @@ mod tests {
         let _p: Option<PerfumingReport> = report.perfuming;
         let _t: TransformationReport = report.transformation;
         let _f: ForgettingReport = report.forgetting;
+    }
+
+    #[cfg(feature = "sqlcipher")]
+    #[test]
+    fn test_open_encrypted_roundtrip() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("encrypted.db");
+
+        // Create encrypted DB
+        let store = AlayaStore::open_encrypted(&path, "test-key-123").unwrap();
+        store.store_episode(&NewEpisode {
+            content: "secret data".into(),
+            role: Role::User,
+            session_id: "s1".into(),
+            timestamp: 1000,
+            context: EpisodeContext::default(),
+            embedding: None,
+        }).unwrap();
+        drop(store);
+
+        // Reopen with correct key
+        let store2 = AlayaStore::open_encrypted(&path, "test-key-123").unwrap();
+        assert_eq!(store2.status().unwrap().episode_count, 1);
+    }
+
+    #[cfg(feature = "sqlcipher")]
+    #[test]
+    fn test_open_encrypted_wrong_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("encrypted.db");
+
+        let store = AlayaStore::open_encrypted(&path, "correct-key").unwrap();
+        store.store_episode(&NewEpisode {
+            content: "secret".into(),
+            role: Role::User,
+            session_id: "s1".into(),
+            timestamp: 1000,
+            context: EpisodeContext::default(),
+            embedding: None,
+        }).unwrap();
+        drop(store);
+
+        // Wrong key should fail
+        let result = AlayaStore::open_encrypted(&path, "wrong-key");
+        assert!(result.is_err());
+    }
+
+    #[cfg(feature = "sqlcipher")]
+    #[test]
+    fn test_rekey() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("rekey.db");
+
+        let store = AlayaStore::open_encrypted(&path, "old-key").unwrap();
+        store.store_episode(&NewEpisode {
+            content: "rekey test".into(),
+            role: Role::User,
+            session_id: "s1".into(),
+            timestamp: 1000,
+            context: EpisodeContext::default(),
+            embedding: None,
+        }).unwrap();
+        store.rekey("new-key").unwrap();
+        drop(store);
+
+        // Old key should fail
+        assert!(AlayaStore::open_encrypted(&path, "old-key").is_err());
+
+        // New key should work
+        let store2 = AlayaStore::open_encrypted(&path, "new-key").unwrap();
+        assert_eq!(store2.status().unwrap().episode_count, 1);
     }
 }
