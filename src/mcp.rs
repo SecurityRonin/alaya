@@ -1096,6 +1096,24 @@ mod tests {
         assert_eq!(result, format!("{home}/"));
     }
 
+    #[test]
+    fn expand_tilde_bare_tilde_no_slash_unchanged() {
+        // "~" without trailing slash does not match "~/" prefix, returned as-is
+        assert_eq!(expand_tilde("~"), "~");
+    }
+
+    #[test]
+    fn expand_tilde_empty_string_unchanged() {
+        assert_eq!(expand_tilde(""), "");
+    }
+
+    #[test]
+    fn expand_tilde_deep_nested_path() {
+        let result = expand_tilde("~/a/b/c/d/e.txt");
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+        assert_eq!(result, format!("{home}/a/b/c/d/e.txt"));
+    }
+
     // -----------------------------------------------------------------------
     // extract_content
     // -----------------------------------------------------------------------
@@ -3411,5 +3429,316 @@ mod tests {
             result.contains("Preferences decayed:"),
             "Should show prefs decayed: {result}"
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // format_preferences — edge cases
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn format_preferences_single_item() {
+        let prefs = vec![Preference {
+            id: PreferenceId(99),
+            domain: "coding".to_string(),
+            preference: "use snake_case".to_string(),
+            confidence: 1.0,
+            evidence_count: 1,
+            first_observed: 0,
+            last_reinforced: 0,
+        }];
+        let result = format_preferences(&prefs);
+        assert!(result.contains("Found 1 preferences:"));
+        assert!(result.contains("[coding] use snake_case (confidence: 1.00, evidence: 1)"));
+    }
+
+    #[test]
+    fn format_preferences_zero_confidence_and_evidence() {
+        let prefs = vec![Preference {
+            id: PreferenceId(1),
+            domain: "style".to_string(),
+            preference: "unknown".to_string(),
+            confidence: 0.0,
+            evidence_count: 0,
+            first_observed: 0,
+            last_reinforced: 0,
+        }];
+        let result = format_preferences(&prefs);
+        assert!(result.contains("confidence: 0.00, evidence: 0"));
+    }
+
+    #[test]
+    fn format_preferences_special_characters_in_fields() {
+        let prefs = vec![Preference {
+            id: PreferenceId(1),
+            domain: "lang/framework".to_string(),
+            preference: "tabs > spaces (always!)".to_string(),
+            confidence: 0.99,
+            evidence_count: 42,
+            first_observed: 0,
+            last_reinforced: 0,
+        }];
+        let result = format_preferences(&prefs);
+        assert!(result.contains("[lang/framework] tabs > spaces (always!)"));
+    }
+
+    // -----------------------------------------------------------------------
+    // format_categories — edge cases
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn format_categories_single_item_with_parent() {
+        let cats = vec![Category {
+            id: CategoryId(7),
+            label: "child".to_string(),
+            prototype_node: NodeId(1),
+            member_count: 1,
+            centroid_embedding: None,
+            created_at: 0,
+            last_updated: 0,
+            stability: 0.33,
+            parent_id: Some(CategoryId(3)),
+        }];
+        let result = format_categories(&cats);
+        assert!(result.contains("Found 1 categories:"));
+        assert!(result.contains("[7] child"));
+        assert!(result.contains("1 members"));
+        assert!(result.contains("stability: 0.33"));
+        assert!(result.contains("(parent: 3)"));
+    }
+
+    #[test]
+    fn format_categories_zero_members_zero_stability() {
+        let cats = vec![Category {
+            id: CategoryId(2),
+            label: "empty-cat".to_string(),
+            prototype_node: NodeId(1),
+            member_count: 0,
+            centroid_embedding: None,
+            created_at: 0,
+            last_updated: 0,
+            stability: 0.0,
+            parent_id: None,
+        }];
+        let result = format_categories(&cats);
+        assert!(result.contains("0 members, stability: 0.00"));
+        assert!(!result.contains("parent:"));
+    }
+
+    #[test]
+    fn format_categories_empty() {
+        let result = format_categories(&[]);
+        assert!(result.contains("Found 0 categories:"));
+    }
+
+    // -----------------------------------------------------------------------
+    // format_neighbors — edge cases
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn format_neighbors_single_episode() {
+        let neighbors = vec![(NodeRef::Episode(EpisodeId(5)), 1.0_f32)];
+        let result = format_neighbors(&neighbors);
+        assert!(result.contains("Found 1 neighbors:"));
+        assert!(result.contains("episode #5 (weight: 1.000)"));
+    }
+
+    #[test]
+    fn format_neighbors_single_semantic() {
+        let neighbors = vec![(NodeRef::Semantic(NodeId(10)), 0.0_f32)];
+        let result = format_neighbors(&neighbors);
+        assert!(result.contains("semantic #10 (weight: 0.000)"));
+    }
+
+    #[test]
+    fn format_neighbors_single_preference() {
+        let neighbors = vec![(NodeRef::Preference(PreferenceId(3)), 0.5_f32)];
+        let result = format_neighbors(&neighbors);
+        assert!(result.contains("preference #3 (weight: 0.500)"));
+    }
+
+    #[test]
+    fn format_neighbors_single_category() {
+        let neighbors = vec![(NodeRef::Category(CategoryId(8)), 0.123_f32)];
+        let result = format_neighbors(&neighbors);
+        assert!(result.contains("category #8 (weight: 0.123)"));
+    }
+
+    // -----------------------------------------------------------------------
+    // format_node_category — edge cases
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn format_node_category_zero_members_zero_stability() {
+        let cat = Category {
+            id: CategoryId(1),
+            label: "empty".to_string(),
+            prototype_node: NodeId(1),
+            member_count: 0,
+            centroid_embedding: None,
+            created_at: 0,
+            last_updated: 0,
+            stability: 0.0,
+            parent_id: None,
+        };
+        let result = format_node_category(42, &cat);
+        assert!(result.contains("Node 42 belongs to category [1] 'empty'"));
+        assert!(result.contains("0 members, stability: 0.00"));
+        assert!(!result.contains("parent:"));
+    }
+
+    #[test]
+    fn format_node_category_large_node_id() {
+        let cat = Category {
+            id: CategoryId(999),
+            label: "big".to_string(),
+            prototype_node: NodeId(1),
+            member_count: 100,
+            centroid_embedding: None,
+            created_at: 0,
+            last_updated: 0,
+            stability: 1.0,
+            parent_id: None,
+        };
+        let result = format_node_category(1_000_000, &cat);
+        assert!(result.contains("Node 1000000 belongs to category [999] 'big'"));
+        assert!(result.contains("stability: 1.00"));
+    }
+
+    // -----------------------------------------------------------------------
+    // format_knowledge_breakdown — edge cases
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn format_knowledge_breakdown_single_type_relationships() {
+        let mut breakdown = std::collections::HashMap::new();
+        breakdown.insert(SemanticType::Relationship, 7_u64);
+        let result = format_knowledge_breakdown(&breakdown);
+        assert_eq!(result, "7 relationships");
+    }
+
+    #[test]
+    fn format_knowledge_breakdown_single_type_events() {
+        let mut breakdown = std::collections::HashMap::new();
+        breakdown.insert(SemanticType::Event, 3_u64);
+        let result = format_knowledge_breakdown(&breakdown);
+        assert_eq!(result, "3 events");
+    }
+
+    #[test]
+    fn format_knowledge_breakdown_single_type_concepts() {
+        let mut breakdown = std::collections::HashMap::new();
+        breakdown.insert(SemanticType::Concept, 1_u64);
+        let result = format_knowledge_breakdown(&breakdown);
+        assert_eq!(result, "1 concepts");
+    }
+
+    #[test]
+    fn format_knowledge_breakdown_zero_count_not_included() {
+        // A type with count=0 is stored in the map but check that only
+        // present keys are emitted (inserting 0 does still emit "0 facts").
+        let mut breakdown = std::collections::HashMap::new();
+        breakdown.insert(SemanticType::Fact, 0_u64);
+        let result = format_knowledge_breakdown(&breakdown);
+        assert_eq!(result, "0 facts");
+    }
+
+    #[test]
+    fn format_knowledge_breakdown_ordering_facts_first() {
+        // Verify output always starts with facts when facts are present.
+        let mut breakdown = std::collections::HashMap::new();
+        breakdown.insert(SemanticType::Concept, 2_u64);
+        breakdown.insert(SemanticType::Fact, 5_u64);
+        let result = format_knowledge_breakdown(&breakdown);
+        assert!(result.starts_with("5 facts"));
+        assert!(result.contains("2 concepts"));
+    }
+
+    // -----------------------------------------------------------------------
+    // format_category_line — edge cases
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn format_category_line_empty_slice() {
+        let result = format_category_line(&[]);
+        assert_eq!(result, "0 ()");
+    }
+
+    #[test]
+    fn format_category_line_single_item() {
+        let cats = vec![Category {
+            id: CategoryId(1),
+            label: "solo".to_string(),
+            prototype_node: NodeId(1),
+            member_count: 1,
+            centroid_embedding: None,
+            created_at: 0,
+            last_updated: 0,
+            stability: 1.0,
+            parent_id: None,
+        }];
+        let result = format_category_line(&cats);
+        assert_eq!(result, "1 (solo)");
+    }
+
+    // -----------------------------------------------------------------------
+    // format_status — edge cases
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn format_status_all_zeros() {
+        let st = MemoryStatus {
+            episode_count: 0,
+            semantic_node_count: 0,
+            preference_count: 0,
+            impression_count: 0,
+            link_count: 0,
+            embedding_count: 0,
+            category_count: 0,
+        };
+        let result = format_status(&st, 0, 0, "", "0 ()", "", "0/0");
+        assert!(result.contains("Episodes: 0"));
+        // With session_eps=0 and unconsolidated=0 the parenthetical is omitted
+        assert!(!result.contains("this session"));
+        assert!(result.contains("Preferences: 0 crystallized, 0 impressions"));
+        assert!(result.contains("Graph: 0 links"));
+    }
+
+    #[test]
+    fn format_status_session_eps_nonzero_but_unconsolidated_zero() {
+        let st = MemoryStatus {
+            episode_count: 5,
+            semantic_node_count: 0,
+            preference_count: 0,
+            impression_count: 0,
+            link_count: 0,
+            embedding_count: 0,
+            category_count: 0,
+        };
+        let result = format_status(&st, 5, 0, "5 facts", "1 (rust)", "", "5/5");
+        assert!(result.contains("Episodes: 5"));
+        assert!(result.contains("5 this session, 0 unconsolidated"));
+    }
+
+    #[test]
+    fn format_status_strongest_desc_included() {
+        let st = MemoryStatus {
+            episode_count: 10,
+            semantic_node_count: 3,
+            preference_count: 1,
+            impression_count: 0,
+            link_count: 8,
+            embedding_count: 3,
+            category_count: 1,
+        };
+        let result = format_status(
+            &st,
+            0,
+            0,
+            "3 facts",
+            "1 (general)",
+            " — strongest: Rust",
+            "3/3",
+        );
+        assert!(result.contains("Graph: 8 links — strongest: Rust"));
     }
 }
