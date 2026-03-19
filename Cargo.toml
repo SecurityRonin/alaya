@@ -34,13 +34,16 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin_include)'] }
 
 
 [features]
+default = ["bundled-sqlite"]
+bundled-sqlite = ["rusqlite/bundled"]
+sqlcipher = ["rusqlite/bundled-sqlcipher"]
 mcp = ["dep:rmcp", "dep:tokio", "dep:schemars", "dep:anyhow"]
 llm = ["dep:ureq"]
 tracing = ["dep:tracing", "dep:tracing-subscriber"]
 async = ["dep:tokio"]
 
 [dependencies]
-rusqlite = { version = "0.32", features = ["bundled", "modern_sqlite"] }
+rusqlite = { version = "0.32", features = ["modern_sqlite"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
