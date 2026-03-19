@@ -439,7 +439,10 @@ mod tests {
         let conn = open_memory_db().unwrap();
         let a = NodeRef::Episode(EpisodeId(1));
         let to_a = get_links_to(&conn, a).unwrap();
-        assert!(to_a.is_empty(), "node with no incoming links should return empty");
+        assert!(
+            to_a.is_empty(),
+            "node with no incoming links should return empty"
+        );
     }
 
     #[test]
@@ -447,7 +450,10 @@ mod tests {
         let conn = open_memory_db().unwrap();
         let a = NodeRef::Episode(EpisodeId(99));
         let from_a = get_links_from(&conn, a).unwrap();
-        assert!(from_a.is_empty(), "node with no outgoing links should return empty");
+        assert!(
+            from_a.is_empty(),
+            "node with no outgoing links should return empty"
+        );
     }
 
     #[test]
@@ -474,8 +480,14 @@ mod tests {
         let a = NodeRef::Episode(EpisodeId(1));
         let b = NodeRef::Semantic(crate::types::NodeId(1));
 
-        for lt in [LinkType::Temporal, LinkType::Topical, LinkType::Entity,
-                   LinkType::Causal, LinkType::CoRetrieval, LinkType::MemberOf] {
+        for lt in [
+            LinkType::Temporal,
+            LinkType::Topical,
+            LinkType::Entity,
+            LinkType::Causal,
+            LinkType::CoRetrieval,
+            LinkType::MemberOf,
+        ] {
             let _ = create_link(&conn, a, b, lt, 0.5); // may fail on dup, ok
         }
 

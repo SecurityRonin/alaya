@@ -168,7 +168,10 @@ mod tests {
     fn test_spread_activation_empty_seeds() {
         let conn = open_memory_db().unwrap();
         let result = spread_activation(&conn, &[], 2, 0.05, 0.6).unwrap();
-        assert!(result.is_empty(), "empty seeds should produce empty activation");
+        assert!(
+            result.is_empty(),
+            "empty seeds should produce empty activation"
+        );
     }
 
     #[test]
@@ -225,7 +228,10 @@ mod tests {
         assert!(result.contains_key(&a));
         // b receives 1.0 * 0.001 * 0.5 = 0.0005 which is way below threshold*0.1 = 0.05
         // so spread doesn't propagate, and b is filtered out
-        assert!(!result.contains_key(&b), "very weak link should not spread above threshold");
+        assert!(
+            !result.contains_key(&b),
+            "very weak link should not spread above threshold"
+        );
     }
 
     #[test]
@@ -238,6 +244,9 @@ mod tests {
 
         let result = spread_activation(&conn, &[a], 0, 0.05, 0.6).unwrap();
         assert!(result.contains_key(&a));
-        assert!(!result.contains_key(&b), "zero depth: b should not receive activation");
+        assert!(
+            !result.contains_key(&b),
+            "zero depth: b should not receive activation"
+        );
     }
 }

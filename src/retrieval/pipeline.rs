@@ -37,7 +37,10 @@ pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemor
     };
 
     #[cfg(feature = "tracing")]
-    trace!(vector_count = vector_results.len(), "vector search complete");
+    trace!(
+        vector_count = vector_results.len(),
+        "vector search complete"
+    );
 
     // Graph: seed from BM25 + vector top results, spread 1 hop
     let seed_nodes: Vec<NodeRef> = bm25_results
@@ -500,10 +503,7 @@ mod tests {
         // on_co_retrieval fires, strengthening the link.
         // (The test validates the co-retrieval path ran without error)
         let after_links = links::get_links_from(&conn, NodeRef::Episode(ep_id)).unwrap();
-        let after_weight = after_links
-            .first()
-            .map(|l| l.forward_weight)
-            .unwrap_or(0.0);
+        let after_weight = after_links.first().map(|l| l.forward_weight).unwrap_or(0.0);
 
         // Weight should be >= before (co-retrieval only increases or holds)
         assert!(
@@ -567,8 +567,7 @@ mod tests {
         assert_eq!(
             ids.len(),
             sorted_ids.len(),
-            "duplicate nodes in results: {:?}",
-            ids
+            "duplicate nodes in results: {ids:?}"
         );
     }
 
@@ -620,7 +619,9 @@ mod tests {
         assert!(!results.is_empty(), "vector query must return results");
         // At least one semantic node should appear
         assert!(
-            results.iter().any(|r| matches!(r.node, NodeRef::Semantic(_))),
+            results
+                .iter()
+                .any(|r| matches!(r.node, NodeRef::Semantic(_))),
             "should include semantic node from vector search"
         );
     }
@@ -675,16 +676,16 @@ mod tests {
         };
 
         // At least one non-retrieved episode should have suppressed strength < 1.0
-        let suppressed = ids
-            .iter()
-            .filter(|eid| eid.0 != retrieved_id)
-            .any(|eid| {
-                strengths::get_strength(&conn, NodeRef::Episode(*eid))
-                    .map(|s| s.retrieval_strength < 1.0)
-                    .unwrap_or(false)
-            });
+        let suppressed = ids.iter().filter(|eid| eid.0 != retrieved_id).any(|eid| {
+            strengths::get_strength(&conn, NodeRef::Episode(*eid))
+                .map(|s| s.retrieval_strength < 1.0)
+                .unwrap_or(false)
+        });
 
-        assert!(suppressed, "at least one non-retrieved episode should be suppressed");
+        assert!(
+            suppressed,
+            "at least one non-retrieved episode should be suppressed"
+        );
     }
 
     // ---------------------------------------------------------------------------
@@ -696,7 +697,10 @@ mod tests {
         episodic::store_episode(&conn, &ep("Rust programming", "s1", 1000)).unwrap();
 
         let results = execute_query(&conn, &Query::simple("")).unwrap();
-        assert!(results.is_empty(), "empty query string must return no results");
+        assert!(
+            results.is_empty(),
+            "empty query string must return no results"
+        );
     }
 
     // ---------------------------------------------------------------------------
@@ -780,8 +784,7 @@ mod tests {
 
         // One episode in session A
         let ep_a =
-            episodic::store_episode(&conn, &ep("Rust ownership rules", "session_a", 1000))
-                .unwrap();
+            episodic::store_episode(&conn, &ep("Rust ownership rules", "session_a", 1000)).unwrap();
         strengths::init_strength(&conn, NodeRef::Episode(ep_a)).unwrap();
 
         // One episode in session B — completely different session
@@ -808,8 +811,9 @@ mod tests {
 
         // episode in session_b has no competing episodes in session_b,
         // so it should NOT be suppressed by RIF (no unretrieved session_b siblings)
-        let strength_b =
-            strengths::get_strength(&conn, NodeRef::Episode(ep_b)).unwrap().retrieval_strength;
+        let strength_b = strengths::get_strength(&conn, NodeRef::Episode(ep_b))
+            .unwrap()
+            .retrieval_strength;
         // Initial strength (no suppress applied), either 1.0 (init) or may have been on_accessed.
         // Key invariant: it was NOT suppressed to < 0.9 * init
         assert!(
@@ -855,7 +859,10 @@ mod tests {
 
         assert!(!results.is_empty());
         let r = &results[0];
-        assert!(r.content.contains("Rust lifetimes"), "content must be populated");
+        assert!(
+            r.content.contains("Rust lifetimes"),
+            "content must be populated"
+        );
         assert_eq!(r.role, Some(Role::Assistant), "role must be preserved");
         assert_eq!(r.timestamp, 42000, "timestamp must match stored value");
         assert!(r.score > 0.0, "score must be positive");

@@ -484,7 +484,10 @@ mod tests {
             .as_secs() as i64
             + 200_000;
         let decayed = decay_preferences(&conn, future, 3600).unwrap();
-        assert_eq!(decayed, 0, "confidence at 0.01 should not be decayed (already at floor)");
+        assert_eq!(
+            decayed, 0,
+            "confidence at 0.01 should not be decayed (already at floor)"
+        );
     }
 
     #[test]

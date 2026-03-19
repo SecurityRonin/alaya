@@ -282,7 +282,10 @@ mod tests {
     fn test_noop_provider_extract_knowledge() {
         let provider = NoOpProvider;
         let result = provider.extract_knowledge(&[]).unwrap();
-        assert!(result.is_empty(), "NoOpProvider.extract_knowledge should return empty");
+        assert!(
+            result.is_empty(),
+            "NoOpProvider.extract_knowledge should return empty"
+        );
     }
 
     #[test]

@@ -176,7 +176,10 @@ mod tests {
 
         // Now there should be a preference for "format"
         let prefs_before = implicit::get_preferences(&conn, Some("format")).unwrap();
-        assert!(!prefs_before.is_empty(), "should have crystallized a preference");
+        assert!(
+            !prefs_before.is_empty(),
+            "should have crystallized a preference"
+        );
         let evidence_before = prefs_before[0].evidence_count;
 
         // Perfume again — should reinforce the existing preference
@@ -251,6 +254,9 @@ mod tests {
         }
 
         let prefs = implicit::get_preferences(&conn, Some("tone")).unwrap();
-        assert!(prefs.is_empty(), "should not crystallize with only 3 impressions (threshold=5)");
+        assert!(
+            prefs.is_empty(),
+            "should not crystallize with only 3 impressions (threshold=5)"
+        );
     }
 }

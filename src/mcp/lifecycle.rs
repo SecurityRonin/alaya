@@ -29,9 +29,7 @@ pub fn handle_purge(server: &super::AlayaMcp, params: PurgeParams) -> String {
         },
         "older_than" => match params.before_timestamp {
             Some(ts) => PurgeFilter::OlderThan(ts),
-            None => {
-                return "Error: before_timestamp required for scope 'older_than'".to_string()
-            }
+            None => return "Error: before_timestamp required for scope 'older_than'".to_string(),
         },
         "all" => PurgeFilter::All,
         _ => {

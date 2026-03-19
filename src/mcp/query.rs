@@ -220,7 +220,9 @@ mod tests {
     #[test]
     fn categories_empty_store() {
         let srv = make_server();
-        let result = srv.categories(CategoriesParams { min_stability: None });
+        let result = srv.categories(CategoriesParams {
+            min_stability: None,
+        });
         assert_eq!(result, "No categories found.");
     }
 

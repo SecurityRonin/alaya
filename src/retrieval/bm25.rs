@@ -180,7 +180,10 @@ mod tests {
         let conn = open_memory_db().unwrap();
         // A query that is only whitespace sanitizes to empty after trim
         let results = search_bm25(&conn, "   ", 10).unwrap();
-        assert!(results.is_empty(), "whitespace-only query should return empty");
+        assert!(
+            results.is_empty(),
+            "whitespace-only query should return empty"
+        );
     }
 
     #[test]
@@ -211,9 +214,12 @@ mod tests {
         )
         .unwrap();
         let results = search_bm25(&conn, "Rust", 10).unwrap();
-        assert!(results.len() >= 1);
+        assert!(!results.is_empty());
         for (_, score) in &results {
-            assert!(*score >= 0.0 && *score <= 1.0, "score out of [0,1]: {score}");
+            assert!(
+                *score >= 0.0 && *score <= 1.0,
+                "score out of [0,1]: {score}"
+            );
         }
     }
 }

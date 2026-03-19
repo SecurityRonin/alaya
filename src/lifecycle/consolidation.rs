@@ -707,7 +707,14 @@ mod tests {
         .unwrap();
         categories::assign_node_to_category(&conn, n1, cat1).unwrap();
         strengths::init_strength(&conn, NodeRef::Semantic(n1)).unwrap();
-        links::create_link(&conn, NodeRef::Episode(ep1), NodeRef::Semantic(n1), LinkType::Causal, 0.7).unwrap();
+        links::create_link(
+            &conn,
+            NodeRef::Episode(ep1),
+            NodeRef::Semantic(n1),
+            LinkType::Causal,
+            0.7,
+        )
+        .unwrap();
 
         // Create semantic node assigned to cat2 and linked to ep2
         let n2 = semantic::store_semantic_node(
@@ -723,7 +730,14 @@ mod tests {
         .unwrap();
         categories::assign_node_to_category(&conn, n2, cat2).unwrap();
         strengths::init_strength(&conn, NodeRef::Semantic(n2)).unwrap();
-        links::create_link(&conn, NodeRef::Episode(ep2), NodeRef::Semantic(n2), LinkType::Causal, 0.7).unwrap();
+        links::create_link(
+            &conn,
+            NodeRef::Episode(ep2),
+            NodeRef::Semantic(n2),
+            LinkType::Causal,
+            0.7,
+        )
+        .unwrap();
 
         // Learn a new node referencing both episodes — tied vote, no majority
         let report = learn_direct(

@@ -21,8 +21,7 @@ pub fn handle_learn(server: &super::AlayaMcp, params: LearnParams) -> String {
         .facts
         .iter()
         .map(|fact| {
-            let node_type =
-                SemanticType::from_str(&fact.node_type).unwrap_or(SemanticType::Fact);
+            let node_type = SemanticType::from_str(&fact.node_type).unwrap_or(SemanticType::Fact);
             let confidence = fact.confidence.unwrap_or(0.8).clamp(0.0, 1.0);
             NewSemanticNode {
                 content: fact.content.clone(),

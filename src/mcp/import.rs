@@ -213,10 +213,7 @@ fn parse_claude_mem_db(path: &str) -> Result<(u32, Vec<NewSemanticNode>), String
 // Public handlers
 // ---------------------------------------------------------------------------
 
-pub fn handle_import_claude_mem(
-    server: &super::AlayaMcp,
-    params: ImportClaudeMemParams,
-) -> String {
+pub fn handle_import_claude_mem(server: &super::AlayaMcp, params: ImportClaudeMemParams) -> String {
     let path = super::validation::expand_tilde(
         &params
             .path

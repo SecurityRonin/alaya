@@ -263,22 +263,30 @@ mod tests {
     #[test]
     fn test_get_episodes_by_session_multiple_sessions() {
         let conn = open_memory_db().unwrap();
-        store_episode(&conn, &NewEpisode {
-            content: "session-a message".to_string(),
-            role: Role::User,
-            session_id: "session-a".to_string(),
-            timestamp: 1000,
-            context: EpisodeContext::default(),
-            embedding: None,
-        }).unwrap();
-        store_episode(&conn, &NewEpisode {
-            content: "session-b message".to_string(),
-            role: Role::Assistant,
-            session_id: "session-b".to_string(),
-            timestamp: 2000,
-            context: EpisodeContext::default(),
-            embedding: None,
-        }).unwrap();
+        store_episode(
+            &conn,
+            &NewEpisode {
+                content: "session-a message".to_string(),
+                role: Role::User,
+                session_id: "session-a".to_string(),
+                timestamp: 1000,
+                context: EpisodeContext::default(),
+                embedding: None,
+            },
+        )
+        .unwrap();
+        store_episode(
+            &conn,
+            &NewEpisode {
+                content: "session-b message".to_string(),
+                role: Role::Assistant,
+                session_id: "session-b".to_string(),
+                timestamp: 2000,
+                context: EpisodeContext::default(),
+                embedding: None,
+            },
+        )
+        .unwrap();
 
         let a_eps = get_episodes_by_session(&conn, "session-a").unwrap();
         assert_eq!(a_eps.len(), 1);

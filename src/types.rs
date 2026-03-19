@@ -448,30 +448,38 @@ impl std::fmt::Display for MemoryStatus {
         write!(
             f,
             "episodes: {}, semantic_nodes: {}, preferences: {}, links: {}",
-            self.episode_count, self.semantic_node_count,
-            self.preference_count, self.link_count
+            self.episode_count, self.semantic_node_count, self.preference_count, self.link_count
         )
     }
 }
 
 impl std::fmt::Display for ConsolidationReport {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "consolidated {} episodes, created {} nodes",
-            self.episodes_processed, self.nodes_created)
+        write!(
+            f,
+            "consolidated {} episodes, created {} nodes",
+            self.episodes_processed, self.nodes_created
+        )
     }
 }
 
 impl std::fmt::Display for TransformationReport {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "merged: {}, decayed: {}, pruned: {}",
-            self.duplicates_merged, self.links_decayed, self.links_pruned)
+        write!(
+            f,
+            "merged: {}, decayed: {}, pruned: {}",
+            self.duplicates_merged, self.links_decayed, self.links_pruned
+        )
     }
 }
 
 impl std::fmt::Display for ForgettingReport {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "archived: {}, decayed: {}",
-            self.nodes_archived, self.nodes_decayed)
+        write!(
+            f,
+            "archived: {}, decayed: {}",
+            self.nodes_archived, self.nodes_decayed
+        )
     }
 }
 
@@ -782,7 +790,10 @@ mod tests {
         assert_eq!(LinkType::from_str("topical"), Some(LinkType::Topical));
         assert_eq!(LinkType::from_str("entity"), Some(LinkType::Entity));
         assert_eq!(LinkType::from_str("causal"), Some(LinkType::Causal));
-        assert_eq!(LinkType::from_str("co_retrieval"), Some(LinkType::CoRetrieval));
+        assert_eq!(
+            LinkType::from_str("co_retrieval"),
+            Some(LinkType::CoRetrieval)
+        );
         assert_eq!(LinkType::from_str("member_of"), Some(LinkType::MemberOf));
         assert_eq!(LinkType::from_str("bogus"), None);
     }

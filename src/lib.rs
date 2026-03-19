@@ -29,6 +29,7 @@
 //! assert!(!results.is_empty());
 //! ```
 
+pub(crate) mod decay;
 pub(crate) mod error;
 pub(crate) mod graph;
 pub(crate) mod lifecycle;
@@ -37,7 +38,6 @@ pub(crate) mod retrieval;
 pub(crate) mod schema;
 pub(crate) mod store;
 pub(crate) mod types;
-pub(crate) mod decay;
 
 #[cfg(feature = "mcp")]
 pub mod mcp;

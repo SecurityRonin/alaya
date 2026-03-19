@@ -350,19 +350,22 @@ mod tests {
     #[test]
     fn test_serialize_empty_vector() {
         let blob = serialize_embedding(&[]);
-        assert!(blob.is_empty(), "serializing empty slice produces empty bytes");
+        assert!(
+            blob.is_empty(),
+            "serializing empty slice produces empty bytes"
+        );
         let restored = deserialize_embedding(&blob);
         assert!(restored.is_empty());
     }
 
     #[test]
     fn test_serialize_single_element() {
-        let vec = vec![3.14f32];
+        let vec = vec![std::f32::consts::PI];
         let blob = serialize_embedding(&vec);
         assert_eq!(blob.len(), 4, "single f32 should be 4 bytes");
         let restored = deserialize_embedding(&blob);
         assert_eq!(restored.len(), 1);
-        assert!((restored[0] - 3.14f32).abs() < 1e-6);
+        assert!((restored[0] - std::f32::consts::PI).abs() < 1e-6);
     }
 
     #[test]
@@ -373,7 +376,7 @@ mod tests {
         let restored = deserialize_embedding(&blob);
         assert_eq!(restored.len(), vec.len());
         for (a, b) in vec.iter().zip(restored.iter()) {
-            assert!((a - b).abs() < 1e-7, "value mismatch: {} vs {}", a, b);
+            assert!((a - b).abs() < 1e-7, "value mismatch: {a} vs {b}");
         }
     }
 
@@ -383,7 +386,11 @@ mod tests {
         let mut blob = serialize_embedding(&[1.0f32, 2.0f32]);
         blob.push(0xFF); // trailing garbage byte
         let restored = deserialize_embedding(&blob);
-        assert_eq!(restored.len(), 2, "partial trailing chunk should be silently dropped");
+        assert_eq!(
+            restored.len(),
+            2,
+            "partial trailing chunk should be silently dropped"
+        );
         assert!((restored[0] - 1.0f32).abs() < 1e-7);
         assert!((restored[1] - 2.0f32).abs() < 1e-7);
     }
@@ -394,7 +401,10 @@ mod tests {
         let a = vec![1.0f32, 0.0, 0.0];
         let b = vec![-1.0f32, 0.0, 0.0];
         let sim = cosine_similarity(&a, &b);
-        assert!((sim - (-1.0f32)).abs() < 1e-6, "opposite vectors should give -1.0, got {}", sim);
+        assert!(
+            (sim - (-1.0f32)).abs() < 1e-6,
+            "opposite vectors should give -1.0, got {sim}"
+        );
     }
 
     #[test]
@@ -405,11 +415,19 @@ mod tests {
         assert_eq!(count_embeddings(&conn).unwrap(), 1);
 
         store_embedding(&conn, "episode", 42, &[0.0, 1.0], "modelB").unwrap();
-        assert_eq!(count_embeddings(&conn).unwrap(), 1, "overwrite should not duplicate the row");
+        assert_eq!(
+            count_embeddings(&conn).unwrap(),
+            1,
+            "overwrite should not duplicate the row"
+        );
 
         // Value should be updated to the new embedding
         let emb = get_embedding(&conn, "episode", 42).unwrap().unwrap();
-        assert_eq!(emb, vec![0.0f32, 1.0f32], "stored value should reflect the latest write");
+        assert_eq!(
+            emb,
+            vec![0.0f32, 1.0f32],
+            "stored value should reflect the latest write"
+        );
     }
 
     #[test]
@@ -464,7 +482,11 @@ mod tests {
 
         // Request only 3 — should honour the limit
         let unembedded = get_unembedded_episodes(&conn, 3).unwrap();
-        assert_eq!(unembedded.len(), 3, "get_unembedded_episodes should respect the limit parameter");
+        assert_eq!(
+            unembedded.len(),
+            3,
+            "get_unembedded_episodes should respect the limit parameter"
+        );
     }
 
     #[test]

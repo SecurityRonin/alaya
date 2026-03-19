@@ -112,7 +112,7 @@ mod tests {
     fn test_recency_old() {
         let now = 1000000;
         let old = recency_decay(now - 86400 * 90, now); // 90 days ago
-        // ExponentialDecay with 30-day half-life: 0.5^3 = 0.125 at 90 days
+                                                        // ExponentialDecay with 30-day half-life: 0.5^3 = 0.125 at 90 days
         assert!(old < 0.2);
         assert!(old > 0.0);
     }

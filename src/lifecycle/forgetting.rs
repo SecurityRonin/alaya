@@ -221,7 +221,11 @@ mod tests {
 
         // Verify the episode exists before forget
         let count_before: i64 = conn
-            .query_row("SELECT COUNT(*) FROM episodes WHERE id = ?1", [ep_id.0], |r| r.get(0))
+            .query_row(
+                "SELECT COUNT(*) FROM episodes WHERE id = ?1",
+                [ep_id.0],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(count_before, 1);
 
@@ -230,7 +234,11 @@ mod tests {
 
         // Verify the episode was deleted
         let count_after: i64 = conn
-            .query_row("SELECT COUNT(*) FROM episodes WHERE id = ?1", [ep_id.0], |r| r.get(0))
+            .query_row(
+                "SELECT COUNT(*) FROM episodes WHERE id = ?1",
+                [ep_id.0],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(count_after, 0, "episode should be deleted after archiving");
 
@@ -242,7 +250,10 @@ mod tests {
                 |r| r.get(0),
             )
             .unwrap();
-        assert_eq!(strength_count, 0, "strength record should be removed after archive");
+        assert_eq!(
+            strength_count, 0,
+            "strength record should be removed after archive"
+        );
     }
 
     #[test]
@@ -266,6 +277,9 @@ mod tests {
 
         let report = forget(&conn).unwrap();
         // nodes_decayed = rows updated by decay_all_retrieval
-        assert_eq!(report.nodes_decayed, 1, "one strength row should have been decayed");
+        assert_eq!(
+            report.nodes_decayed, 1,
+            "one strength row should have been decayed"
+        );
     }
 }

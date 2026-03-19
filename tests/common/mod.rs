@@ -6,6 +6,7 @@ pub fn empty_store() -> AlayaStore {
 }
 
 /// Create a store populated with sample episodes.
+#[allow(dead_code)]
 pub fn populated_store() -> AlayaStore {
     let store = empty_store();
     for i in 0..5 {
@@ -22,6 +23,7 @@ pub fn populated_store() -> AlayaStore {
 }
 
 /// Create a store with a specific number of episodes.
+#[allow(dead_code)]
 pub fn store_with_episodes(n: i64) -> AlayaStore {
     let store = empty_store();
     for i in 0..n {
@@ -38,6 +40,7 @@ pub fn store_with_episodes(n: i64) -> AlayaStore {
 }
 
 /// Build a NewEpisode with sensible defaults.
+#[allow(dead_code)]
 pub fn make_episode(content: &str, role: &str, session_id: &str, timestamp: i64) -> NewEpisode {
     let role = match role {
         "assistant" => Role::Assistant,
@@ -55,6 +58,7 @@ pub fn make_episode(content: &str, role: &str, session_id: &str, timestamp: i64)
 }
 
 /// Build a NewSemanticNode with sensible defaults.
+#[allow(dead_code)]
 pub fn make_semantic_node(content: &str, node_type: SemanticType) -> NewSemanticNode {
     NewSemanticNode {
         content: content.to_string(),

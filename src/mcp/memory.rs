@@ -47,9 +47,7 @@ pub fn handle_remember(server: &super::AlayaMcp, params: RememberParams) -> Stri
                     }
                     Ok(_) => {
                         // Provider returned zero nodes — fall back to prompt
-                        if let Ok(episodes) =
-                            server.with_store(|s| s.unconsolidated_episodes(20))
-                        {
+                        if let Ok(episodes) = server.with_store(|s| s.unconsolidated_episodes(20)) {
                             response.push_str(&format!(
                                 "\n\n--- Consolidation suggested ---\n\
                                  You have {} unconsolidated episodes. \
@@ -71,12 +69,9 @@ pub fn handle_remember(server: &super::AlayaMcp, params: RememberParams) -> Stri
                         // Provider error or no provider — fall back to prompt with note
                         let err_msg = e.to_string();
                         let is_no_provider = err_msg.contains("extraction provider");
-                        if let Ok(episodes) =
-                            server.with_store(|s| s.unconsolidated_episodes(20))
-                        {
+                        if let Ok(episodes) = server.with_store(|s| s.unconsolidated_episodes(20)) {
                             if !is_no_provider {
-                                response
-                                    .push_str(&format!("\n\n(Auto-consolidation failed: {e})"));
+                                response.push_str(&format!("\n\n(Auto-consolidation failed: {e})"));
                             }
                             response.push_str(&format!(
                                 "\n\n--- Consolidation suggested ---\n\
@@ -476,11 +471,23 @@ mod tests {
             max_results: Some(5),
             boost_category: None,
         });
-        assert!(result.starts_with("Found"), "Should start with 'Found': {result}");
-        assert!(result.contains("memories:"), "Should say 'memories:': {result}");
+        assert!(
+            result.starts_with("Found"),
+            "Should start with 'Found': {result}"
+        );
+        assert!(
+            result.contains("memories:"),
+            "Should say 'memories:': {result}"
+        );
         // Each result line starts with an ordinal and includes a role label and score
-        assert!(result.contains("1."), "Should number results starting at 1: {result}");
-        assert!(result.contains("score:"), "Should include score in output: {result}");
+        assert!(
+            result.contains("1."),
+            "Should number results starting at 1: {result}"
+        );
+        assert!(
+            result.contains("score:"),
+            "Should include score in output: {result}"
+        );
         assert!(
             result.contains("[user]") || result.contains("[assistant]"),
             "Should include role in brackets: {result}"

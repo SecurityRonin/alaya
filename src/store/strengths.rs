@@ -87,7 +87,10 @@ pub fn suppress_retrieval(conn: &Connection, node: NodeRef, factor: f32) -> Resu
 
 pub fn decay_all_retrieval(conn: &Connection, decay_factor: f32) -> Result<u64> {
     crate::decay::apply_multiplicative_sql(
-        conn, "node_strengths", "retrieval_strength", decay_factor as f64,
+        conn,
+        "node_strengths",
+        "retrieval_strength",
+        decay_factor as f64,
     )
 }
 

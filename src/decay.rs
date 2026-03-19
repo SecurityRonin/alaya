@@ -15,6 +15,7 @@ pub trait Decay {
 
 /// Multiplicative decay: multiplies by a fixed factor each sweep.
 /// Used by link decay and retrieval strength decay.
+#[allow(dead_code)]
 pub struct MultiplicativeDecay {
     pub factor: f64,
 }
@@ -49,9 +50,7 @@ pub fn apply_multiplicative_sql(
     column: &str,
     factor: f64,
 ) -> Result<u64> {
-    let sql = format!(
-        "UPDATE {table} SET {column} = {column} * ?1 WHERE {column} > 0.01"
-    );
+    let sql = format!("UPDATE {table} SET {column} = {column} * ?1 WHERE {column} > 0.01");
     let changed = conn.execute(&sql, [factor])?;
     Ok(changed as u64)
 }
@@ -79,20 +78,26 @@ mod tests {
 
     #[test]
     fn exponential_factor_zero_elapsed() {
-        let d = ExponentialDecay { half_life_secs: 86400 };
+        let d = ExponentialDecay {
+            half_life_secs: 86400,
+        };
         assert!((d.factor(0) - 1.0).abs() < f64::EPSILON);
     }
 
     #[test]
     fn exponential_factor_at_half_life() {
-        let d = ExponentialDecay { half_life_secs: 86400 };
+        let d = ExponentialDecay {
+            half_life_secs: 86400,
+        };
         let f = d.factor(86400);
         assert!((f - 0.5).abs() < 0.01);
     }
 
     #[test]
     fn exponential_factor_large_elapsed() {
-        let d = ExponentialDecay { half_life_secs: 86400 };
+        let d = ExponentialDecay {
+            half_life_secs: 86400,
+        };
         let f = d.factor(86400 * 100);
         assert!(f < 0.001);
         assert!(f >= 0.0);
@@ -100,7 +105,9 @@ mod tests {
 
     #[test]
     fn exponential_factor_negative_elapsed() {
-        let d = ExponentialDecay { half_life_secs: 86400 };
+        let d = ExponentialDecay {
+            half_life_secs: 86400,
+        };
         let f = d.factor(-1000);
         assert!((f - 1.0).abs() < f64::EPSILON);
     }
@@ -115,7 +122,8 @@ mod tests {
              VALUES ('semantic', 1, 1.0, 0.8, 0, 0)",
             [],
         ).unwrap();
-        let changed = apply_multiplicative_sql(&conn, "node_strengths", "retrieval_strength", 0.9).unwrap();
+        let changed =
+            apply_multiplicative_sql(&conn, "node_strengths", "retrieval_strength", 0.9).unwrap();
         assert!(changed > 0);
     }
 
@@ -127,14 +135,16 @@ mod tests {
              VALUES ('semantic', 1, 1.0, 0.005, 0, 0)",
             [],
         ).unwrap();
-        let changed = apply_multiplicative_sql(&conn, "node_strengths", "retrieval_strength", 0.9).unwrap();
+        let changed =
+            apply_multiplicative_sql(&conn, "node_strengths", "retrieval_strength", 0.9).unwrap();
         assert_eq!(changed, 0);
     }
 
     #[test]
     fn apply_multiplicative_sql_empty_table() {
         let conn = open_memory_db().unwrap();
-        let changed = apply_multiplicative_sql(&conn, "node_strengths", "retrieval_strength", 0.9).unwrap();
+        let changed =
+            apply_multiplicative_sql(&conn, "node_strengths", "retrieval_strength", 0.9).unwrap();
         assert_eq!(changed, 0);
     }
 
@@ -151,7 +161,8 @@ mod tests {
              VALUES ('semantic', 2, 1.0, 0.6, 0, 0)",
             [],
         ).unwrap();
-        let changed = apply_multiplicative_sql(&conn, "node_strengths", "retrieval_strength", 0.9).unwrap();
+        let changed =
+            apply_multiplicative_sql(&conn, "node_strengths", "retrieval_strength", 0.9).unwrap();
         assert_eq!(changed, 2);
     }
 
@@ -168,7 +179,8 @@ mod tests {
              VALUES ('semantic', 2, 1.0, 0.005, 0, 0)",
             [],
         ).unwrap();
-        let changed = apply_multiplicative_sql(&conn, "node_strengths", "retrieval_strength", 0.9).unwrap();
+        let changed =
+            apply_multiplicative_sql(&conn, "node_strengths", "retrieval_strength", 0.9).unwrap();
         assert_eq!(changed, 1);
     }
 
@@ -180,7 +192,8 @@ mod tests {
              VALUES ('semantic', 1, 1.0, 0.8, 0, 0)",
             [],
         ).unwrap();
-        let changed = apply_multiplicative_sql(&conn, "node_strengths", "retrieval_strength", 0.0).unwrap();
+        let changed =
+            apply_multiplicative_sql(&conn, "node_strengths", "retrieval_strength", 0.0).unwrap();
         assert!(changed > 0);
     }
 
@@ -192,7 +205,8 @@ mod tests {
              VALUES ('semantic', 1, 1.0, 0.8, 0, 0)",
             [],
         ).unwrap();
-        let changed = apply_multiplicative_sql(&conn, "node_strengths", "retrieval_strength", 1.0).unwrap();
+        let changed =
+            apply_multiplicative_sql(&conn, "node_strengths", "retrieval_strength", 1.0).unwrap();
         assert!(changed > 0);
     }
 
@@ -204,7 +218,8 @@ mod tests {
              VALUES ('semantic', 1, 1.0, 0.8, 0, 0)",
             [],
         ).unwrap();
-        let changed = apply_multiplicative_sql(&conn, "node_strengths", "retrieval_strength", 1.5).unwrap();
+        let changed =
+            apply_multiplicative_sql(&conn, "node_strengths", "retrieval_strength", 1.5).unwrap();
         assert!(changed > 0);
     }
 
