@@ -9,6 +9,8 @@
 // so we test the underlying AlayaStore operations that the MCP tools wrap.
 // This validates the data flow that the MCP tools rely on.
 
+mod common;
+
 use std::collections::HashSet;
 
 use alaya::{
