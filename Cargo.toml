@@ -36,6 +36,7 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin_include)'] }
 [features]
 mcp = ["dep:rmcp", "dep:tokio", "dep:schemars", "dep:anyhow"]
 llm = ["dep:ureq"]
+tracing = ["dep:tracing", "dep:tracing-subscriber"]
 
 [dependencies]
 rusqlite = { version = "0.32", features = ["bundled", "modern_sqlite"] }
@@ -51,6 +52,10 @@ anyhow = { version = "1", optional = true }
 
 # LLM extraction (optional, for LlmExtractionProvider)
 ureq = { version = "2", features = ["json"], optional = true }
+
+# Tracing instrumentation (optional, zero-cost when disabled)
+tracing = { version = "0.1", optional = true }
+tracing-subscriber = { version = "0.3", features = ["fmt"], optional = true }
 
 [dev-dependencies]
 tempfile = "3"

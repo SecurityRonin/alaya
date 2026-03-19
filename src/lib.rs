@@ -83,6 +83,7 @@ impl AlayaStore {
     /// let dir = tempfile::tempdir().unwrap();
     /// let store = alaya::AlayaStore::open(dir.path().join("test.db")).unwrap();
     /// ```
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(path)))]
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         let conn = schema::open_db(path.as_ref().to_str().unwrap_or("alaya.db"))?;
         Ok(Self {
@@ -99,6 +100,7 @@ impl AlayaStore {
     /// ```
     /// let store = alaya::AlayaStore::open_in_memory().unwrap();
     /// ```
+    #[cfg_attr(feature = "tracing", tracing::instrument)]
     pub fn open_in_memory() -> Result<Self> {
         let conn = schema::open_memory_db()?;
         Ok(Self {
@@ -150,6 +152,7 @@ impl AlayaStore {
     /// }).unwrap();
     /// assert!(id.0 > 0);
     /// ```
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn store_episode(&self, episode: &NewEpisode) -> Result<EpisodeId> {
         if episode.content.trim().is_empty() {
             return Err(AlayaError::InvalidInput(
@@ -222,6 +225,7 @@ impl AlayaStore {
     /// let results = store.query(&Query::simple("Rust")).unwrap();
     /// assert!(!results.is_empty());
     /// ```
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn query(&self, q: &Query) -> Result<Vec<ScoredMemory>> {
         if q.text.trim().is_empty() {
             return Err(AlayaError::InvalidInput(
@@ -254,6 +258,7 @@ impl AlayaStore {
     /// let prefs = store.preferences(None).unwrap();
     /// assert!(prefs.is_empty());
     /// ```
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn preferences(&self, domain: Option<&str>) -> Result<Vec<Preference>> {
         store::implicit::get_preferences(&self.conn, domain)
     }
@@ -267,6 +272,7 @@ impl AlayaStore {
     /// let nodes = store.knowledge(None).unwrap();
     /// assert!(nodes.is_empty());
     /// ```
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn knowledge(&self, filter: Option<KnowledgeFilter>) -> Result<Vec<SemanticNode>> {
         let f = filter.unwrap_or_default();
         match f.node_type {
@@ -323,6 +329,7 @@ impl AlayaStore {
     /// let cats = store.categories(None).unwrap();
     /// assert!(cats.is_empty());
     /// ```
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn categories(&self, min_stability: Option<f32>) -> Result<Vec<Category>> {
         store::categories::list_categories(&self.conn, min_stability)
     }
@@ -353,6 +360,7 @@ impl AlayaStore {
     /// let cat = store.node_category(NodeId(1)).unwrap();
     /// assert!(cat.is_none());
     /// ```
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn node_category(&self, node_id: NodeId) -> Result<Option<Category>> {
         match store::categories::get_node_category(&self.conn, node_id) {
             Ok(cat) => Ok(cat),
@@ -372,6 +380,7 @@ impl AlayaStore {
     /// let neighbors = store.neighbors(NodeRef::Episode(EpisodeId(1)), 2).unwrap();
     /// assert!(neighbors.is_empty());
     /// ```
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn neighbors(&self, node: NodeRef, depth: u32) -> Result<Vec<(NodeRef, f32)>> {
         let result = graph::activation::spread_activation(&self.conn, &[node], depth, 0.05, 0.6)?;
         let mut pairs: Vec<(NodeRef, f32)> =
@@ -398,6 +407,7 @@ impl AlayaStore {
     /// let report = store.consolidate(&NoOpProvider).unwrap();
     /// assert_eq!(report.nodes_created, 0);
     /// ```
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self, provider)))]
     pub fn consolidate(&self, provider: &dyn ConsolidationProvider) -> Result<ConsolidationReport> {
         let tx = schema::begin_immediate(&self.conn)?;
         let report = lifecycle::consolidation::consolidate(&tx, provider)?;
@@ -421,6 +431,7 @@ impl AlayaStore {
     /// let report = store.learn(vec![]).unwrap();
     /// assert_eq!(report.nodes_created, 0);
     /// ```
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn learn(&self, nodes: Vec<NewSemanticNode>) -> Result<ConsolidationReport> {
         let tx = schema::begin_immediate(&self.conn)?;
         let report = lifecycle::consolidation::learn_direct(&tx, nodes)?;
@@ -437,6 +448,7 @@ impl AlayaStore {
     /// This is the core mechanism for sidecar LLM auto-consolidation:
     /// the MCP server calls this when the unconsolidated episode threshold
     /// is reached, and the provider calls a lightweight LLM to extract facts.
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn auto_consolidate(&self) -> Result<ConsolidationReport> {
         /// Maximum episodes to fetch per auto-consolidation pass.
         /// Set to 2x the MCP trigger threshold (10) to catch any episodes
@@ -516,6 +528,7 @@ impl AlayaStore {
     /// };
     /// let report = store.perfume(&interaction, &NoOpProvider).unwrap();
     /// ```
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self, provider)))]
     pub fn perfume(
         &self,
         interaction: &Interaction,
@@ -536,6 +549,7 @@ impl AlayaStore {
     /// let report = store.transform().unwrap();
     /// assert_eq!(report.duplicates_merged, 0);
     /// ```
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn transform(&self) -> Result<TransformationReport> {
         let tx = schema::begin_immediate(&self.conn)?;
         let report = lifecycle::transformation::transform(&tx)?;
@@ -552,6 +566,7 @@ impl AlayaStore {
     /// let report = store.forget().unwrap();
     /// assert_eq!(report.nodes_decayed, 0);
     /// ```
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn forget(&self) -> Result<ForgettingReport> {
         let tx = schema::begin_immediate(&self.conn)?;
         let report = lifecycle::forgetting::forget(&tx)?;
@@ -573,6 +588,7 @@ impl AlayaStore {
     /// assert_eq!(status.episode_count, 0);
     /// assert_eq!(status.semantic_node_count, 0);
     /// ```
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn status(&self) -> Result<MemoryStatus> {
         Ok(MemoryStatus {
             episode_count: store::episodic::count_episodes(&self.conn)?,
@@ -606,6 +622,7 @@ impl AlayaStore {
     /// let store = alaya::AlayaStore::open_in_memory().unwrap();
     /// assert!(store.strongest_link().unwrap().is_none());
     /// ```
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn strongest_link(&self) -> Result<Option<(NodeRef, NodeRef, f32)>> {
         graph::links::strongest_link(&self.conn)
     }
@@ -654,6 +671,7 @@ impl AlayaStore {
     /// store.purge(PurgeFilter::All).unwrap();
     /// assert_eq!(store.status().unwrap().episode_count, 0);
     /// ```
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn purge(&self, filter: PurgeFilter) -> Result<PurgeReport> {
         let tx = schema::begin_immediate(&self.conn)?;
         let mut report = PurgeReport::default();

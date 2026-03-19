@@ -5,8 +5,14 @@ use crate::store::{episodic, strengths};
 use crate::types::*;
 use rusqlite::Connection;
 
+#[cfg(feature = "tracing")]
+use tracing::{debug, trace};
+
 /// Execute a full hybrid retrieval query.
 pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemory>> {
+    #[cfg(feature = "tracing")]
+    debug!(query = %query.text, max_results = query.max_results, "executing retrieval pipeline");
+
     let now = query.context.current_timestamp.unwrap_or_else(|| {
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -22,10 +28,16 @@ pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemor
         .map(|(eid, score)| (NodeRef::Episode(eid), score))
         .collect();
 
+    #[cfg(feature = "tracing")]
+    trace!(bm25_count = bm25_results.len(), "BM25 search complete");
+
     let vector_results: Vec<(NodeRef, f64)> = match &query.embedding {
         Some(emb) => vector::search_vector(conn, emb, fetch_limit)?,
         None => vec![],
     };
+
+    #[cfg(feature = "tracing")]
+    trace!(vector_count = vector_results.len(), "vector search complete");
 
     // Graph: seed from BM25 + vector top results, spread 1 hop
     let seed_nodes: Vec<NodeRef> = bm25_results
@@ -56,6 +68,9 @@ pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemor
         sets.push(graph_results);
     }
     let fused = fusion::rrf_merge(&sets, 60);
+
+    #[cfg(feature = "tracing")]
+    trace!(fused_count = fused.len(), "RRF fusion complete");
 
     // Stage 3: Enrich candidates with content and context for reranking
     let candidates: Vec<(NodeRef, f64, String, Option<Role>, i64, EpisodeContext)> =

@@ -65,6 +65,13 @@ fn configure_extraction(store: &mut AlayaStore) {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    #[cfg(feature = "tracing")]
+    {
+        tracing_subscriber::fmt()
+            .with_writer(std::io::stderr)
+            .init();
+    }
+
     let db_path = resolve_db_path();
     eprintln!("alaya-mcp: opening database at {}", db_path.display());
 
