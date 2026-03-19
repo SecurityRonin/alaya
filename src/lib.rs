@@ -37,6 +37,7 @@ pub(crate) mod retrieval;
 pub(crate) mod schema;
 pub(crate) mod store;
 pub(crate) mod types;
+pub(crate) mod decay;
 
 #[cfg(feature = "mcp")]
 pub mod mcp;
