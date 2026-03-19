@@ -114,6 +114,15 @@ impl AlayaStore {
     ///
     /// When set, `store_episode` and `query` will auto-generate embeddings
     /// if none are provided explicitly.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use alaya::{AlayaStore, MockEmbeddingProvider};
+    ///
+    /// let mut store = AlayaStore::open_in_memory().unwrap();
+    /// store.set_embedding_provider(Box::new(MockEmbeddingProvider::new(3)));
+    /// ```
     pub fn set_embedding_provider(&mut self, provider: Box<dyn EmbeddingProvider>) {
         self.embedding_provider = Some(provider);
     }
@@ -122,6 +131,15 @@ impl AlayaStore {
     ///
     /// When set, [`auto_consolidate`](Self::auto_consolidate) will use this
     /// provider to extract semantic nodes from unconsolidated episodes.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use alaya::{AlayaStore, MockExtractionProvider};
+    ///
+    /// let mut store = AlayaStore::open_in_memory().unwrap();
+    /// store.set_extraction_provider(Box::new(MockExtractionProvider::empty()));
+    /// ```
     pub fn set_extraction_provider(&mut self, provider: Box<dyn ExtractionProvider>) {
         self.extraction_provider = Some(provider);
     }
@@ -448,6 +466,17 @@ impl AlayaStore {
     /// This is the core mechanism for sidecar LLM auto-consolidation:
     /// the MCP server calls this when the unconsolidated episode threshold
     /// is reached, and the provider calls a lightweight LLM to extract facts.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use alaya::{AlayaStore, MockExtractionProvider};
+    ///
+    /// let mut store = AlayaStore::open_in_memory().unwrap();
+    /// store.set_extraction_provider(Box::new(MockExtractionProvider::empty()));
+    /// let report = store.auto_consolidate().unwrap();
+    /// assert_eq!(report.nodes_created, 0);
+    /// ```
     #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn auto_consolidate(&self) -> Result<ConsolidationReport> {
         /// Maximum episodes to fetch per auto-consolidation pass.
@@ -630,6 +659,17 @@ impl AlayaStore {
     /// Resolve a `NodeRef` to a human-readable content string (first 30 chars).
     ///
     /// Returns `None` if the referenced node no longer exists.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use alaya::{AlayaStore, NodeRef, EpisodeId};
+    ///
+    /// let store = AlayaStore::open_in_memory().unwrap();
+    /// // A node that does not exist returns None.
+    /// let content = store.node_content(NodeRef::Episode(EpisodeId(999))).unwrap();
+    /// assert!(content.is_none());
+    /// ```
     pub fn node_content(&self, node: NodeRef) -> Result<Option<String>> {
         match node {
             NodeRef::Episode(id) => match store::episodic::get_episode(&self.conn, id) {
