@@ -1,8 +1,8 @@
-use pyo3::prelude::*;
 use alaya::{
     ConsolidationProvider, Episode, EpisodeId, Interaction, NewImpression, NewSemanticNode,
     SemanticNode, SemanticType,
 };
+use pyo3::prelude::*;
 
 pub struct PyConsolidationProvider {
     py_obj: PyObject,
@@ -26,7 +26,12 @@ impl ConsolidationProvider for PyConsolidationProvider {
                 .iter()
                 .map(|ep| {
                     let py_ep = crate::types::PyEpisode::from(ep.clone());
-                    Py::new(py, py_ep).unwrap().into_pyobject(py).unwrap().into_any().unbind()
+                    Py::new(py, py_ep)
+                        .unwrap()
+                        .into_pyobject(py)
+                        .unwrap()
+                        .into_any()
+                        .unbind()
                 })
                 .collect();
 
@@ -53,8 +58,8 @@ impl ConsolidationProvider for PyConsolidationProvider {
                     .getattr("node_type")
                     .and_then(|v| v.extract())
                     .unwrap_or_else(|_| "fact".to_string());
-                let node_type = SemanticType::from_str(&node_type_str)
-                    .unwrap_or(SemanticType::Fact);
+                let node_type =
+                    SemanticType::from_str(&node_type_str).unwrap_or(SemanticType::Fact);
 
                 let confidence: f32 = item
                     .getattr("confidence")
@@ -66,16 +71,13 @@ impl ConsolidationProvider for PyConsolidationProvider {
                     .and_then(|v| v.extract())
                     .unwrap_or_default();
 
-                let embedding: Option<Vec<f32>> = item
-                    .getattr("embedding")
-                    .ok()
-                    .and_then(|v| {
-                        if v.is_none() {
-                            None
-                        } else {
-                            v.extract().ok()
-                        }
-                    });
+                let embedding: Option<Vec<f32>> = item.getattr("embedding").ok().and_then(|v| {
+                    if v.is_none() {
+                        None
+                    } else {
+                        v.extract().ok()
+                    }
+                });
 
                 nodes.push(NewSemanticNode {
                     content,
@@ -89,21 +91,16 @@ impl ConsolidationProvider for PyConsolidationProvider {
         })
     }
 
-    fn extract_impressions(
-        &self,
-        interaction: &Interaction,
-    ) -> alaya::Result<Vec<NewImpression>> {
+    fn extract_impressions(&self, interaction: &Interaction) -> alaya::Result<Vec<NewImpression>> {
         Python::with_gil(|py| {
             // Convert interaction to Python
-            let py_interaction: PyObject = Py::new(
-                py,
-                crate::types::PyInteraction::from(interaction.clone()),
-            )
-            .unwrap()
-            .into_pyobject(py)
-            .unwrap()
-            .into_any()
-            .unbind();
+            let py_interaction: PyObject =
+                Py::new(py, crate::types::PyInteraction::from(interaction.clone()))
+                    .unwrap()
+                    .into_pyobject(py)
+                    .unwrap()
+                    .into_any()
+                    .unbind();
 
             let result = self
                 .py_obj
@@ -141,11 +138,7 @@ impl ConsolidationProvider for PyConsolidationProvider {
         })
     }
 
-    fn detect_contradiction(
-        &self,
-        a: &SemanticNode,
-        b: &SemanticNode,
-    ) -> alaya::Result<bool> {
+    fn detect_contradiction(&self, a: &SemanticNode, b: &SemanticNode) -> alaya::Result<bool> {
         Python::with_gil(|py| {
             let py_a: PyObject = Py::new(py, crate::types::PySemanticNode::from(a.clone()))
                 .unwrap()

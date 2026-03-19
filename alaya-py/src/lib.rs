@@ -1,8 +1,8 @@
 use pyo3::prelude::*;
 use std::collections::HashMap;
 
-pub(crate) mod types;
 pub(crate) mod provider;
+pub(crate) mod types;
 use types::*;
 
 fn map_err(e: ::alaya::AlayaError) -> PyErr {
@@ -161,10 +161,11 @@ impl Alaya {
         node_id: i64,
         depth: Option<u32>,
     ) -> PyResult<Vec<(String, i64, f32)>> {
-        let node_ref = ::alaya::NodeRef::from_parts(node_type, node_id)
-            .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                format!("invalid node type: {node_type:?}"),
-            ))?;
+        let node_ref = ::alaya::NodeRef::from_parts(node_type, node_id).ok_or_else(|| {
+            PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "invalid node type: {node_type:?}"
+            ))
+        })?;
         let pairs = self
             .store
             .neighbors(node_ref, depth.unwrap_or(1))
@@ -177,6 +178,7 @@ impl Alaya {
 
     /// Return the strongest link in the graph as
     /// `((src_type, src_id), (dst_type, dst_id), weight)`, or `None`.
+    #[allow(clippy::type_complexity)]
     fn strongest_link(&self) -> PyResult<Option<((String, i64), (String, i64), f32)>> {
         let result = self.store.strongest_link().map_err(map_err)?;
         Ok(result.map(|(src, dst, w)| {
@@ -190,10 +192,11 @@ impl Alaya {
 
     /// Resolve a node to a short content string (first ~30 chars), or `None`.
     fn node_content(&self, node_type: &str, node_id: i64) -> PyResult<Option<String>> {
-        let node_ref = ::alaya::NodeRef::from_parts(node_type, node_id)
-            .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                format!("invalid node type: {node_type:?}"),
-            ))?;
+        let node_ref = ::alaya::NodeRef::from_parts(node_type, node_id).ok_or_else(|| {
+            PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "invalid node type: {node_type:?}"
+            ))
+        })?;
         self.store.node_content(node_ref).map_err(map_err)
     }
 
@@ -208,7 +211,10 @@ impl Alaya {
 
     /// All episodes belonging to a session, ordered by timestamp.
     fn episodes_by_session(&self, session_id: &str) -> PyResult<Vec<PyEpisode>> {
-        let eps = self.store.episodes_by_session(session_id).map_err(map_err)?;
+        let eps = self
+            .store
+            .episodes_by_session(session_id)
+            .map_err(map_err)?;
         Ok(eps.into_iter().map(PyEpisode::from).collect())
     }
 
@@ -227,7 +233,10 @@ impl Alaya {
     // -----------------------------------------------------------------------
 
     fn status(&self) -> PyResult<PyMemoryStatus> {
-        self.store.status().map(PyMemoryStatus::from).map_err(map_err)
+        self.store
+            .status()
+            .map(PyMemoryStatus::from)
+            .map_err(map_err)
     }
 
     // -----------------------------------------------------------------------

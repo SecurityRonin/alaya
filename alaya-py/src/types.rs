@@ -5,17 +5,20 @@ use pyo3::prelude::*;
 // ---------------------------------------------------------------------------
 
 fn invalid_value(val: &str, expected: &str) -> PyErr {
-    PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-        "invalid {expected}: {val:?}"
-    ))
+    PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("invalid {expected}: {val:?}"))
 }
 
 // ---------------------------------------------------------------------------
 // Output-only helper: NodeRef → (type_str, id) Python tuple
 // ---------------------------------------------------------------------------
 
+#[allow(dead_code)]
 pub(crate) fn node_ref_to_py(py: Python<'_>, nr: ::alaya::NodeRef) -> PyObject {
-    (nr.type_str().to_string(), nr.id()).into_pyobject(py).unwrap().unbind().into()
+    (nr.type_str().to_string(), nr.id())
+        .into_pyobject(py)
+        .unwrap()
+        .unbind()
+        .into()
 }
 
 // ---------------------------------------------------------------------------
@@ -191,7 +194,11 @@ impl PyDreamReport {
         format!(
             "DreamReport(consolidation={:?}, perfuming={}, transformation={:?}, forgetting={:?})",
             self.consolidation.__repr__(),
-            if self.perfuming.is_some() { "..." } else { "None" },
+            if self.perfuming.is_some() {
+                "..."
+            } else {
+                "None"
+            },
             self.transformation.__repr__(),
             self.forgetting.__repr__(),
         )
@@ -605,8 +612,12 @@ impl PyLink {
     fn __repr__(&self) -> String {
         format!(
             "Link(id={}, {}:{} -[{}]-> {}:{})",
-            self.id, self.source_type, self.source_id,
-            self.link_type, self.target_type, self.target_id
+            self.id,
+            self.source_type,
+            self.source_id,
+            self.link_type,
+            self.target_type,
+            self.target_id
         )
     }
 }
@@ -651,7 +662,12 @@ impl PyNewEpisode {
     #[new]
     #[pyo3(signature = (content, role, session_id, timestamp))]
     fn new(content: String, role: String, session_id: String, timestamp: i64) -> Self {
-        Self { content, role, session_id, timestamp }
+        Self {
+            content,
+            role,
+            session_id,
+            timestamp,
+        }
     }
 
     fn __repr__(&self) -> String {
@@ -666,8 +682,8 @@ impl TryFrom<PyNewEpisode> for ::alaya::NewEpisode {
     type Error = PyErr;
 
     fn try_from(e: PyNewEpisode) -> Result<Self, Self::Error> {
-        let role = ::alaya::Role::from_str(&e.role)
-            .ok_or_else(|| invalid_value(&e.role, "role"))?;
+        let role =
+            ::alaya::Role::from_str(&e.role).ok_or_else(|| invalid_value(&e.role, "role"))?;
         Ok(::alaya::NewEpisode {
             content: e.content,
             role,
@@ -701,7 +717,10 @@ impl PyQuery {
     }
 
     fn __repr__(&self) -> String {
-        format!("Query(text={:?}, max_results={})", self.text, self.max_results)
+        format!(
+            "Query(text={:?}, max_results={})",
+            self.text, self.max_results
+        )
     }
 }
 
@@ -735,7 +754,12 @@ impl PyInteraction {
     #[new]
     #[pyo3(signature = (text, role, session_id, timestamp))]
     fn new(text: String, role: String, session_id: String, timestamp: i64) -> Self {
-        Self { text, role, session_id, timestamp }
+        Self {
+            text,
+            role,
+            session_id,
+            timestamp,
+        }
     }
 
     fn __repr__(&self) -> String {
@@ -750,8 +774,8 @@ impl TryFrom<PyInteraction> for ::alaya::Interaction {
     type Error = PyErr;
 
     fn try_from(i: PyInteraction) -> Result<Self, Self::Error> {
-        let role = ::alaya::Role::from_str(&i.role)
-            .ok_or_else(|| invalid_value(&i.role, "role"))?;
+        let role =
+            ::alaya::Role::from_str(&i.role).ok_or_else(|| invalid_value(&i.role, "role"))?;
         Ok(::alaya::Interaction {
             text: i.text,
             role,
@@ -800,7 +824,12 @@ impl PyKnowledgeFilter {
         limit: Option<usize>,
         category: Option<String>,
     ) -> Self {
-        Self { node_type, min_confidence, limit, category }
+        Self {
+            node_type,
+            min_confidence,
+            limit,
+            category,
+        }
     }
 
     fn __repr__(&self) -> String {
@@ -815,9 +844,11 @@ impl TryFrom<PyKnowledgeFilter> for ::alaya::KnowledgeFilter {
     type Error = PyErr;
 
     fn try_from(f: PyKnowledgeFilter) -> Result<Self, Self::Error> {
-        let node_type = f.node_type
-            .map(|s| ::alaya::SemanticType::from_str(&s)
-                .ok_or_else(|| invalid_value(&s, "node_type")))
+        let node_type = f
+            .node_type
+            .map(|s| {
+                ::alaya::SemanticType::from_str(&s).ok_or_else(|| invalid_value(&s, "node_type"))
+            })
             .transpose()?;
         Ok(::alaya::KnowledgeFilter {
             node_type,
