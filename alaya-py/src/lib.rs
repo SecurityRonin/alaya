@@ -1,10 +1,37 @@
 use pyo3::prelude::*;
 
-mod types;
+pub(crate) mod types;
 
 #[pymodule]
 fn alaya(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Alaya>()?;
+
+    // Report types
+    m.add_class::<types::PyConsolidationReport>()?;
+    m.add_class::<types::PyPerfumingReport>()?;
+    m.add_class::<types::PyTransformationReport>()?;
+    m.add_class::<types::PyForgettingReport>()?;
+    m.add_class::<types::PyDreamReport>()?;
+    m.add_class::<types::PyPurgeReport>()?;
+
+    // Status
+    m.add_class::<types::PyMemoryStatus>()?;
+
+    // Data types
+    m.add_class::<types::PyEpisode>()?;
+    m.add_class::<types::PyScoredMemory>()?;
+    m.add_class::<types::PySemanticNode>()?;
+    m.add_class::<types::PyPreference>()?;
+    m.add_class::<types::PyImpression>()?;
+    m.add_class::<types::PyCategory>()?;
+    m.add_class::<types::PyLink>()?;
+
+    // Input types
+    m.add_class::<types::PyNewEpisode>()?;
+    m.add_class::<types::PyQuery>()?;
+    m.add_class::<types::PyInteraction>()?;
+    m.add_class::<types::PyKnowledgeFilter>()?;
+
     Ok(())
 }
 
