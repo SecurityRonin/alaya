@@ -14,7 +14,7 @@
 
 - Public API of `AlayaStore` remains unchanged (sync API is preserved)
 - Core crate stays zero-network-calls (privacy by architecture)
-- Feature flag ceiling: 6 maximum on core crate
+- Feature flag ceiling: relaxed to 8 on core crate (original 4-6 ceiling was set at v0.1 with 73 downloads; at this stage, ergonomics for real features outweighs an arbitrary cap)
 - Python bindings sync-only (no pyo3-asyncio); consumers use `asyncio.to_thread()` if needed
 - SQLCipher and bundled-sqlite are mutually exclusive at compile time
 - Implementation order: async → SQLCipher → workspace migration → Python → CI
@@ -30,7 +30,11 @@
 async = ["dep:tokio"]
 ```
 
-Adds `tokio` as an optional dependency (only `sync` and `rt` features needed for mpsc/oneshot/spawn).
+Adds `tokio` as an optional dependency (only `sync` feature needed for mpsc/oneshot channels). The actor thread uses `std::thread::spawn`, not `tokio::spawn`, so the `rt` feature is not required. Note: when both `async` and `mcp` are enabled, Cargo unifies tokio features, so consumers get `full` regardless.
+
+```toml
+tokio = { version = "1", features = ["sync"], optional = true }
+```
 
 ### Architecture
 
@@ -47,8 +51,8 @@ AsyncAlayaStore                          Actor Thread
 - `AsyncAlayaStore` holds a `tokio::sync::mpsc::Sender<Request>` and a `JoinHandle` for the actor thread
 - A dedicated `std::thread::spawn` background thread owns the `AlayaStore` and `tokio::sync::mpsc::Receiver`
 - Each public method sends a `Request` variant with a `tokio::sync::oneshot::Sender` for the reply
-- The actor thread runs a `while let Some(req) = rx.recv() { ... }` loop, dispatching to `AlayaStore` methods
-- `Drop` sends `Request::Shutdown` and joins the thread
+- The actor thread runs a `while let Some(req) = rx.blocking_recv() { ... }` loop, dispatching to `AlayaStore` methods. Note: `blocking_recv()` is required because the actor runs on a `std::thread`, not inside a tokio runtime; `recv()` is async and cannot be used here
+- Graceful shutdown: `AsyncAlayaStore` provides `pub async fn close(self) -> Result<()>` which sends `Request::Shutdown`, then awaits thread join via `tokio::task::spawn_blocking`. `Drop` uses `try_send(Shutdown)` as a best-effort fallback (does not block the async runtime)
 
 ### New Module
 
@@ -76,7 +80,8 @@ enum Request {
 ```rust
 impl AsyncAlayaStore {
     pub async fn set_consolidation_provider(&self, provider: Box<dyn ConsolidationProvider + Send>) { ... }
-    pub async fn dream(&self, interaction: Option<&Interaction>) -> Result<DreamReport> { ... }
+    pub async fn dream(&self, interaction: Option<Interaction>) -> Result<DreamReport> { ... }
+    pub async fn close(self) -> Result<()> { ... }
 }
 ```
 
@@ -89,6 +94,8 @@ store.store_episode(&episode).await?;
 let results = store.query(&Query::simple("rust")).await?;
 let report = store.dream(None).await?;
 ```
+
+Note: `dream()` takes `Option<Interaction>` (owned) rather than `Option<&Interaction>` because the interaction must be sent across the channel to the actor thread. The sync `AlayaStore::dream()` retains its `Option<&Interaction>` signature.
 
 ### Error Handling
 
@@ -111,11 +118,15 @@ If the actor thread panics or the channel is closed, methods return `AlayaError:
 ```toml
 [features]
 default = ["bundled-sqlite"]
-bundled-sqlite = ["rusqlite/bundled"]
+bundled-sqlite = ["rusqlite/bundled", "rusqlite/modern_sqlite"]
 sqlcipher = ["rusqlite/bundled-sqlcipher-vendored"]
+mcp = ["dep:rmcp", "dep:tokio", "dep:schemars", "dep:anyhow"]
+llm = ["dep:ureq"]
+tracing = ["dep:tracing", "dep:tracing-subscriber"]
+async = ["dep:tokio"]
 ```
 
-`bundled-sqlite` becomes the default. `sqlcipher` replaces it. The two are mutually exclusive — enabling both is a compile error (rusqlite enforces this).
+`bundled-sqlite` becomes the default (preserving `modern_sqlite` from the current config). `sqlcipher` replaces it. The two are mutually exclusive — enabling both is a compile error (rusqlite enforces this). All existing features (`mcp`, `llm`, `tracing`) are preserved.
 
 ### New API
 
@@ -130,9 +141,10 @@ impl AlayaStore {
 }
 ```
 
-- `open_encrypted` opens the connection, executes `PRAGMA key = '{key}'`, then initializes the schema
-- `rekey` executes `PRAGMA rekey = '{new_key}'`
+- `open_encrypted` opens the connection, sets the key via `conn.pragma_update(None, "key", key)` (rusqlite handles quoting), then initializes the schema
+- `rekey` uses `conn.pragma_update(None, "rekey", new_key)`
 - Key format: SQLCipher accepts raw strings, hex-encoded (`x'...'`), or PBKDF2-derived keys. We pass through as-is — key derivation is the consumer's responsibility
+- **No string interpolation** — `pragma_update` handles quoting safely, avoiding injection from keys containing special characters
 - The existing `open()` works for unencrypted databases even when SQLCipher is bundled
 
 ### Async Integration
@@ -192,6 +204,10 @@ resolver = "2"
 5. Update `.github/workflows/` to use workspace-aware commands
 6. Verify all existing tests, clippy, fmt pass
 
+### `cargo install` Impact
+
+After migration, `cargo install alaya` still works — Cargo resolves the binary target from the workspace. However, the `--package` flag is needed for targeted commands: `cargo test -p alaya`, `cargo publish -p alaya`.
+
 ### Path-Dependent Files
 
 - `tarpaulin.toml` moves into `alaya/`
@@ -214,12 +230,20 @@ version = "0.3.0"
 name = "alaya"
 crate-type = ["cdylib"]
 
+[features]
+default = ["encryption"]
+encryption = ["alaya/sqlcipher"]
+
 [dependencies]
-alaya = { path = "../alaya", features = ["sqlcipher"] }
-pyo3 = { version = "0.23", features = ["abi3-py39", "extension-module"] }
+alaya = { path = "../alaya", default-features = false }
+pyo3 = { version = "0.24", features = ["abi3-py39", "extension-module"] }
 ```
 
-Note: The `alaya` dependency features will be configurable. The default build includes `sqlcipher` so Python consumers get encryption support. If binary size is a concern, it can be feature-gated.
+When `encryption` is enabled (default), the Python wheel bundles SQLCipher. Build without it via `maturin build --no-default-features` for smaller binaries. The `alaya` dependency uses `default-features = false` so the `bundled-sqlite` vs `sqlcipher` choice is controlled entirely by `alaya-py`'s own features.
+
+**Version alignment:** `alaya-py` versions independently from the core `alaya` crate. The `alaya-py` Cargo.toml pins its `alaya` dependency via `path = "../alaya"` (workspace-local) and the PyPI release notes document which core version it wraps.
+
+**PyO3 version:** 0.24.x (latest stable as of March 2026). The project's MSRV of 1.85 satisfies PyO3 0.24's requirement of Rust >= 1.63.
 
 ### Build System
 
@@ -324,7 +348,16 @@ Internally, `PyConsolidationProvider` wraps the Python object and implements the
 
 - Rust `AlayaError` maps to a Python `AlayaError` exception
 - The exception message contains the Rust error's `Display` output
-- Subclasses: `AlayaError.InvalidInput`, `AlayaError.Database`, `AlayaError.Provider`
+- Subclass mapping from Rust variants:
+
+| Rust `AlayaError` variant | Python exception |
+|---------------------------|-----------------|
+| `InvalidInput` | `AlayaError.InvalidInput` |
+| `Sqlite` | `AlayaError.Database` |
+| `ActorDead` | `AlayaError.Database` |
+| `Provider` | `AlayaError.Provider` |
+| `Io` | `AlayaError.Database` |
+| Future variants (`#[non_exhaustive]`) | `AlayaError` (base class) |
 
 ---
 
