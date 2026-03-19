@@ -344,4 +344,149 @@ mod tests {
         let results = search_by_vector(&conn, &[1.0, 0.0, 0.0], None, 2).unwrap();
         assert_eq!(results.len(), 2, "should truncate to limit");
     }
+
+    // --- Additional coverage tests ---
+
+    #[test]
+    fn test_serialize_empty_vector() {
+        let blob = serialize_embedding(&[]);
+        assert!(blob.is_empty(), "serializing empty slice produces empty bytes");
+        let restored = deserialize_embedding(&blob);
+        assert!(restored.is_empty());
+    }
+
+    #[test]
+    fn test_serialize_single_element() {
+        let vec = vec![3.14f32];
+        let blob = serialize_embedding(&vec);
+        assert_eq!(blob.len(), 4, "single f32 should be 4 bytes");
+        let restored = deserialize_embedding(&blob);
+        assert_eq!(restored.len(), 1);
+        assert!((restored[0] - 3.14f32).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_serialize_large_vector_roundtrip() {
+        let vec: Vec<f32> = (0..1024).map(|i| i as f32 * 0.001).collect();
+        let blob = serialize_embedding(&vec);
+        assert_eq!(blob.len(), 1024 * 4);
+        let restored = deserialize_embedding(&blob);
+        assert_eq!(restored.len(), vec.len());
+        for (a, b) in vec.iter().zip(restored.iter()) {
+            assert!((a - b).abs() < 1e-7, "value mismatch: {} vs {}", a, b);
+        }
+    }
+
+    #[test]
+    fn test_deserialize_truncated_bytes_drops_partial_chunk() {
+        // 9 bytes: 2 complete f32s (8 bytes) + 1 trailing byte (dropped by chunks_exact)
+        let mut blob = serialize_embedding(&[1.0f32, 2.0f32]);
+        blob.push(0xFF); // trailing garbage byte
+        let restored = deserialize_embedding(&blob);
+        assert_eq!(restored.len(), 2, "partial trailing chunk should be silently dropped");
+        assert!((restored[0] - 1.0f32).abs() < 1e-7);
+        assert!((restored[1] - 2.0f32).abs() < 1e-7);
+    }
+
+    #[test]
+    fn test_cosine_similarity_opposite_vectors() {
+        // Opposite vectors → cosine similarity of -1.0
+        let a = vec![1.0f32, 0.0, 0.0];
+        let b = vec![-1.0f32, 0.0, 0.0];
+        let sim = cosine_similarity(&a, &b);
+        assert!((sim - (-1.0f32)).abs() < 1e-6, "opposite vectors should give -1.0, got {}", sim);
+    }
+
+    #[test]
+    fn test_store_embedding_overwrite_keeps_count_at_one() {
+        // INSERT OR REPLACE: storing same (node_type, node_id) twice must not duplicate the row
+        let conn = open_memory_db().unwrap();
+        store_embedding(&conn, "episode", 42, &[1.0, 0.0], "modelA").unwrap();
+        assert_eq!(count_embeddings(&conn).unwrap(), 1);
+
+        store_embedding(&conn, "episode", 42, &[0.0, 1.0], "modelB").unwrap();
+        assert_eq!(count_embeddings(&conn).unwrap(), 1, "overwrite should not duplicate the row");
+
+        // Value should be updated to the new embedding
+        let emb = get_embedding(&conn, "episode", 42).unwrap().unwrap();
+        assert_eq!(emb, vec![0.0f32, 1.0f32], "stored value should reflect the latest write");
+    }
+
+    #[test]
+    fn test_search_by_vector_empty_store_no_filter() {
+        // None filter path with zero rows in the table
+        let conn = open_memory_db().unwrap();
+        let results = search_by_vector(&conn, &[1.0, 0.0, 0.0], None, 10).unwrap();
+        assert!(results.is_empty(), "empty store should return no results");
+    }
+
+    #[test]
+    fn test_search_by_vector_unknown_node_type_filtered_out() {
+        // Exercises the filter_map None branch in NodeRef::from_parts.
+        // Bypass store_embedding to insert a row with an unrecognised node_type directly.
+        let conn = open_memory_db().unwrap();
+        let blob = serialize_embedding(&[1.0f32, 0.0, 0.0]);
+        conn.execute(
+            "INSERT INTO embeddings (node_type, node_id, embedding, model, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params!["unknown_type", 1i64, blob, "test", 0i64],
+        )
+        .unwrap();
+
+        // search_by_vector should silently skip rows where NodeRef::from_parts returns None
+        let results = search_by_vector(&conn, &[1.0, 0.0, 0.0], None, 10).unwrap();
+        assert!(
+            results.is_empty(),
+            "rows with unrecognised node_type should be filtered out by NodeRef::from_parts"
+        );
+    }
+
+    #[test]
+    fn test_get_unembedded_episodes_respects_limit() {
+        use crate::store::episodic;
+        use crate::types::{EpisodeContext, NewEpisode, Role};
+
+        let conn = open_memory_db().unwrap();
+        // Insert 5 unembedded episodes
+        for i in 1..=5 {
+            episodic::store_episode(
+                &conn,
+                &NewEpisode {
+                    content: format!("ep {i}"),
+                    role: Role::User,
+                    session_id: "s1".to_string(),
+                    timestamp: 1000 * i,
+                    context: EpisodeContext::default(),
+                    embedding: None,
+                },
+            )
+            .unwrap();
+        }
+
+        // Request only 3 — should honour the limit
+        let unembedded = get_unembedded_episodes(&conn, 3).unwrap();
+        assert_eq!(unembedded.len(), 3, "get_unembedded_episodes should respect the limit parameter");
+    }
+
+    #[test]
+    fn test_search_by_vector_results_sorted_descending() {
+        // Verify that results are returned in descending similarity order
+        let conn = open_memory_db().unwrap();
+        // Episode 1: perfectly aligned with query → sim ≈ 1.0
+        store_embedding(&conn, "episode", 1, &[1.0, 0.0, 0.0], "test").unwrap();
+        // Episode 2: slightly off → lower sim
+        store_embedding(&conn, "episode", 2, &[0.7, 0.7, 0.0], "test").unwrap();
+        // Episode 3: even less aligned
+        store_embedding(&conn, "episode", 3, &[0.1, 0.99, 0.0], "test").unwrap();
+
+        let results = search_by_vector(&conn, &[1.0, 0.0, 0.0], None, 10).unwrap();
+        assert!(results.len() >= 2, "expected at least 2 results");
+        for i in 0..results.len() - 1 {
+            assert!(
+                results[i].1 >= results[i + 1].1,
+                "results should be sorted descending by similarity: {} < {}",
+                results[i].1,
+                results[i + 1].1
+            );
+        }
+    }
 }
