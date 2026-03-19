@@ -1,0 +1,13 @@
+[default]
+# Measure both line and branch coverage
+branch = true
+# All features to cover all code paths
+features = "mcp,llm"
+# Output HTML for local dev, JSON for CI
+out = ["html", "json"]
+# Exclude test code from coverage measurement
+exclude-files = ["tests/*", "src/bin/*"]
+# Timeout per test (seconds)
+test-timeout = 120
+# Run all test types
+run-types = ["tests", "doctests"]
