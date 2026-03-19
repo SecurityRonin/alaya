@@ -3741,4 +3741,95 @@ mod tests {
         );
         assert!(result.contains("Graph: 8 links — strongest: Rust"));
     }
+
+    // -----------------------------------------------------------------------
+    // Coverage gap: remember — Ok(report) with nodes_created == 0
+    // (line 580: extraction provider present but returns empty node list)
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn remember_extraction_zero_nodes_falls_back_to_prompt() {
+        // MockExtractionProvider::empty() returns Ok(vec![]), so nodes_created == 0.
+        // This hits the Ok(_) arm at the "Provider returned zero nodes" comment.
+        let mut store = AlayaStore::open_in_memory().unwrap();
+        store.set_extraction_provider(Box::new(MockExtractionProvider::empty()));
+        let srv = AlayaMcp::new(store);
+
+        let mut consolidation_response = String::new();
+        for i in 0..10 {
+            let result = srv.remember(RememberParams {
+                content: format!("Zero-node episode {i}"),
+                role: "user".into(),
+                session_id: "z".into(),
+            });
+            if result.contains("Consolidation suggested") {
+                consolidation_response = result;
+            }
+        }
+        assert!(
+            !consolidation_response.is_empty(),
+            "Should have fallen back to consolidation prompt when provider returns 0 nodes"
+        );
+        assert!(
+            consolidation_response.contains("unconsolidated episodes"),
+            "Response: {consolidation_response}"
+        );
+        // Must NOT say "Auto-consolidated" (that's the nodes_created > 0 arm)
+        assert!(
+            !consolidation_response.contains("Auto-consolidated"),
+            "Should not say auto-consolidated when 0 nodes extracted"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Coverage gap: remember — Err(e) where !is_no_provider
+    // (line 607: real provider error, not "no extraction provider" message,
+    //  appends "(Auto-consolidation failed: …)" before the consolidation prompt)
+    // -----------------------------------------------------------------------
+
+    /// An ExtractionProvider that always returns an error unrelated to
+    /// "extraction provider" so that `is_no_provider` is false.
+    struct FailingExtractionProvider;
+
+    impl crate::ExtractionProvider for FailingExtractionProvider {
+        fn extract(
+            &self,
+            _episodes: &[crate::Episode],
+        ) -> crate::Result<Vec<crate::NewSemanticNode>> {
+            Err(crate::AlayaError::InvalidInput(
+                "simulated network timeout".into(),
+            ))
+        }
+    }
+
+    #[test]
+    fn remember_extraction_provider_hard_error_appends_failed_note() {
+        let mut store = AlayaStore::open_in_memory().unwrap();
+        store.set_extraction_provider(Box::new(FailingExtractionProvider));
+        let srv = AlayaMcp::new(store);
+
+        let mut error_response = String::new();
+        for i in 0..10 {
+            let result = srv.remember(RememberParams {
+                content: format!("Hard-error episode {i}"),
+                role: "user".into(),
+                session_id: "e".into(),
+            });
+            if result.contains("Auto-consolidation failed") {
+                error_response = result;
+            }
+        }
+        assert!(
+            !error_response.is_empty(),
+            "Should have appended '(Auto-consolidation failed: …)' note"
+        );
+        assert!(
+            error_response.contains("simulated network timeout"),
+            "Should include the error message: {error_response}"
+        );
+        assert!(
+            error_response.contains("Consolidation suggested"),
+            "Should still show consolidation prompt: {error_response}"
+        );
+    }
 }
