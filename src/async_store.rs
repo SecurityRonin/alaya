@@ -108,6 +108,11 @@ enum Request {
     SetExtractionProvider {
         provider: Box<dyn ExtractionProvider + Send>,
     },
+    #[cfg(feature = "sqlcipher")]
+    Rekey {
+        new_key: String,
+        reply: Reply<()>,
+    },
     Shutdown,
 }
 
@@ -202,6 +207,10 @@ fn run_actor(mut store: AlayaStore, rx: mpsc::Receiver<Request>) {
             Request::SetExtractionProvider { provider } => {
                 store.set_extraction_provider(provider);
             }
+            #[cfg(feature = "sqlcipher")]
+            Request::Rekey { new_key, reply } => {
+                let _ = reply.send(store.rekey(&new_key));
+            }
             Request::Shutdown => break,
         }
     }
@@ -237,6 +246,13 @@ impl AsyncAlayaStore {
     /// Open an in-memory database (useful for tests).
     pub fn open_in_memory() -> Result<Self> {
         let store = AlayaStore::open_in_memory()?;
+        Ok(Self::spawn(store))
+    }
+
+    /// Open (or create) an encrypted database at `path` (requires `sqlcipher` feature).
+    #[cfg(feature = "sqlcipher")]
+    pub fn open_encrypted(path: impl AsRef<Path>, key: &str) -> Result<Self> {
+        let store = AlayaStore::open_encrypted(path, key)?;
         Ok(Self::spawn(store))
     }
 
@@ -402,6 +418,17 @@ impl AsyncAlayaStore {
     // Provider configuration
     // -----------------------------------------------------------------------
 
+    // -----------------------------------------------------------------------
+    // Encryption (sqlcipher feature)
+    // -----------------------------------------------------------------------
+
+    /// Re-encrypt the database with a new key.
+    #[cfg(feature = "sqlcipher")]
+    pub async fn rekey(&self, new_key: &str) -> Result<()> {
+        let new_key = new_key.to_string();
+        self.send(|reply| Request::Rekey { new_key, reply }).await
+    }
+
     pub async fn set_consolidation_provider(
         &self,
         provider: Box<dyn ConsolidationProvider + Send>,
@@ -562,5 +589,58 @@ mod tests {
             matches!(err, AlayaError::ActorDead),
             "expected ActorDead, got: {err}"
         );
+    }
+
+    #[cfg(feature = "sqlcipher")]
+    #[tokio::test]
+    async fn test_async_open_encrypted_roundtrip() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("async_enc.db");
+
+        let store = AsyncAlayaStore::open_encrypted(&path, "async-key").unwrap();
+        store
+            .store_episode(NewEpisode {
+                content: "async secret".into(),
+                role: Role::User,
+                session_id: "s1".into(),
+                timestamp: 1000,
+                context: EpisodeContext::default(),
+                embedding: None,
+            })
+            .await
+            .unwrap();
+        store.close().await.unwrap();
+
+        let store2 = AsyncAlayaStore::open_encrypted(&path, "async-key").unwrap();
+        let status = store2.status().await.unwrap();
+        assert_eq!(status.episode_count, 1);
+        store2.close().await.unwrap();
+    }
+
+    #[cfg(feature = "sqlcipher")]
+    #[tokio::test]
+    async fn test_async_rekey() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("async_rekey.db");
+
+        let store = AsyncAlayaStore::open_encrypted(&path, "old-key").unwrap();
+        store
+            .store_episode(NewEpisode {
+                content: "rekey data".into(),
+                role: Role::User,
+                session_id: "s1".into(),
+                timestamp: 1000,
+                context: EpisodeContext::default(),
+                embedding: None,
+            })
+            .await
+            .unwrap();
+        store.rekey("new-key").await.unwrap();
+        store.close().await.unwrap();
+
+        // New key should work
+        let store2 = AsyncAlayaStore::open_encrypted(&path, "new-key").unwrap();
+        assert_eq!(store2.status().await.unwrap().episode_count, 1);
+        store2.close().await.unwrap();
     }
 }
