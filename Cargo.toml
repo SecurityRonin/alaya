@@ -37,6 +37,7 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin_include)'] }
 mcp = ["dep:rmcp", "dep:tokio", "dep:schemars", "dep:anyhow"]
 llm = ["dep:ureq"]
 tracing = ["dep:tracing", "dep:tracing-subscriber"]
+async = ["dep:tokio"]
 
 [dependencies]
 rusqlite = { version = "0.32", features = ["bundled", "modern_sqlite"] }
@@ -60,6 +61,7 @@ tracing-subscriber = { version = "0.3", features = ["fmt"], optional = true }
 [dev-dependencies]
 tempfile = "3"
 proptest = "1"
+tokio = { version = "1", features = ["rt", "macros"] }
 
 [[bin]]
 name = "alaya-mcp"
