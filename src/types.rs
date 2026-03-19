@@ -440,6 +440,42 @@ pub struct MemoryStatus {
 }
 
 // ---------------------------------------------------------------------------
+// Display impls for report types
+// ---------------------------------------------------------------------------
+
+impl std::fmt::Display for MemoryStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "episodes: {}, semantic_nodes: {}, preferences: {}, links: {}",
+            self.episode_count, self.semantic_node_count,
+            self.preference_count, self.link_count
+        )
+    }
+}
+
+impl std::fmt::Display for ConsolidationReport {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "consolidated {} episodes, created {} nodes",
+            self.episodes_processed, self.nodes_created)
+    }
+}
+
+impl std::fmt::Display for TransformationReport {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "merged: {}, decayed: {}, pruned: {}",
+            self.duplicates_merged, self.links_decayed, self.links_pruned)
+    }
+}
+
+impl std::fmt::Display for ForgettingReport {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "archived: {}, decayed: {}",
+            self.nodes_archived, self.nodes_decayed)
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Provider types
 // ---------------------------------------------------------------------------
 
@@ -644,6 +680,57 @@ mod tests {
         };
         assert_eq!(ms.episode_count, 1);
         assert_eq!(ms.category_count, 7);
+    }
+
+    #[test]
+    fn test_display_memory_status() {
+        let s = MemoryStatus {
+            episode_count: 10,
+            semantic_node_count: 5,
+            preference_count: 3,
+            link_count: 7,
+            impression_count: 0,
+            embedding_count: 0,
+            category_count: 0,
+        };
+        assert!(s.to_string().contains("episodes: 10"));
+        assert!(s.to_string().contains("semantic_nodes: 5"));
+        assert!(s.to_string().contains("preferences: 3"));
+        assert!(s.to_string().contains("links: 7"));
+    }
+
+    #[test]
+    fn test_display_consolidation_report() {
+        let r = ConsolidationReport {
+            episodes_processed: 4,
+            nodes_created: 2,
+            ..Default::default()
+        };
+        assert!(r.to_string().contains("consolidated 4 episodes"));
+        assert!(r.to_string().contains("created 2 nodes"));
+    }
+
+    #[test]
+    fn test_display_transformation_report() {
+        let r = TransformationReport {
+            duplicates_merged: 3,
+            links_decayed: 1,
+            links_pruned: 2,
+            ..Default::default()
+        };
+        assert!(r.to_string().contains("merged: 3"));
+        assert!(r.to_string().contains("decayed: 1"));
+        assert!(r.to_string().contains("pruned: 2"));
+    }
+
+    #[test]
+    fn test_display_forgetting_report() {
+        let r = ForgettingReport {
+            nodes_archived: 5,
+            nodes_decayed: 2,
+        };
+        assert!(r.to_string().contains("archived: 5"));
+        assert!(r.to_string().contains("decayed: 2"));
     }
 
     #[test]
