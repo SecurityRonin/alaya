@@ -494,6 +494,49 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_concurrent_stores() {
+        let store = std::sync::Arc::new(AsyncAlayaStore::open_in_memory().unwrap());
+        let mut handles = vec![];
+        for i in 0..10 {
+            let s = store.clone();
+            handles.push(tokio::spawn(async move {
+                s.store_episode(NewEpisode {
+                    content: format!("concurrent message {i}"),
+                    role: Role::User,
+                    session_id: "s1".into(),
+                    timestamp: 1000 + i,
+                    context: EpisodeContext::default(),
+                    embedding: None,
+                })
+                .await
+                .unwrap();
+            }));
+        }
+        for h in handles {
+            h.await.unwrap();
+        }
+        let status = store.status().await.unwrap();
+        assert_eq!(status.episode_count, 10);
+    }
+
+    #[tokio::test]
+    async fn test_drop_without_close() {
+        let store = AsyncAlayaStore::open_in_memory().unwrap();
+        drop(store);
+        // If we reach here, Drop worked without blocking or panicking
+    }
+
+    #[tokio::test]
+    async fn test_lifecycle_via_async() {
+        let store = AsyncAlayaStore::open_in_memory().unwrap();
+        let tr = store.transform().await.unwrap();
+        assert_eq!(tr.duplicates_merged, 0);
+        let fr = store.forget().await.unwrap();
+        assert_eq!(fr.nodes_decayed, 0);
+        store.close().await.unwrap();
+    }
+
+    #[tokio::test]
     async fn test_actor_dead_after_close() {
         // Open a store, send Shutdown without consuming self, then verify
         // that subsequent calls return ActorDead once the actor exits.
