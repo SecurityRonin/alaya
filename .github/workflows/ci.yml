@@ -107,7 +107,14 @@ jobs:
       - name: Run coverage
         run: cargo tarpaulin --config tarpaulin.toml --skip-clean
 
-      - name: Report coverage
+      - name: Check coverage threshold
         run: |
-          echo "Coverage report generated. See HTML output for details."
-          echo "Note: Threshold enforcement will be added after achieving 100% coverage."
+          # Parse coverage from the JSON output
+          if [ -f "tarpaulin-report.json" ]; then
+            COVERAGE=$(python3 -c "import json; d=json.load(open('tarpaulin-report.json')); print(f\"{d.get('coverage',0):.2f}\")" 2>/dev/null || echo "0")
+          else
+            COVERAGE="0"
+          fi
+          echo "Coverage: ${COVERAGE}%"
+          # Enforce threshold - fail if below 99%
+          python3 -c "import sys; cov=float('${COVERAGE}'); print(f'Coverage: {cov}%'); sys.exit(0 if cov >= 99.0 else 1)"
