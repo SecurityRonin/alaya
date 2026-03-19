@@ -36,9 +36,12 @@ pub fn rerank(
 /// Exponential decay: exp(-age_days / 30.0)
 /// Recent = ~1.0, 30 days = ~0.37, 90 days = ~0.05
 fn recency_decay(timestamp: i64, now: i64) -> f64 {
-    let age_secs = (now - timestamp).max(0) as f64;
-    let age_days = age_secs / 86400.0;
-    (-age_days / 30.0).exp()
+    use crate::decay::Decay;
+    let decay = crate::decay::ExponentialDecay {
+        half_life_secs: 30 * 86400, // 30-day half-life
+    };
+    let elapsed = (now - timestamp).max(0);
+    decay.factor(elapsed)
 }
 
 /// Compute context similarity between a candidate's encoding context and the query context.
@@ -109,7 +112,9 @@ mod tests {
     fn test_recency_old() {
         let now = 1000000;
         let old = recency_decay(now - 86400 * 90, now); // 90 days ago
-        assert!(old < 0.1);
+        // ExponentialDecay with 30-day half-life: 0.5^3 = 0.125 at 90 days
+        assert!(old < 0.2);
+        assert!(old > 0.0);
     }
 
     #[test]

@@ -91,6 +91,8 @@ pub fn on_co_retrieval(conn: &Connection, source: NodeRef, target: NodeRef) -> R
 }
 
 pub fn decay_links(conn: &Connection, decay_factor: f32) -> Result<u64> {
+    // MultiplicativeDecay pattern applied to two columns simultaneously.
+    // Cannot use decay::apply_multiplicative_sql (single-column helper).
     let changed = conn.execute(
         "UPDATE links SET
             forward_weight = forward_weight * ?1,

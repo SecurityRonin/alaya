@@ -86,12 +86,9 @@ pub fn suppress_retrieval(conn: &Connection, node: NodeRef, factor: f32) -> Resu
 }
 
 pub fn decay_all_retrieval(conn: &Connection, decay_factor: f32) -> Result<u64> {
-    let changed = conn.execute(
-        "UPDATE node_strengths SET retrieval_strength = retrieval_strength * ?1
-         WHERE retrieval_strength > 0.01",
-        [decay_factor],
-    )?;
-    Ok(changed as u64)
+    crate::decay::apply_multiplicative_sql(
+        conn, "node_strengths", "retrieval_strength", decay_factor as f64,
+    )
 }
 
 pub fn find_archivable(

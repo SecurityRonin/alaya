@@ -133,13 +133,13 @@ pub fn reinforce_preference(
 }
 
 pub fn decay_preferences(conn: &Connection, now: i64, half_life_secs: i64) -> Result<u64> {
-    // Exponential decay: confidence *= exp(-0.693 * age / half_life)
-    // SQLite doesn't have exp(), so we approximate with a linear decay per sweep
-    // Actually, we can compute the factor and multiply:
+    // ExponentialDecay pattern, but with time-conditional WHERE clause.
+    // SQLite lacks exp(), so uses 0.95 linear approximation per sweep.
+    // Cannot use decay::apply_multiplicative_sql (needs custom WHERE).
     let changed = conn.execute(
         "UPDATE preferences SET confidence = confidence * 0.95
          WHERE (?1 - last_reinforced) > ?2 AND confidence > 0.01",
-        params![now, half_life_secs],
+        rusqlite::params![now, half_life_secs],
     )?;
     Ok(changed as u64)
 }
