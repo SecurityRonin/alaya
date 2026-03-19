@@ -137,4 +137,82 @@ mod tests {
         let changed = apply_multiplicative_sql(&conn, "node_strengths", "retrieval_strength", 0.9).unwrap();
         assert_eq!(changed, 0);
     }
+
+    #[test]
+    fn apply_multiplicative_sql_multiple_rows() {
+        let conn = open_memory_db().unwrap();
+        conn.execute(
+            "INSERT INTO node_strengths (node_type, node_id, storage_strength, retrieval_strength, access_count, last_accessed)
+             VALUES ('semantic', 1, 1.0, 0.8, 0, 0)",
+            [],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO node_strengths (node_type, node_id, storage_strength, retrieval_strength, access_count, last_accessed)
+             VALUES ('semantic', 2, 1.0, 0.6, 0, 0)",
+            [],
+        ).unwrap();
+        let changed = apply_multiplicative_sql(&conn, "node_strengths", "retrieval_strength", 0.9).unwrap();
+        assert_eq!(changed, 2);
+    }
+
+    #[test]
+    fn apply_multiplicative_sql_mixed_rows() {
+        let conn = open_memory_db().unwrap();
+        conn.execute(
+            "INSERT INTO node_strengths (node_type, node_id, storage_strength, retrieval_strength, access_count, last_accessed)
+             VALUES ('semantic', 1, 1.0, 0.8, 0, 0)",
+            [],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO node_strengths (node_type, node_id, storage_strength, retrieval_strength, access_count, last_accessed)
+             VALUES ('semantic', 2, 1.0, 0.005, 0, 0)",
+            [],
+        ).unwrap();
+        let changed = apply_multiplicative_sql(&conn, "node_strengths", "retrieval_strength", 0.9).unwrap();
+        assert_eq!(changed, 1);
+    }
+
+    #[test]
+    fn apply_multiplicative_sql_factor_zero() {
+        let conn = open_memory_db().unwrap();
+        conn.execute(
+            "INSERT INTO node_strengths (node_type, node_id, storage_strength, retrieval_strength, access_count, last_accessed)
+             VALUES ('semantic', 1, 1.0, 0.8, 0, 0)",
+            [],
+        ).unwrap();
+        let changed = apply_multiplicative_sql(&conn, "node_strengths", "retrieval_strength", 0.0).unwrap();
+        assert!(changed > 0);
+    }
+
+    #[test]
+    fn apply_multiplicative_sql_factor_one() {
+        let conn = open_memory_db().unwrap();
+        conn.execute(
+            "INSERT INTO node_strengths (node_type, node_id, storage_strength, retrieval_strength, access_count, last_accessed)
+             VALUES ('semantic', 1, 1.0, 0.8, 0, 0)",
+            [],
+        ).unwrap();
+        let changed = apply_multiplicative_sql(&conn, "node_strengths", "retrieval_strength", 1.0).unwrap();
+        assert!(changed > 0);
+    }
+
+    #[test]
+    fn apply_multiplicative_sql_factor_greater_than_one() {
+        let conn = open_memory_db().unwrap();
+        conn.execute(
+            "INSERT INTO node_strengths (node_type, node_id, storage_strength, retrieval_strength, access_count, last_accessed)
+             VALUES ('semantic', 1, 1.0, 0.8, 0, 0)",
+            [],
+        ).unwrap();
+        let changed = apply_multiplicative_sql(&conn, "node_strengths", "retrieval_strength", 1.5).unwrap();
+        assert!(changed > 0);
+    }
+
+    #[test]
+    fn exponential_factor_zero_half_life() {
+        let d = ExponentialDecay { half_life_secs: 0 };
+        let f = d.factor(100);
+        // Division by zero yields infinity, exp(-infinity) = 0.0
+        assert_eq!(f, 0.0);
+    }
 }
