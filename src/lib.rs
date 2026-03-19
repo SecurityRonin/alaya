@@ -45,6 +45,9 @@ pub mod mcp;
 #[cfg(feature = "llm")]
 pub mod extraction;
 
+#[cfg(feature = "async")]
+pub mod async_store;
+
 use rusqlite::Connection;
 use std::path::Path;
 
