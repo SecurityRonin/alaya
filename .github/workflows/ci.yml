@@ -36,8 +36,29 @@ jobs:
       - name: Run tests (llm feature)
         run: cargo test -p alaya --features llm --verbose
 
+      - name: Run tests (async feature)
+        run: cargo test -p alaya --features async --verbose
+
       - name: Run tests (all features)
-        run: cargo test -p alaya --features "mcp llm" --verbose
+        run: cargo test -p alaya --features "mcp llm async" --verbose
+
+  sqlcipher-tests:
+    name: SQLCipher tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # master
+        with:
+          toolchain: stable
+
+      - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+
+      - name: Run SQLCipher tests
+        run: cargo test -p alaya --features sqlcipher --no-default-features --verbose
+
+      - name: Run SQLCipher + async tests
+        run: cargo test -p alaya --features "sqlcipher async" --no-default-features --verbose
 
   lint:
     name: Lint
@@ -56,7 +77,7 @@ jobs:
         run: cargo fmt -- --check
 
       - name: Clippy (all features)
-        run: cargo clippy -p alaya --all-targets --features "mcp llm" -- -D warnings
+        run: cargo clippy -p alaya --all-targets --features "mcp llm async" -- -D warnings
 
       - name: Doc tests
         run: cargo test -p alaya --doc
