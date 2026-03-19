@@ -762,6 +762,17 @@ impl TryFrom<PyInteraction> for ::alaya::Interaction {
     }
 }
 
+impl From<::alaya::Interaction> for PyInteraction {
+    fn from(i: ::alaya::Interaction) -> Self {
+        Self {
+            text: i.text,
+            role: i.role.as_str().to_string(),
+            session_id: i.session_id,
+            timestamp: i.timestamp,
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Input types — KnowledgeFilter
 // ---------------------------------------------------------------------------

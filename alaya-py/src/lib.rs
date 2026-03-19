@@ -2,6 +2,7 @@ use pyo3::prelude::*;
 use std::collections::HashMap;
 
 pub(crate) mod types;
+pub(crate) mod provider;
 use types::*;
 
 fn map_err(e: ::alaya::AlayaError) -> PyErr {
@@ -296,11 +297,10 @@ impl Alaya {
     // -----------------------------------------------------------------------
 
     /// Replace the consolidation provider.  Pass a Python object that
-    /// implements the provider protocol.  For now, only `NoOpProvider` is
-    /// wired; full bridge comes in Task 12.
-    fn set_consolidation_provider(&mut self, _provider: PyObject) -> PyResult<()> {
-        // Task 12 will replace this stub with a PyConsolidationProvider bridge.
-        self.provider = Box::new(::alaya::NoOpProvider);
+    /// implements the provider protocol (duck-typed: needs `extract_knowledge`,
+    /// `extract_impressions`, and `detect_contradiction` methods).
+    fn set_consolidation_provider(&mut self, provider: PyObject) -> PyResult<()> {
+        self.provider = Box::new(crate::provider::PyConsolidationProvider::new(provider));
         Ok(())
     }
 
