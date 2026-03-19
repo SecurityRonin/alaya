@@ -18,6 +18,7 @@ pub fn open_memory_db() -> Result<Connection> {
 }
 
 /// Initialize schema on an already-open connection (used by encrypted open).
+#[cfg(feature = "sqlcipher")]
 pub(crate) fn initialize(conn: &Connection) -> Result<()> {
     init_db(conn)
 }

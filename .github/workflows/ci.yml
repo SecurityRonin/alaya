@@ -28,16 +28,16 @@ jobs:
       - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
 
       - name: Run tests (default features)
-        run: cargo test --verbose
+        run: cargo test -p alaya --verbose
 
       - name: Run tests (mcp feature)
-        run: cargo test --features mcp --verbose
+        run: cargo test -p alaya --features mcp --verbose
 
       - name: Run tests (llm feature)
-        run: cargo test --features llm --verbose
+        run: cargo test -p alaya --features llm --verbose
 
       - name: Run tests (all features)
-        run: cargo test --features "mcp llm" --verbose
+        run: cargo test -p alaya --features "mcp llm" --verbose
 
   lint:
     name: Lint
@@ -56,10 +56,10 @@ jobs:
         run: cargo fmt -- --check
 
       - name: Clippy (all features)
-        run: cargo clippy --all-targets --features "mcp llm" -- -D warnings
+        run: cargo clippy -p alaya --all-targets --features "mcp llm" -- -D warnings
 
       - name: Doc tests
-        run: cargo test --doc
+        run: cargo test -p alaya --doc
 
   deny:
     name: cargo-deny
@@ -82,9 +82,9 @@ jobs:
       - name: Verify no network dependencies in default features
         shell: bash
         run: |
-          if cargo tree --no-default-features | grep -qE 'reqwest|hyper|h2|ureq'; then
+          if cargo tree -p alaya --no-default-features | grep -qE 'reqwest|hyper|h2|ureq'; then
             echo "ERROR: Network dependencies found in default features!"
-            cargo tree --no-default-features | grep -E 'reqwest|hyper|h2|ureq'
+            cargo tree -p alaya --no-default-features | grep -E 'reqwest|hyper|h2|ureq'
             exit 1
           fi
           echo "No network dependencies in default features."

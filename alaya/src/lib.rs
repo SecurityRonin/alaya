@@ -124,7 +124,9 @@ impl AlayaStore {
         conn.pragma_update(None, "key", key)?;
         // Verify the key works by reading from the database
         conn.execute_batch("SELECT count(*) FROM sqlite_master")
-            .map_err(|_| AlayaError::InvalidInput("wrong encryption key or not an encrypted database".into()))?;
+            .map_err(|_| {
+                AlayaError::InvalidInput("wrong encryption key or not an encrypted database".into())
+            })?;
         schema::initialize(&conn)?;
         Ok(Self {
             conn,
@@ -2072,14 +2074,16 @@ mod tests {
 
         // Create encrypted DB
         let store = AlayaStore::open_encrypted(&path, "test-key-123").unwrap();
-        store.store_episode(&NewEpisode {
-            content: "secret data".into(),
-            role: Role::User,
-            session_id: "s1".into(),
-            timestamp: 1000,
-            context: EpisodeContext::default(),
-            embedding: None,
-        }).unwrap();
+        store
+            .store_episode(&NewEpisode {
+                content: "secret data".into(),
+                role: Role::User,
+                session_id: "s1".into(),
+                timestamp: 1000,
+                context: EpisodeContext::default(),
+                embedding: None,
+            })
+            .unwrap();
         drop(store);
 
         // Reopen with correct key
@@ -2094,14 +2098,16 @@ mod tests {
         let path = dir.path().join("encrypted.db");
 
         let store = AlayaStore::open_encrypted(&path, "correct-key").unwrap();
-        store.store_episode(&NewEpisode {
-            content: "secret".into(),
-            role: Role::User,
-            session_id: "s1".into(),
-            timestamp: 1000,
-            context: EpisodeContext::default(),
-            embedding: None,
-        }).unwrap();
+        store
+            .store_episode(&NewEpisode {
+                content: "secret".into(),
+                role: Role::User,
+                session_id: "s1".into(),
+                timestamp: 1000,
+                context: EpisodeContext::default(),
+                embedding: None,
+            })
+            .unwrap();
         drop(store);
 
         // Wrong key should fail
@@ -2116,14 +2122,16 @@ mod tests {
         let path = dir.path().join("rekey.db");
 
         let store = AlayaStore::open_encrypted(&path, "old-key").unwrap();
-        store.store_episode(&NewEpisode {
-            content: "rekey test".into(),
-            role: Role::User,
-            session_id: "s1".into(),
-            timestamp: 1000,
-            context: EpisodeContext::default(),
-            embedding: None,
-        }).unwrap();
+        store
+            .store_episode(&NewEpisode {
+                content: "rekey test".into(),
+                role: Role::User,
+                session_id: "s1".into(),
+                timestamp: 1000,
+                context: EpisodeContext::default(),
+                embedding: None,
+            })
+            .unwrap();
         store.rekey("new-key").unwrap();
         drop(store);
 

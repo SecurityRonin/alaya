@@ -52,7 +52,7 @@ jobs:
           key: release-${{ matrix.target }}
 
       - name: Build release binary
-        run: cargo build --release --features "mcp llm" --target ${{ matrix.target }}
+        run: cargo build -p alaya --release --features "mcp llm" --target ${{ matrix.target }}
 
       - name: Prepare npm package (Unix)
         if: runner.os != 'Windows'
@@ -187,6 +187,6 @@ jobs:
           toolchain: stable
 
       - name: Publish to crates.io
-        run: cargo publish --allow-dirty
+        run: cargo publish -p alaya --allow-dirty
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
