@@ -1,0 +1,459 @@
+//! Handler logic for the `remember` and `recall` MCP tools.
+
+use std::sync::atomic::Ordering;
+
+use crate::{EpisodeContext, NewEpisode, Query};
+
+use super::{RecallParams, RememberParams};
+
+pub fn handle_remember(server: &super::AlayaMcp, params: RememberParams) -> String {
+    let role = match super::validation::parse_role(&params.role) {
+        Ok(r) => r,
+        Err(e) => return format!("Error: {e}"),
+    };
+
+    let now = super::validation::now_timestamp();
+
+    let episode = NewEpisode {
+        content: params.content.clone(),
+        role,
+        session_id: params.session_id.clone(),
+        timestamp: now,
+        context: EpisodeContext::default(),
+        embedding: None,
+    };
+
+    match server.with_store(|s| s.store_episode(&episode)) {
+        Ok(id) => {
+            let ep_total = server.episode_count.fetch_add(1, Ordering::Relaxed) + 1;
+            let uncons = server.unconsolidated_count.fetch_add(1, Ordering::Relaxed) + 1;
+
+            let mut response = format!(
+                "Stored episode {} in session '{}'.",
+                id.0, params.session_id
+            );
+
+            // Auto-consolidation at 10 unconsolidated episodes
+            if uncons >= 10 {
+                // Try auto-consolidation first (if ExtractionProvider is set)
+                match server.with_store(|s| s.auto_consolidate()) {
+                    Ok(report) if report.nodes_created > 0 => {
+                        server.unconsolidated_count.store(0, Ordering::Relaxed);
+                        response.push_str(&format!(
+                            "\n\n--- Auto-consolidated ---\n\
+                             Extracted {} knowledge nodes from {} episodes.",
+                            report.nodes_created, uncons
+                        ));
+                    }
+                    Ok(_) => {
+                        // Provider returned zero nodes — fall back to prompt
+                        if let Ok(episodes) =
+                            server.with_store(|s| s.unconsolidated_episodes(20))
+                        {
+                            response.push_str(&format!(
+                                "\n\n--- Consolidation suggested ---\n\
+                                 You have {} unconsolidated episodes. \
+                                 Please extract key facts and call the 'learn' tool.\n\
+                                 Recent unconsolidated episodes:",
+                                episodes.len()
+                            ));
+                            for ep in &episodes {
+                                response.push_str(&format!(
+                                    "\n[{}] {}: {}",
+                                    ep.id.0,
+                                    ep.role.as_str(),
+                                    ep.content
+                                ));
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        // Provider error or no provider — fall back to prompt with note
+                        let err_msg = e.to_string();
+                        let is_no_provider = err_msg.contains("extraction provider");
+                        if let Ok(episodes) =
+                            server.with_store(|s| s.unconsolidated_episodes(20))
+                        {
+                            if !is_no_provider {
+                                response
+                                    .push_str(&format!("\n\n(Auto-consolidation failed: {e})"));
+                            }
+                            response.push_str(&format!(
+                                "\n\n--- Consolidation suggested ---\n\
+                                 You have {} unconsolidated episodes. \
+                                 Please extract key facts and call the 'learn' tool.\n\
+                                 Recent unconsolidated episodes:",
+                                episodes.len()
+                            ));
+                            for ep in &episodes {
+                                response.push_str(&format!(
+                                    "\n[{}] {}: {}",
+                                    ep.id.0,
+                                    ep.role.as_str(),
+                                    ep.content
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Auto-maintenance every 25 episodes
+            if ep_total % 25 == 0 {
+                let tr = server.with_store(|s| s.transform());
+                let fr = server.with_store(|s| s.forget());
+                match (tr, fr) {
+                    (Ok(tr), Ok(fr)) => {
+                        response.push_str(&format!(
+                            "\n\n--- Auto-maintenance ---\n\
+                             Transform: {} merged, {} links pruned, {} categories discovered\n\
+                             Forget: {} decayed, {} archived",
+                            tr.duplicates_merged,
+                            tr.links_pruned,
+                            tr.categories_discovered,
+                            fr.nodes_decayed,
+                            fr.nodes_archived,
+                        ));
+                    }
+                    (Err(e), _) | (_, Err(e)) => {
+                        response.push_str(&format!("\n\n--- Auto-maintenance error: {e} ---"));
+                    }
+                }
+            }
+
+            response
+        }
+        Err(e) => format!("Error: {e}"),
+    }
+}
+
+pub fn handle_recall(server: &super::AlayaMcp, params: RecallParams) -> String {
+    let query = Query {
+        text: params.query,
+        embedding: None,
+        context: crate::QueryContext::default(),
+        max_results: params.max_results.unwrap_or(5),
+        boost_categories: params.boost_category.map(|c| vec![c.to_string()]),
+    };
+
+    match server.with_store(|s| s.query(&query)) {
+        Ok(results) if results.is_empty() => "No memories found.".to_string(),
+        Ok(results) => {
+            let mut out = format!("Found {} memories:\n\n", results.len());
+            for (i, mem) in results.iter().enumerate() {
+                let role = mem.role.map(|r| r.as_str()).unwrap_or("unknown");
+                out.push_str(&format!(
+                    "{}. [{}] (score: {:.3}) {}\n",
+                    i + 1,
+                    role,
+                    mem.score,
+                    mem.content
+                ));
+            }
+            out
+        }
+        Err(e) => format!("Error: {e}"),
+    }
+}
+
+#[cfg(all(test, feature = "mcp"))]
+mod tests {
+    use super::*;
+    use crate::{AlayaStore, MockExtractionProvider, NewSemanticNode, SemanticType};
+
+    use super::super::{AlayaMcp, LearnFactEntry, LearnParams, RememberParams};
+
+    fn make_server() -> AlayaMcp {
+        let store = AlayaStore::open_in_memory().unwrap();
+        AlayaMcp::new(store)
+    }
+
+    fn make_server_with_extraction() -> AlayaMcp {
+        let mut store = AlayaStore::open_in_memory().unwrap();
+        store.set_extraction_provider(Box::new(MockExtractionProvider::new(vec![
+            NewSemanticNode {
+                content: "Auto-extracted fact".into(),
+                node_type: SemanticType::Fact,
+                confidence: 0.85,
+                source_episodes: vec![],
+                embedding: None,
+            },
+        ])));
+        AlayaMcp::new(store)
+    }
+
+    #[test]
+    fn remember_valid_user_message() {
+        let srv = make_server();
+        let result = srv.remember(RememberParams {
+            content: "Hello world".into(),
+            role: "user".into(),
+            session_id: "test-sess".into(),
+        });
+        assert!(result.starts_with("Stored episode "));
+        assert!(result.contains("in session 'test-sess'"));
+    }
+
+    #[test]
+    fn remember_valid_assistant_message() {
+        let srv = make_server();
+        let result = srv.remember(RememberParams {
+            content: "I can help with that".into(),
+            role: "assistant".into(),
+            session_id: "test-sess".into(),
+        });
+        assert!(result.starts_with("Stored episode "));
+    }
+
+    #[test]
+    fn remember_valid_system_message() {
+        let srv = make_server();
+        let result = srv.remember(RememberParams {
+            content: "System prompt here".into(),
+            role: "system".into(),
+            session_id: "test-sess".into(),
+        });
+        assert!(result.starts_with("Stored episode "));
+    }
+
+    #[test]
+    fn remember_invalid_role() {
+        let srv = make_server();
+        let result = srv.remember(RememberParams {
+            content: "Hello".into(),
+            role: "moderator".into(),
+            session_id: "test-sess".into(),
+        });
+        assert!(result.starts_with("Error: invalid role"));
+        assert!(result.contains("moderator"));
+    }
+
+    #[test]
+    fn remember_case_insensitive_role() {
+        let srv = make_server();
+        let result = srv.remember(RememberParams {
+            content: "Hello".into(),
+            role: "USER".into(),
+            session_id: "test-sess".into(),
+        });
+        assert!(result.starts_with("Stored episode "));
+    }
+
+    #[test]
+    fn remember_consolidation_prompt_at_10() {
+        let srv = make_server();
+        for i in 0..10 {
+            let result = srv.remember(RememberParams {
+                content: format!("Message {i}"),
+                role: "user".into(),
+                session_id: "sess".into(),
+            });
+            if i < 9 {
+                assert!(
+                    !result.contains("Consolidation suggested"),
+                    "Should not suggest consolidation at episode {}",
+                    i + 1
+                );
+            } else {
+                assert!(
+                    result.contains("Consolidation suggested"),
+                    "Should suggest consolidation at episode 10"
+                );
+                assert!(result.contains("unconsolidated episodes"));
+            }
+        }
+    }
+
+    #[test]
+    fn remember_learn_resets_consolidation_counter() {
+        let srv = make_server();
+        for i in 0..10 {
+            srv.remember(RememberParams {
+                content: format!("Fact message {i}"),
+                role: "user".into(),
+                session_id: "sess".into(),
+            });
+        }
+
+        srv.learn(LearnParams {
+            facts: vec![LearnFactEntry {
+                content: "Extracted fact".into(),
+                node_type: "fact".into(),
+                confidence: None,
+            }],
+            session_id: None,
+        });
+
+        let result = srv.remember(RememberParams {
+            content: "Post-learn message".into(),
+            role: "user".into(),
+            session_id: "sess".into(),
+        });
+        assert!(
+            !result.contains("Consolidation suggested"),
+            "After learn, counter should be reset; 1 episode should not trigger consolidation"
+        );
+    }
+
+    #[test]
+    fn remember_auto_maintenance_at_25() {
+        let srv = make_server();
+        let mut maintenance_seen = false;
+        for i in 0..25 {
+            let result = srv.remember(RememberParams {
+                content: format!("Episode {i}"),
+                role: "user".into(),
+                session_id: "sess".into(),
+            });
+            if result.contains("Auto-maintenance") {
+                maintenance_seen = true;
+            }
+        }
+        assert!(
+            maintenance_seen,
+            "Auto-maintenance should trigger at 25 episodes"
+        );
+    }
+
+    #[test]
+    fn remember_auto_consolidates_with_extraction_provider() {
+        let srv = make_server_with_extraction();
+        let mut auto_response = String::new();
+        for i in 0..10 {
+            let result = srv.remember(RememberParams {
+                content: format!("Episode {i}"),
+                role: "user".into(),
+                session_id: "s1".into(),
+            });
+            if result.contains("Auto-consolidated") {
+                auto_response = result;
+            }
+        }
+        assert!(
+            !auto_response.is_empty(),
+            "Should have auto-consolidated at episode 10"
+        );
+        assert!(auto_response.contains("knowledge nodes"));
+    }
+
+    #[test]
+    fn remember_falls_back_to_prompt_without_provider() {
+        let srv = make_server();
+        let mut prompt_response = String::new();
+        for i in 0..10 {
+            let result = srv.remember(RememberParams {
+                content: format!("Episode {i}"),
+                role: "user".into(),
+                session_id: "s1".into(),
+            });
+            if result.contains("Consolidation suggested") {
+                prompt_response = result;
+            }
+        }
+        assert!(
+            !prompt_response.is_empty(),
+            "Should fall back to prompt without extraction provider"
+        );
+        assert!(prompt_response.contains("unconsolidated episodes"));
+    }
+
+    #[test]
+    fn remember_auto_consolidation_resets_counter() {
+        let srv = make_server_with_extraction();
+        for i in 0..10 {
+            srv.remember(RememberParams {
+                content: format!("Episode {i}"),
+                role: "user".into(),
+                session_id: "s1".into(),
+            });
+        }
+        let status = srv.status();
+        assert!(
+            status.contains("0 unconsolidated"),
+            "Counter should reset after auto-consolidation: {status}"
+        );
+    }
+
+    #[test]
+    fn recall_empty_store() {
+        let srv = make_server();
+        let result = srv.recall(super::super::RecallParams {
+            query: "anything".into(),
+            max_results: None,
+            boost_category: None,
+        });
+        assert_eq!(result, "No memories found.");
+    }
+
+    #[test]
+    fn recall_finds_matching_episodes() {
+        let srv = make_server();
+        srv.remember(RememberParams {
+            content: "Rust has zero-cost abstractions".into(),
+            role: "user".into(),
+            session_id: "s1".into(),
+        });
+        srv.remember(RememberParams {
+            content: "Python is great for scripting".into(),
+            role: "user".into(),
+            session_id: "s1".into(),
+        });
+
+        let result = srv.recall(super::super::RecallParams {
+            query: "Rust abstractions".into(),
+            max_results: None,
+            boost_category: None,
+        });
+        assert!(result.contains("Found"));
+        assert!(result.contains("memories"));
+    }
+
+    #[test]
+    fn recall_with_max_results() {
+        let srv = make_server();
+        for i in 0..10 {
+            srv.remember(RememberParams {
+                content: format!("Fact number {i} about programming"),
+                role: "user".into(),
+                session_id: "s1".into(),
+            });
+        }
+
+        let result = srv.recall(super::super::RecallParams {
+            query: "programming".into(),
+            max_results: Some(3),
+            boost_category: None,
+        });
+        assert!(result.contains("Found"));
+        let result_count = result
+            .lines()
+            .filter(|l| {
+                let trimmed = l.trim();
+                trimmed.starts_with("1.")
+                    || trimmed.starts_with("2.")
+                    || trimmed.starts_with("3.")
+                    || trimmed.starts_with("4.")
+            })
+            .count();
+        assert!(
+            result_count <= 3,
+            "Should return at most 3 results, got {result_count}"
+        );
+    }
+
+    #[test]
+    fn recall_with_boost_category_no_crash() {
+        let srv = make_server();
+        srv.remember(RememberParams {
+            content: "Some memory content".into(),
+            role: "user".into(),
+            session_id: "s1".into(),
+        });
+        let result = srv.recall(super::super::RecallParams {
+            query: "memory".into(),
+            max_results: None,
+            boost_category: Some(9999),
+        });
+        assert!(!result.starts_with("Error:"));
+    }
+}
