@@ -17,6 +17,9 @@ pub enum AlayaError {
 
     #[error("provider error: {0}")]
     Provider(String),
+
+    #[error("actor dead: message channel closed")]
+    ActorDead,
 }
 
 pub type Result<T> = std::result::Result<T, AlayaError>;
@@ -58,5 +61,11 @@ mod tests {
         let e: AlayaError = serde_err.into();
         assert!(matches!(e, AlayaError::Serialization(_)));
         assert!(e.to_string().contains("serialization error"));
+    }
+
+    #[test]
+    fn test_display_actor_dead() {
+        let e = AlayaError::ActorDead;
+        assert_eq!(e.to_string(), "actor dead: message channel closed");
     }
 }
