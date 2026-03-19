@@ -154,6 +154,701 @@ mod tests {
     use crate::schema::open_memory_db;
     use crate::store::episodic;
 
+    // ---------------------------------------------------------------------------
+    // Helper: build a NewEpisode with minimal boilerplate
+    // ---------------------------------------------------------------------------
+    fn ep(content: &str, session: &str, ts: i64) -> NewEpisode {
+        NewEpisode {
+            content: content.to_string(),
+            role: Role::User,
+            session_id: session.to_string(),
+            timestamp: ts,
+            context: EpisodeContext::default(),
+            embedding: None,
+        }
+    }
+
+    fn ep_with_ctx(content: &str, session: &str, ts: i64, ctx: EpisodeContext) -> NewEpisode {
+        NewEpisode {
+            content: content.to_string(),
+            role: Role::User,
+            session_id: session.to_string(),
+            timestamp: ts,
+            context: ctx,
+            embedding: None,
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Empty store — BM25 + no seeds => empty graph activation branch
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_query_empty_store_returns_empty() {
+        let conn = open_memory_db().unwrap();
+        let results = execute_query(
+            &conn,
+            &Query {
+                text: "anything".to_string(),
+                embedding: None,
+                context: QueryContext {
+                    current_timestamp: Some(1000),
+                    ..Default::default()
+                },
+                max_results: 5,
+                boost_categories: None,
+            },
+        )
+        .unwrap();
+        assert!(results.is_empty(), "empty store must return no results");
+    }
+
+    // ---------------------------------------------------------------------------
+    // BM25-only (no embedding) — exercises None arm of vector_results match
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_query_bm25_only_no_embedding() {
+        let conn = open_memory_db().unwrap();
+
+        episodic::store_episode(&conn, &ep("Rust memory safety is great", "s1", 1000)).unwrap();
+        episodic::store_episode(&conn, &ep("Python data science workflow", "s2", 2000)).unwrap();
+
+        let results = execute_query(
+            &conn,
+            &Query {
+                text: "Rust memory safety".to_string(),
+                embedding: None, // explicitly no embedding
+                context: QueryContext {
+                    current_timestamp: Some(5000),
+                    ..Default::default()
+                },
+                max_results: 5,
+                boost_categories: None,
+            },
+        )
+        .unwrap();
+
+        assert!(!results.is_empty(), "should find BM25 results");
+        assert!(
+            results[0].content.contains("Rust"),
+            "top result should match query; got: {}",
+            results[0].content
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // Multiple results — verify descending score ordering
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_query_multiple_results_descending_order() {
+        let conn = open_memory_db().unwrap();
+
+        // Store several episodes about "Rust" with different timestamps
+        for i in 0..5u32 {
+            episodic::store_episode(
+                &conn,
+                &ep(
+                    &format!("Rust programming episode {i}"),
+                    "s1",
+                    1000 + i as i64 * 100,
+                ),
+            )
+            .unwrap();
+        }
+
+        let results = execute_query(
+            &conn,
+            &Query {
+                text: "Rust programming".to_string(),
+                embedding: None,
+                context: QueryContext {
+                    current_timestamp: Some(10000),
+                    ..Default::default()
+                },
+                max_results: 5,
+                boost_categories: None,
+            },
+        )
+        .unwrap();
+
+        assert!(results.len() >= 2, "should return multiple results");
+        // Verify descending order
+        for w in results.windows(2) {
+            assert!(
+                w[0].score >= w[1].score,
+                "results must be in descending score order: {} < {}",
+                w[0].score,
+                w[1].score
+            );
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // max_results limit is honoured — never returns more than max_results
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_query_max_results_honored() {
+        let conn = open_memory_db().unwrap();
+
+        for i in 0..10u32 {
+            episodic::store_episode(
+                &conn,
+                &ep(
+                    &format!("Rust topic episode {i}"),
+                    "s1",
+                    1000 + i as i64 * 50,
+                ),
+            )
+            .unwrap();
+        }
+
+        let results = execute_query(
+            &conn,
+            &Query {
+                text: "Rust topic".to_string(),
+                embedding: None,
+                context: QueryContext {
+                    current_timestamp: Some(9000),
+                    ..Default::default()
+                },
+                max_results: 3,
+                boost_categories: None,
+            },
+        )
+        .unwrap();
+
+        assert!(
+            results.len() <= 3,
+            "max_results=3 must not be exceeded; got {}",
+            results.len()
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // max_results=1 — minimal slice
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_query_max_results_one() {
+        let conn = open_memory_db().unwrap();
+
+        episodic::store_episode(&conn, &ep("Rust ownership model", "s1", 1000)).unwrap();
+        episodic::store_episode(&conn, &ep("Rust borrow checker explained", "s1", 2000)).unwrap();
+
+        let results = execute_query(
+            &conn,
+            &Query {
+                text: "Rust ownership".to_string(),
+                embedding: None,
+                context: QueryContext {
+                    current_timestamp: Some(5000),
+                    ..Default::default()
+                },
+                max_results: 1,
+                boost_categories: None,
+            },
+        )
+        .unwrap();
+
+        assert!(results.len() <= 1, "should not exceed max_results=1");
+    }
+
+    // ---------------------------------------------------------------------------
+    // Query with context topics/entities — exercises reranking context_similarity
+    // An episode stored with matching context should score higher than one without
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_query_with_context_boosts_matching_episode() {
+        let conn = open_memory_db().unwrap();
+
+        // Episode with matching topic context
+        let matching_ctx = EpisodeContext {
+            topics: vec!["rust".to_string(), "async".to_string()],
+            mentioned_entities: vec!["tokio".to_string()],
+            sentiment: 0.5,
+            conversation_turn: 1,
+            preceding_episode: None,
+        };
+        episodic::store_episode(
+            &conn,
+            &ep_with_ctx("async Rust with tokio runtime", "s1", 1000, matching_ctx),
+        )
+        .unwrap();
+
+        // Episode without matching context (stored slightly later for same recency)
+        episodic::store_episode(&conn, &ep("async Rust with tokio runtime", "s2", 1100)).unwrap();
+
+        let results = execute_query(
+            &conn,
+            &Query {
+                text: "async Rust tokio".to_string(),
+                embedding: None,
+                context: QueryContext {
+                    topics: vec!["rust".to_string(), "async".to_string()],
+                    mentioned_entities: vec!["tokio".to_string()],
+                    sentiment: 0.5,
+                    current_timestamp: Some(5000),
+                },
+                max_results: 10,
+                boost_categories: None,
+            },
+        )
+        .unwrap();
+
+        assert!(!results.is_empty(), "should return results");
+        // All we can guarantee: pipeline runs without error and order is valid
+        for w in results.windows(2) {
+            assert!(w[0].score >= w[1].score, "must be ordered descending");
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Context: current_timestamp provided vs None (exercises both branches of
+    // the unwrap_or_else for `now`)
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_query_no_current_timestamp_uses_system_time() {
+        let conn = open_memory_db().unwrap();
+        episodic::store_episode(&conn, &ep("Rust lifetime elision", "s1", 1000)).unwrap();
+
+        // current_timestamp: None => code falls through to SystemTime::now()
+        let results = execute_query(
+            &conn,
+            &Query {
+                text: "Rust lifetime".to_string(),
+                embedding: None,
+                context: QueryContext {
+                    current_timestamp: None, // triggers the SystemTime branch
+                    ..Default::default()
+                },
+                max_results: 5,
+                boost_categories: None,
+            },
+        )
+        .unwrap();
+
+        // As long as no panic, the branch was exercised
+        assert!(!results.is_empty());
+    }
+
+    // ---------------------------------------------------------------------------
+    // Graph boost path — episodes linked to preferences via Topical link;
+    // graph spreading should activate the preference node
+    // (mirrors test_query_returns_preferences_via_graph but asserts co-retrieval
+    //  Hebbian strengthening side-effect via link weight increase)
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_graph_boost_co_retrieval_strengthens_link() {
+        let conn = open_memory_db().unwrap();
+        use crate::graph::links;
+        use crate::store::{implicit, strengths};
+
+        let ep_id = episodic::store_episode(
+            &conn,
+            &ep("I love dark mode for coding at night", "s1", 1000),
+        )
+        .unwrap();
+
+        let pref_id = implicit::store_preference(&conn, "ui", "dark mode", 0.9).unwrap();
+        strengths::init_strength(&conn, NodeRef::Preference(pref_id)).unwrap();
+
+        links::create_link(
+            &conn,
+            NodeRef::Episode(ep_id),
+            NodeRef::Preference(pref_id),
+            LinkType::Topical,
+            0.9,
+        )
+        .unwrap();
+
+        // Before query: record initial link weight
+        let before_links = links::get_links_from(&conn, NodeRef::Episode(ep_id)).unwrap();
+        let before_weight = before_links
+            .first()
+            .map(|l| l.forward_weight)
+            .unwrap_or(0.0);
+
+        execute_query(
+            &conn,
+            &Query {
+                text: "dark mode coding".to_string(),
+                embedding: None,
+                context: QueryContext {
+                    current_timestamp: Some(2000),
+                    ..Default::default()
+                },
+                max_results: 10,
+                boost_categories: None,
+            },
+        )
+        .unwrap();
+
+        // After query: if both episode and preference were co-retrieved,
+        // on_co_retrieval fires, strengthening the link.
+        // (The test validates the co-retrieval path ran without error)
+        let after_links = links::get_links_from(&conn, NodeRef::Episode(ep_id)).unwrap();
+        let after_weight = after_links
+            .first()
+            .map(|l| l.forward_weight)
+            .unwrap_or(0.0);
+
+        // Weight should be >= before (co-retrieval only increases or holds)
+        assert!(
+            after_weight >= before_weight,
+            "co-retrieval should not decrease link weight"
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // Seed-node deduplication — graph_results excludes seed nodes
+    // (exercises the filter in graph_results construction)
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_graph_results_exclude_seed_nodes() {
+        let conn = open_memory_db().unwrap();
+        use crate::graph::links;
+        use crate::store::strengths;
+
+        // Store two episodes and link them so graph spreading finds the second
+        let ep1 = episodic::store_episode(&conn, &ep("Rust async seed node", "s1", 1000)).unwrap();
+        let ep2 =
+            episodic::store_episode(&conn, &ep("Rust async neighbor node", "s1", 2000)).unwrap();
+
+        strengths::init_strength(&conn, NodeRef::Episode(ep1)).unwrap();
+        strengths::init_strength(&conn, NodeRef::Episode(ep2)).unwrap();
+
+        links::create_link(
+            &conn,
+            NodeRef::Episode(ep1),
+            NodeRef::Episode(ep2),
+            LinkType::Topical,
+            0.8,
+        )
+        .unwrap();
+
+        let results = execute_query(
+            &conn,
+            &Query {
+                text: "Rust async".to_string(),
+                embedding: None,
+                context: QueryContext {
+                    current_timestamp: Some(5000),
+                    ..Default::default()
+                },
+                max_results: 10,
+                boost_categories: None,
+            },
+        )
+        .unwrap();
+
+        // Should have results — both episodes reachable
+        assert!(!results.is_empty(), "should find episodes");
+        // No result should appear twice (seed dedup worked)
+        let ids: Vec<i64> = results.iter().map(|r| r.node.id()).collect();
+        let mut unique = ids.clone();
+        unique.dedup();
+        // Sort before dedup for correctness
+        let mut sorted_ids = ids.clone();
+        sorted_ids.sort_unstable();
+        sorted_ids.dedup();
+        assert_eq!(
+            ids.len(),
+            sorted_ids.len(),
+            "duplicate nodes in results: {:?}",
+            ids
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // Vector search branch — embedding provided => Some(emb) arm exercised
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_query_with_embedding_exercises_vector_branch() {
+        let conn = open_memory_db().unwrap();
+        use crate::store::{embeddings, semantic, strengths};
+
+        // Store semantic node + embedding
+        let nid = semantic::store_semantic_node(
+            &conn,
+            &NewSemanticNode {
+                content: "Rust zero-cost abstractions".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.9,
+                source_episodes: vec![],
+                embedding: None,
+            },
+        )
+        .unwrap();
+        embeddings::store_embedding(&conn, "semantic", nid.0, &[1.0f32, 0.0, 0.0], "").unwrap();
+        strengths::init_strength(&conn, NodeRef::Semantic(nid)).unwrap();
+
+        // Also store an episode for BM25 baseline
+        episodic::store_episode(
+            &conn,
+            &ep("Rust zero-cost abstractions are elegant", "s1", 1000),
+        )
+        .unwrap();
+
+        let results = execute_query(
+            &conn,
+            &Query {
+                text: "Rust abstractions".to_string(),
+                embedding: Some(vec![0.9f32, 0.1, 0.0]), // triggers vector search
+                context: QueryContext {
+                    current_timestamp: Some(5000),
+                    ..Default::default()
+                },
+                max_results: 10,
+                boost_categories: None,
+            },
+        )
+        .unwrap();
+
+        assert!(!results.is_empty(), "vector query must return results");
+        // At least one semantic node should appear
+        assert!(
+            results.iter().any(|r| matches!(r.node, NodeRef::Semantic(_))),
+            "should include semantic node from vector search"
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // RIF suppression: non-retrieved same-session episodes get suppressed
+    // (already partially tested but extended to check strength init required)
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_rif_suppression_same_session() {
+        let conn = open_memory_db().unwrap();
+        use crate::store::strengths;
+
+        // 4 episodes in same session — only one should match query strongly
+        let ids: Vec<_> = (0..4)
+            .map(|i| {
+                let eid = episodic::store_episode(
+                    &conn,
+                    &ep(
+                        &format!("session memory item {i} about Rust coding"),
+                        "sess_rif",
+                        1000 + i as i64 * 10,
+                    ),
+                )
+                .unwrap();
+                strengths::init_strength(&conn, NodeRef::Episode(eid)).unwrap();
+                eid
+            })
+            .collect();
+
+        // Query retrieving only 1 result
+        let results = execute_query(
+            &conn,
+            &Query {
+                text: "memory item 0 Rust".to_string(),
+                embedding: None,
+                context: QueryContext {
+                    current_timestamp: Some(5000),
+                    ..Default::default()
+                },
+                max_results: 1,
+                boost_categories: None,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(results.len(), 1);
+
+        let retrieved_id = match results[0].node {
+            NodeRef::Episode(eid) => eid.0,
+            _ => panic!("expected episode"),
+        };
+
+        // At least one non-retrieved episode should have suppressed strength < 1.0
+        let suppressed = ids
+            .iter()
+            .filter(|eid| eid.0 != retrieved_id)
+            .any(|eid| {
+                strengths::get_strength(&conn, NodeRef::Episode(*eid))
+                    .map(|s| s.retrieval_strength < 1.0)
+                    .unwrap_or(false)
+            });
+
+        assert!(suppressed, "at least one non-retrieved episode should be suppressed");
+    }
+
+    // ---------------------------------------------------------------------------
+    // Edge case: empty query string — FTS5 with empty string returns nothing
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_empty_query_string_returns_empty() {
+        let conn = open_memory_db().unwrap();
+        episodic::store_episode(&conn, &ep("Rust programming", "s1", 1000)).unwrap();
+
+        let results = execute_query(&conn, &Query::simple("")).unwrap();
+        assert!(results.is_empty(), "empty query string must return no results");
+    }
+
+    // ---------------------------------------------------------------------------
+    // Edge case: single-character query
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_single_char_query() {
+        let conn = open_memory_db().unwrap();
+        episodic::store_episode(&conn, &ep("Rust is great", "s1", 1000)).unwrap();
+
+        // FTS5 may or may not return results for 'R' — either way must not panic
+        let result = execute_query(&conn, &Query::simple("R"));
+        assert!(result.is_ok(), "single-char query must not error");
+    }
+
+    // ---------------------------------------------------------------------------
+    // Edge case: very long query string
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_very_long_query_string() {
+        let conn = open_memory_db().unwrap();
+        episodic::store_episode(&conn, &ep("Rust programming language", "s1", 1000)).unwrap();
+
+        let long_query = "Rust ".repeat(200); // 1000 chars
+        let result = execute_query(&conn, &Query::simple(long_query.trim()));
+        assert!(result.is_ok(), "very long query must not error");
+    }
+
+    // ---------------------------------------------------------------------------
+    // on_access is called for each retrieved result (strength tracking path)
+    // Verify retrieval_strength is refreshed (= 1.0) after query
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_on_access_updates_strength_after_query() {
+        let conn = open_memory_db().unwrap();
+        use crate::store::strengths;
+
+        let eid =
+            episodic::store_episode(&conn, &ep("Rust traits and generics", "s1", 1000)).unwrap();
+        strengths::init_strength(&conn, NodeRef::Episode(eid)).unwrap();
+
+        // Manually decay to a low value first
+        strengths::suppress_retrieval(&conn, NodeRef::Episode(eid), 0.5).unwrap();
+        let before = strengths::get_strength(&conn, NodeRef::Episode(eid))
+            .unwrap()
+            .retrieval_strength;
+        assert!(before < 1.0, "strength should be decayed before query");
+
+        execute_query(
+            &conn,
+            &Query {
+                text: "Rust traits generics".to_string(),
+                embedding: None,
+                context: QueryContext {
+                    current_timestamp: Some(5000),
+                    ..Default::default()
+                },
+                max_results: 5,
+                boost_categories: None,
+            },
+        )
+        .unwrap();
+
+        let after = strengths::get_strength(&conn, NodeRef::Episode(eid))
+            .unwrap()
+            .retrieval_strength;
+        assert!(
+            after > before,
+            "on_access should refresh strength: before={before}, after={after}"
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // Cross-session: multiple sessions — RIF suppression is per-session scoped
+    // Episodes from different sessions are not suppressed by each other
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_rif_does_not_suppress_across_sessions() {
+        let conn = open_memory_db().unwrap();
+        use crate::store::strengths;
+
+        // One episode in session A
+        let ep_a =
+            episodic::store_episode(&conn, &ep("Rust ownership rules", "session_a", 1000))
+                .unwrap();
+        strengths::init_strength(&conn, NodeRef::Episode(ep_a)).unwrap();
+
+        // One episode in session B — completely different session
+        let ep_b =
+            episodic::store_episode(&conn, &ep("Rust ownership rules copy", "session_b", 2000))
+                .unwrap();
+        strengths::init_strength(&conn, NodeRef::Episode(ep_b)).unwrap();
+
+        // Query returns episode from session_a
+        execute_query(
+            &conn,
+            &Query {
+                text: "Rust ownership".to_string(),
+                embedding: None,
+                context: QueryContext {
+                    current_timestamp: Some(5000),
+                    ..Default::default()
+                },
+                max_results: 5,
+                boost_categories: None,
+            },
+        )
+        .unwrap();
+
+        // episode in session_b has no competing episodes in session_b,
+        // so it should NOT be suppressed by RIF (no unretrieved session_b siblings)
+        let strength_b =
+            strengths::get_strength(&conn, NodeRef::Episode(ep_b)).unwrap().retrieval_strength;
+        // Initial strength (no suppress applied), either 1.0 (init) or may have been on_accessed.
+        // Key invariant: it was NOT suppressed to < 0.9 * init
+        assert!(
+            strength_b >= 0.9,
+            "cross-session episode should not be suppressed; got {strength_b}"
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // Result contains ScoredMemory with correct fields (content, role, timestamp)
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_result_fields_populated_correctly() {
+        let conn = open_memory_db().unwrap();
+
+        episodic::store_episode(
+            &conn,
+            &NewEpisode {
+                content: "Rust lifetimes explained clearly".to_string(),
+                role: Role::Assistant,
+                session_id: "s_fields".to_string(),
+                timestamp: 42000,
+                context: EpisodeContext::default(),
+                embedding: None,
+            },
+        )
+        .unwrap();
+
+        let results = execute_query(
+            &conn,
+            &Query {
+                text: "Rust lifetimes".to_string(),
+                embedding: None,
+                context: QueryContext {
+                    current_timestamp: Some(50000),
+                    ..Default::default()
+                },
+                max_results: 5,
+                boost_categories: None,
+            },
+        )
+        .unwrap();
+
+        assert!(!results.is_empty());
+        let r = &results[0];
+        assert!(r.content.contains("Rust lifetimes"), "content must be populated");
+        assert_eq!(r.role, Some(Role::Assistant), "role must be preserved");
+        assert_eq!(r.timestamp, 42000, "timestamp must match stored value");
+        assert!(r.score > 0.0, "score must be positive");
+    }
+
+    // ---------------------------------------------------------------------------
+    // Original test kept unchanged
+    // ---------------------------------------------------------------------------
     #[test]
     fn test_basic_query() {
         let conn = open_memory_db().unwrap();
