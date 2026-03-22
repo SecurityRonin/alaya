@@ -42,13 +42,13 @@ fn alaya(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-/// Python wrapper for `AlayaStore`.
+/// Python wrapper for `Alaya`.
 ///
 /// The store uses interior mutability (SQLite connection) so all query/store
 /// methods take `&self`.  Only provider-setter methods need `&mut self`.
 #[pyclass(unsendable)]
 struct Alaya {
-    store: ::alaya::AlayaStore,
+    store: ::alaya::Alaya,
     provider: Box<dyn ::alaya::ConsolidationProvider>,
 }
 
@@ -60,7 +60,7 @@ impl Alaya {
 
     #[new]
     fn new(path: &str) -> PyResult<Self> {
-        let store = ::alaya::AlayaStore::open(path).map_err(map_err)?;
+        let store = ::alaya::Alaya::open(path).map_err(map_err)?;
         Ok(Self {
             store,
             provider: Box::new(::alaya::NoOpProvider),
@@ -69,7 +69,7 @@ impl Alaya {
 
     #[staticmethod]
     fn in_memory() -> PyResult<Self> {
-        let store = ::alaya::AlayaStore::open_in_memory().map_err(map_err)?;
+        let store = ::alaya::Alaya::open_in_memory().map_err(map_err)?;
         Ok(Self {
             store,
             provider: Box::new(::alaya::NoOpProvider),
@@ -79,7 +79,7 @@ impl Alaya {
     #[cfg(feature = "encryption")]
     #[staticmethod]
     fn open_encrypted(path: &str, key: &str) -> PyResult<Self> {
-        let store = ::alaya::AlayaStore::open_encrypted(path, key).map_err(map_err)?;
+        let store = ::alaya::Alaya::open_encrypted(path, key).map_err(map_err)?;
         Ok(Self {
             store,
             provider: Box::new(::alaya::NoOpProvider),
@@ -98,7 +98,7 @@ impl Alaya {
     /// Store a new episode.  Accepts a `NewEpisode` object.
     fn store_episode(&self, episode: PyNewEpisode) -> PyResult<i64> {
         let ep = ::alaya::NewEpisode::try_from(episode)?;
-        let id = self.store.store_episode(&ep).map_err(map_err)?;
+        let id = self.store.episodes().store(&ep).map_err(map_err)?;
         Ok(id.0)
     }
 
@@ -109,14 +109,14 @@ impl Alaya {
     /// Query memories.  Accepts a `Query` object.
     fn query(&self, q: PyQuery) -> PyResult<Vec<PyScoredMemory>> {
         let query = ::alaya::Query::from(q);
-        let results = self.store.query(&query).map_err(map_err)?;
+        let results = self.store.knowledge().query(&query).map_err(map_err)?;
         Ok(results.into_iter().map(PyScoredMemory::from).collect())
     }
 
     /// Get crystallized preferences, optionally filtered by domain.
     #[pyo3(signature = (domain=None))]
     fn preferences(&self, domain: Option<&str>) -> PyResult<Vec<PyPreference>> {
-        let prefs = self.store.preferences(domain).map_err(map_err)?;
+        let prefs = self.store.admin().preferences(domain).map_err(map_err)?;
         Ok(prefs.into_iter().map(PyPreference::from).collect())
     }
 
@@ -124,14 +124,14 @@ impl Alaya {
     #[pyo3(signature = (filter=None))]
     fn knowledge(&self, filter: Option<PyKnowledgeFilter>) -> PyResult<Vec<PySemanticNode>> {
         let f = filter.map(::alaya::KnowledgeFilter::try_from).transpose()?;
-        let nodes = self.store.knowledge(f).map_err(map_err)?;
+        let nodes = self.store.knowledge().filter(f).map_err(map_err)?;
         Ok(nodes.into_iter().map(PySemanticNode::from).collect())
     }
 
     /// Get categories with optional minimum stability threshold.
     #[pyo3(signature = (min_stability=None))]
     fn categories(&self, min_stability: Option<f32>) -> PyResult<Vec<PyCategory>> {
-        let cats = self.store.categories(min_stability).map_err(map_err)?;
+        let cats = self.store.admin().categories(min_stability).map_err(map_err)?;
         Ok(cats.into_iter().map(PyCategory::from).collect())
     }
 
@@ -139,6 +139,7 @@ impl Alaya {
     fn subcategories(&self, parent_id: i64) -> PyResult<Vec<PyCategory>> {
         let cats = self
             .store
+            .admin()
             .subcategories(::alaya::CategoryId(parent_id))
             .map_err(map_err)?;
         Ok(cats.into_iter().map(PyCategory::from).collect())
@@ -148,6 +149,7 @@ impl Alaya {
     fn node_category(&self, node_id: i64) -> PyResult<Option<PyCategory>> {
         let cat = self
             .store
+            .admin()
             .node_category(::alaya::NodeId(node_id))
             .map_err(map_err)?;
         Ok(cat.map(PyCategory::from))
@@ -168,6 +170,7 @@ impl Alaya {
         })?;
         let pairs = self
             .store
+            .graph()
             .neighbors(node_ref, depth.unwrap_or(1))
             .map_err(map_err)?;
         Ok(pairs
@@ -180,7 +183,7 @@ impl Alaya {
     /// `((src_type, src_id), (dst_type, dst_id), weight)`, or `None`.
     #[allow(clippy::type_complexity)]
     fn strongest_link(&self) -> PyResult<Option<((String, i64), (String, i64), f32)>> {
-        let result = self.store.strongest_link().map_err(map_err)?;
+        let result = self.store.graph().strongest_link().map_err(map_err)?;
         Ok(result.map(|(src, dst, w)| {
             (
                 (src.type_str().to_string(), src.id()),
@@ -197,12 +200,12 @@ impl Alaya {
                 "invalid node type: {node_type:?}"
             ))
         })?;
-        self.store.node_content(node_ref).map_err(map_err)
+        self.store.admin().node_content(node_ref).map_err(map_err)
     }
 
     /// Count semantic nodes grouped by type.  Returns `{type_str: count}`.
     fn knowledge_breakdown(&self) -> PyResult<HashMap<String, u64>> {
-        let map = self.store.knowledge_breakdown().map_err(map_err)?;
+        let map = self.store.knowledge().breakdown().map_err(map_err)?;
         Ok(map
             .into_iter()
             .map(|(k, v)| (k.as_str().to_string(), v))
@@ -213,7 +216,8 @@ impl Alaya {
     fn episodes_by_session(&self, session_id: &str) -> PyResult<Vec<PyEpisode>> {
         let eps = self
             .store
-            .episodes_by_session(session_id)
+            .episodes()
+            .by_session(session_id)
             .map_err(map_err)?;
         Ok(eps.into_iter().map(PyEpisode::from).collect())
     }
@@ -223,7 +227,8 @@ impl Alaya {
     fn unconsolidated_episodes(&self, limit: Option<u32>) -> PyResult<Vec<PyEpisode>> {
         let eps = self
             .store
-            .unconsolidated_episodes(limit.unwrap_or(u32::MAX))
+            .episodes()
+            .unconsolidated(limit.unwrap_or(u32::MAX))
             .map_err(map_err)?;
         Ok(eps.into_iter().map(PyEpisode::from).collect())
     }
@@ -234,6 +239,7 @@ impl Alaya {
 
     fn status(&self) -> PyResult<PyMemoryStatus> {
         self.store
+            .admin()
             .status()
             .map(PyMemoryStatus::from)
             .map_err(map_err)
@@ -246,6 +252,7 @@ impl Alaya {
     /// Run consolidation (episodic -> semantic) using the stored provider.
     fn consolidate(&self) -> PyResult<PyConsolidationReport> {
         self.store
+            .lifecycle()
             .consolidate(self.provider.as_ref())
             .map(PyConsolidationReport::from)
             .map_err(map_err)
@@ -254,6 +261,7 @@ impl Alaya {
     /// Run transformation (dedup, decay, prune).
     fn transform(&self) -> PyResult<PyTransformationReport> {
         self.store
+            .lifecycle()
             .transform()
             .map(PyTransformationReport::from)
             .map_err(map_err)
@@ -262,6 +270,7 @@ impl Alaya {
     /// Run forgetting (decay weak nodes).
     fn forget(&self) -> PyResult<PyForgettingReport> {
         self.store
+            .lifecycle()
             .forget()
             .map(PyForgettingReport::from)
             .map_err(map_err)
@@ -270,6 +279,7 @@ impl Alaya {
     /// Run full dream cycle (consolidate + transform + forget).
     fn dream(&self) -> PyResult<PyDreamReport> {
         self.store
+            .lifecycle()
             .dream(self.provider.as_ref(), None)
             .map(PyDreamReport::from)
             .map_err(map_err)
@@ -282,6 +292,7 @@ impl Alaya {
     /// Delete all episodes older than the given Unix timestamp.
     fn purge_by_age(&self, older_than: i64) -> PyResult<PyPurgeReport> {
         self.store
+            .admin()
             .purge(::alaya::PurgeFilter::OlderThan(older_than))
             .map(PyPurgeReport::from)
             .map_err(map_err)
@@ -296,6 +307,7 @@ impl Alaya {
     /// TODO: revisit once `PurgeFilter::BelowStrength` is added upstream.
     fn purge_by_weakness(&self, _below_strength: f32) -> PyResult<PyPurgeReport> {
         self.store
+            .admin()
             .purge(::alaya::PurgeFilter::All)
             .map(PyPurgeReport::from)
             .map_err(map_err)
