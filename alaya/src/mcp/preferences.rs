@@ -55,6 +55,7 @@ pub fn handle_preferences(server: &super::AlayaMcp, params: PreferencesParams) -
 }
 
 #[cfg(all(test, feature = "mcp"))]
+#[allow(deprecated)]
 mod tests {
     use crate::provider::MockProvider;
     use crate::types::{EpisodeContext, Interaction, NewImpression, Role};

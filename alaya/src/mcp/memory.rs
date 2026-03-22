@@ -152,6 +152,7 @@ pub fn handle_recall(server: &super::AlayaMcp, params: RecallParams) -> String {
 }
 
 #[cfg(all(test, feature = "mcp"))]
+#[allow(deprecated)]
 mod tests {
     use crate::{AlayaStore, MockExtractionProvider, NewSemanticNode, SemanticType};
 

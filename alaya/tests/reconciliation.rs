@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use alaya::*;
 
 #[test]
@@ -25,7 +27,7 @@ fn full_lifecycle_learn_reconcile_superseded_excluded() {
         .unwrap();
 
     // Verify both visible before reconcile
-    let before = store.knowledge(None).unwrap();
+    let before = store.knowledge_nodes(None).unwrap();
     assert_eq!(before.len(), 2);
 
     // Reconcile with default (Recency) strategy
@@ -35,7 +37,7 @@ fn full_lifecycle_learn_reconcile_superseded_excluded() {
     assert_eq!(report.nodes_superseded, 1);
 
     // Only 1 node visible after reconcile
-    let after = store.knowledge(None).unwrap();
+    let after = store.knowledge_nodes(None).unwrap();
     assert_eq!(after.len(), 1);
 }
 
@@ -73,7 +75,7 @@ fn manual_strategy_reconcile_then_resolve() {
     store.resolve_conflict(conflicts[0].id, winner).unwrap();
 
     assert!(store.conflicts().unwrap().is_empty());
-    assert_eq!(store.knowledge(None).unwrap().len(), 1);
+    assert_eq!(store.knowledge_nodes(None).unwrap().len(), 1);
 }
 
 #[test]

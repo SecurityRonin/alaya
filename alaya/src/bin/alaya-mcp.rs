@@ -13,6 +13,7 @@
 use std::path::PathBuf;
 
 use alaya::mcp::AlayaMcp;
+#[allow(deprecated)]
 use alaya::AlayaStore;
 use rmcp::ServiceExt;
 use tokio::io::{stdin, stdout};

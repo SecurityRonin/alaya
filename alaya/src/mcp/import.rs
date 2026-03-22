@@ -274,6 +274,7 @@ pub fn handle_import_claude_code(
 }
 
 #[cfg(all(test, feature = "mcp"))]
+#[allow(deprecated)]
 mod tests {
     use crate::AlayaStore;
 

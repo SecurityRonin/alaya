@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use alaya::*;
 
 mod common;
@@ -582,7 +584,7 @@ fn test_emergent_category_lifecycle() {
     );
 
     // Verify the node was actually assigned
-    let knowledge = store.knowledge(None).unwrap();
+    let knowledge = store.knowledge_nodes(None).unwrap();
     let new_node = knowledge
         .iter()
         .find(|n| n.content == "User experiments with Italian recipes")

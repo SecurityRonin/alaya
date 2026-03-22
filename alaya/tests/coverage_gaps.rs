@@ -1,5 +1,7 @@
 //! Targeted tests to achieve 100% coverage on remaining gaps.
 
+#![allow(deprecated)]
+
 use alaya::*;
 
 mod common;
@@ -168,7 +170,7 @@ fn test_node_content_all_variants() {
             embedding: Some(vec![0.8, 0.3, 0.1]),
         }])
         .unwrap();
-    let knowledge = store.knowledge(None).unwrap();
+    let knowledge = store.knowledge_nodes(None).unwrap();
     let node_id = knowledge[0].id;
     let content = store.node_content(NodeRef::Semantic(node_id)).unwrap();
     assert!(content.is_some());
@@ -320,7 +322,7 @@ fn test_dedup_skip_already_deleted_node() {
         "should dedup alpha and its duplicate"
     );
 
-    let knowledge = store.knowledge(None).unwrap();
+    let knowledge = store.knowledge_nodes(None).unwrap();
     assert_eq!(knowledge.len(), 3, "should have 3 nodes after dedup");
 }
 

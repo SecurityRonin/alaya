@@ -10,12 +10,12 @@
 //! # Quick Start
 //!
 //! ```
-//! use alaya::{AlayaStore, NewEpisode, Role, EpisodeContext, Query};
+//! use alaya::{Alaya, NewEpisode, Role, EpisodeContext, Query};
 //!
-//! let store = AlayaStore::open_in_memory().unwrap();
+//! let alaya = Alaya::open_in_memory().unwrap();
 //!
 //! // Store an episode
-//! store.store_episode(&NewEpisode {
+//! alaya.episodes().store(&NewEpisode {
 //!     content: "Rust has zero-cost abstractions.".to_string(),
 //!     role: Role::User,
 //!     session_id: "session-1".to_string(),
@@ -25,7 +25,7 @@
 //! }).unwrap();
 //!
 //! // Query memories
-//! let results = store.query(&Query::simple("Rust")).unwrap();
+//! let results = alaya.knowledge().query(&Query::simple("Rust")).unwrap();
 //! assert!(!results.is_empty());
 //! ```
 
@@ -66,829 +66,181 @@ pub use types::*;
 #[cfg(feature = "llm")]
 pub use extraction::LlmExtractionProvider;
 
-/// The main entry point. Owns a SQLite connection and exposes the full
-/// store / query / lifecycle API.
-///
-/// # Examples
-///
-/// ```
-/// let store = alaya::AlayaStore::open_in_memory().unwrap();
-/// let status = store.status().unwrap();
-/// assert_eq!(status.episode_count, 0);
-/// ```
-pub struct AlayaStore {
-    conn: Connection,
-    embedding_provider: Option<Box<dyn EmbeddingProvider>>,
-    extraction_provider: Option<Box<dyn ExtractionProvider>>,
-    conflict_strategy: ConflictStrategy,
-}
+/// Deprecated: use [`Alaya`] directly. This alias exists for backward
+/// compatibility with `async_store` and `mcp` modules and will be removed
+/// in a future release.
+#[deprecated(note = "Use `Alaya` instead — AlayaStore is now a type alias")]
+pub type AlayaStore = Alaya;
 
-impl AlayaStore {
-    /// Open (or create) a persistent database at `path`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let dir = tempfile::tempdir().unwrap();
-    /// let store = alaya::AlayaStore::open(dir.path().join("test.db")).unwrap();
-    /// ```
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip(path)))]
-    pub fn open(path: impl AsRef<Path>) -> Result<Self> {
-        let conn = schema::open_db(path.as_ref().to_str().unwrap_or("alaya.db"))?;
-        Ok(Self {
-            conn,
-            embedding_provider: None,
-            extraction_provider: None,
-            conflict_strategy: ConflictStrategy::default(),
-        })
-    }
+// ---------------------------------------------------------------------------
+// Deprecated flat wrapper methods on Alaya
+//
+// These delegate to the sub-manager API and exist solely so that
+// `async_store.rs` and `mcp/` modules keep compiling until they are
+// migrated in Tasks 12-14. Do NOT use these in new code.
+// ---------------------------------------------------------------------------
 
-    /// Expose the raw SQLite connection for test-only DB corruption scenarios.
-    #[cfg(test)]
-    pub(crate) fn raw_conn(&self) -> &Connection {
-        &self.conn
-    }
-
-    /// Open an ephemeral in-memory database (useful for tests).
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let store = alaya::AlayaStore::open_in_memory().unwrap();
-    /// ```
-    #[cfg_attr(feature = "tracing", tracing::instrument)]
-    pub fn open_in_memory() -> Result<Self> {
-        let conn = schema::open_memory_db()?;
-        Ok(Self {
-            conn,
-            embedding_provider: None,
-            extraction_provider: None,
-            conflict_strategy: ConflictStrategy::default(),
-        })
-    }
-
-    /// Open an encrypted database. The key is passed to SQLCipher via `PRAGMA key`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the key is incorrect or the file is not an encrypted database.
-    #[cfg(feature = "sqlcipher")]
-    #[cfg(not(tarpaulin_include))]
-    pub fn open_encrypted(path: impl AsRef<Path>, key: &str) -> Result<Self> {
-        let conn = Connection::open(path)?;
-        conn.pragma_update(None, "key", key)?;
-        // Verify the key works by reading from the database
-        conn.execute_batch("SELECT count(*) FROM sqlite_master")
-            .map_err(|_| {
-                AlayaError::InvalidInput("wrong encryption key or not an encrypted database".into())
-            })?;
-        schema::initialize(&conn)?;
-        Ok(Self {
-            conn,
-            embedding_provider: None,
-            extraction_provider: None,
-            conflict_strategy: ConflictStrategy::default(),
-        })
-    }
-
-    /// Re-encrypt the database with a new key via `PRAGMA rekey`.
-    #[cfg(feature = "sqlcipher")]
-    #[cfg(not(tarpaulin_include))]
-    pub fn rekey(&self, new_key: &str) -> Result<()> {
-        self.conn.pragma_update(None, "rekey", new_key)?;
-        Ok(())
-    }
-
-    /// Set an embedding provider for automatic embedding generation.
-    ///
-    /// When set, `store_episode` and `query` will auto-generate embeddings
-    /// if none are provided explicitly.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use alaya::{AlayaStore, MockEmbeddingProvider};
-    ///
-    /// let mut store = AlayaStore::open_in_memory().unwrap();
-    /// store.set_embedding_provider(Box::new(MockEmbeddingProvider::new(3)));
-    /// ```
-    pub fn set_embedding_provider(&mut self, provider: Box<dyn EmbeddingProvider>) {
-        self.embedding_provider = Some(provider);
-    }
-
-    /// Set an extraction provider for automatic knowledge extraction.
-    ///
-    /// When set, [`auto_consolidate`](Self::auto_consolidate) will use this
-    /// provider to extract semantic nodes from unconsolidated episodes.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use alaya::{AlayaStore, MockExtractionProvider};
-    ///
-    /// let mut store = AlayaStore::open_in_memory().unwrap();
-    /// store.set_extraction_provider(Box::new(MockExtractionProvider::empty()));
-    /// ```
-    pub fn set_extraction_provider(&mut self, provider: Box<dyn ExtractionProvider>) {
-        self.extraction_provider = Some(provider);
-    }
-
-    // -----------------------------------------------------------------------
-    // Write path
-    // -----------------------------------------------------------------------
-
-    /// Store a conversation episode with full context.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`AlayaError::InvalidInput`] if `content` or `session_id` is empty.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use alaya::{AlayaStore, NewEpisode, Role, EpisodeContext};
-    ///
-    /// let store = AlayaStore::open_in_memory().unwrap();
-    /// let id = store.store_episode(&NewEpisode {
-    ///     content: "The user prefers dark mode.".to_string(),
-    ///     role: Role::User,
-    ///     session_id: "session-1".to_string(),
-    ///     timestamp: 1700000000,
-    ///     context: EpisodeContext::default(),
-    ///     embedding: None,
-    /// }).unwrap();
-    /// assert!(id.0 > 0);
-    /// ```
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
+#[allow(deprecated)]
+impl Alaya {
+    /// Deprecated: use `self.episodes().store(ep)`.
+    #[deprecated(note = "Use alaya.episodes().store() instead")]
     pub fn store_episode(&self, episode: &NewEpisode) -> Result<EpisodeId> {
-        if episode.content.trim().is_empty() {
-            return Err(AlayaError::InvalidInput(
-                "episode content must not be empty".into(),
-            ));
-        }
-        if episode.session_id.trim().is_empty() {
-            return Err(AlayaError::InvalidInput(
-                "session_id must not be empty".into(),
-            ));
-        }
-
-        let tx = schema::begin_immediate(&self.conn)?;
-
-        let id = store::episodic::store_episode(&tx, episode)?;
-
-        // Use explicit embedding if provided, otherwise auto-embed via provider
-        let effective_embedding = match &episode.embedding {
-            Some(emb) => Some(emb.clone()),
-            None => self
-                .embedding_provider
-                .as_ref()
-                .and_then(|p| p.embed(&episode.content).ok()),
-        };
-        if let Some(ref emb) = effective_embedding {
-            store::embeddings::store_embedding(&tx, "episode", id.0, emb, "")?;
-        }
-
-        store::strengths::init_strength(&tx, NodeRef::Episode(id))?;
-
-        if let Some(prev) = episode.context.preceding_episode {
-            graph::links::create_link(
-                &tx,
-                NodeRef::Episode(prev),
-                NodeRef::Episode(id),
-                LinkType::Temporal,
-                0.5,
-            )?;
-        }
-
-        tx.commit()?;
-        Ok(id)
+        self.episodes().store(episode)
     }
 
-    // -----------------------------------------------------------------------
-    // Read path
-    // -----------------------------------------------------------------------
-
-    /// Hybrid retrieval: BM25 + vector + graph activation -> RRF -> rerank.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`AlayaError::InvalidInput`] if `text` is empty or `max_results` is 0.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use alaya::{AlayaStore, NewEpisode, Role, EpisodeContext, Query};
-    ///
-    /// let store = AlayaStore::open_in_memory().unwrap();
-    /// store.store_episode(&NewEpisode {
-    ///     content: "Rust has zero-cost abstractions.".to_string(),
-    ///     role: Role::User,
-    ///     session_id: "s1".to_string(),
-    ///     timestamp: 1000,
-    ///     context: EpisodeContext::default(),
-    ///     embedding: None,
-    /// }).unwrap();
-    ///
-    /// let results = store.query(&Query::simple("Rust")).unwrap();
-    /// assert!(!results.is_empty());
-    /// ```
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
+    /// Deprecated: use `self.knowledge().query(q)`.
+    #[deprecated(note = "Use alaya.knowledge().query() instead")]
     pub fn query(&self, q: &Query) -> Result<Vec<ScoredMemory>> {
-        if q.text.trim().is_empty() {
-            return Err(AlayaError::InvalidInput(
-                "query text must not be empty".into(),
-            ));
-        }
-        if q.max_results == 0 {
-            return Err(AlayaError::InvalidInput(
-                "max_results must be greater than 0".into(),
-            ));
-        }
-
-        // Auto-embed query text if no embedding provided and provider is set
-        if q.embedding.is_none() {
-            if let Some(ref provider) = self.embedding_provider {
-                let mut q2 = q.clone();
-                q2.embedding = provider.embed(&q.text).ok();
-                return retrieval::pipeline::execute_query(&self.conn, &q2);
-            }
-        }
-        retrieval::pipeline::execute_query(&self.conn, q)
+        self.knowledge().query(q)
     }
 
-    /// Get crystallized preferences, optionally filtered by domain.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let store = alaya::AlayaStore::open_in_memory().unwrap();
-    /// let prefs = store.preferences(None).unwrap();
-    /// assert!(prefs.is_empty());
-    /// ```
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
-    pub fn preferences(&self, domain: Option<&str>) -> Result<Vec<Preference>> {
-        store::implicit::get_preferences(&self.conn, domain)
+    /// Deprecated: use `self.admin().status()`.
+    #[deprecated(note = "Use alaya.admin().status() instead")]
+    pub fn status(&self) -> Result<MemoryStatus> {
+        self.admin().status()
     }
 
-    /// Get semantic knowledge nodes with optional filtering.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let store = alaya::AlayaStore::open_in_memory().unwrap();
-    /// let nodes = store.knowledge(None).unwrap();
-    /// assert!(nodes.is_empty());
-    /// ```
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
-    pub fn knowledge(&self, filter: Option<KnowledgeFilter>) -> Result<Vec<SemanticNode>> {
-        let f = filter.unwrap_or_default();
-        match f.node_type {
-            Some(nt) => {
-                store::semantic::find_by_type(&self.conn, nt, f.limit.unwrap_or(100) as u32)
-            }
-            None => {
-                // Return all types, ordered by confidence
-                let mut all = Vec::new();
-                for nt in &[
-                    SemanticType::Fact,
-                    SemanticType::Relationship,
-                    SemanticType::Event,
-                    SemanticType::Concept,
-                ] {
-                    let mut nodes = store::semantic::find_by_type(
-                        &self.conn,
-                        *nt,
-                        f.limit.unwrap_or(100) as u32,
-                    )?;
-                    all.append(&mut nodes);
-                }
-                if let Some(min_conf) = f.min_confidence {
-                    all.retain(|n| n.confidence >= min_conf);
-                }
-                if let Some(ref cat_label) = f.category {
-                    all.retain(|n| {
-                        store::categories::get_node_category(&self.conn, n.id)
-                            .ok()
-                            .flatten()
-                            .map(|c| c.label == *cat_label)
-                            .unwrap_or(false)
-                    });
-                }
-                all.sort_by(|a, b| {
-                    b.confidence
-                        .partial_cmp(&a.confidence)
-                        .unwrap_or(std::cmp::Ordering::Equal)
-                });
-                if let Some(limit) = f.limit {
-                    all.truncate(limit);
-                }
-                Ok(all)
-            }
-        }
-    }
-
-    /// List emergent categories, optionally filtered by minimum stability.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let store = alaya::AlayaStore::open_in_memory().unwrap();
-    /// let cats = store.categories(None).unwrap();
-    /// assert!(cats.is_empty());
-    /// ```
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
-    pub fn categories(&self, min_stability: Option<f32>) -> Result<Vec<Category>> {
-        store::categories::list_categories(&self.conn, min_stability)
-    }
-
-    /// Get direct child categories of a parent category.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use alaya::{AlayaStore, CategoryId};
-    ///
-    /// let store = AlayaStore::open_in_memory().unwrap();
-    /// let subs = store.subcategories(CategoryId(1)).unwrap();
-    /// assert!(subs.is_empty());
-    /// ```
-    pub fn subcategories(&self, parent_id: CategoryId) -> Result<Vec<Category>> {
-        store::categories::get_subcategories(&self.conn, parent_id)
-    }
-
-    /// Get the category for a semantic node, if assigned.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use alaya::{AlayaStore, NodeId};
-    ///
-    /// let store = AlayaStore::open_in_memory().unwrap();
-    /// let cat = store.node_category(NodeId(1)).unwrap();
-    /// assert!(cat.is_none());
-    /// ```
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
-    pub fn node_category(&self, node_id: NodeId) -> Result<Option<Category>> {
-        store::categories::get_node_category(&self.conn, node_id)
-    }
-
-    /// Get graph neighbors of a node up to `depth` hops.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use alaya::{AlayaStore, NodeRef, EpisodeId};
-    ///
-    /// let store = AlayaStore::open_in_memory().unwrap();
-    /// let neighbors = store.neighbors(NodeRef::Episode(EpisodeId(1)), 2).unwrap();
-    /// assert!(neighbors.is_empty());
-    /// ```
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
-    pub fn neighbors(&self, node: NodeRef, depth: u32) -> Result<Vec<(NodeRef, f32)>> {
-        let result = graph::activation::spread_activation(&self.conn, &[node], depth, 0.05, 0.6)?;
-        let mut pairs: Vec<(NodeRef, f32)> =
-            result.into_iter().filter(|(nr, _)| *nr != node).collect();
-        pairs.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-        Ok(pairs)
-    }
-
-    // -----------------------------------------------------------------------
-    // Lifecycle
-    // -----------------------------------------------------------------------
-
-    /// Run consolidation: episodic -> semantic (CLS replay).
-    ///
-    /// The provider extracts knowledge from episodes. Use [`NoOpProvider`]
-    /// if no LLM is available.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use alaya::{AlayaStore, NoOpProvider};
-    ///
-    /// let store = AlayaStore::open_in_memory().unwrap();
-    /// let report = store.consolidate(&NoOpProvider).unwrap();
-    /// assert_eq!(report.nodes_created, 0);
-    /// ```
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self, provider)))]
+    /// Deprecated: use `self.lifecycle().consolidate(p)`.
+    #[deprecated(note = "Use alaya.lifecycle().consolidate() instead")]
     pub fn consolidate(&self, provider: &dyn ConsolidationProvider) -> Result<ConsolidationReport> {
-        let tx = schema::begin_immediate(&self.conn)?;
-        let report = lifecycle::consolidation::consolidate(&tx, provider)?;
-        tx.commit()?;
-        Ok(report)
+        self.lifecycle().consolidate(provider)
     }
 
-    /// Provider-less consolidation: store pre-extracted semantic knowledge.
-    ///
-    /// Accepts a `Vec<NewSemanticNode>` directly and runs the same pipeline as
-    /// [`consolidate`](Self::consolidate) — store node, create Causal links to
-    /// source episodes, init Bjork strength, try category assignment — but
-    /// without requiring a [`ConsolidationProvider`].
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use alaya::{AlayaStore, NewSemanticNode, SemanticType, EpisodeId};
-    ///
-    /// let store = AlayaStore::open_in_memory().unwrap();
-    /// let report = store.learn(vec![]).unwrap();
-    /// assert_eq!(report.nodes_created, 0);
-    /// ```
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
+    /// Deprecated: use `self.knowledge().learn(nodes)`.
+    #[deprecated(note = "Use alaya.knowledge().learn() instead")]
     pub fn learn(&self, nodes: Vec<NewSemanticNode>) -> Result<ConsolidationReport> {
-        let tx = schema::begin_immediate(&self.conn)?;
-        let report = lifecycle::consolidation::learn_direct(&tx, nodes)?;
-        tx.commit()?;
-        Ok(report)
+        self.knowledge().learn(nodes)
     }
 
-    /// Automatically extract knowledge from unconsolidated episodes using
-    /// the configured ExtractionProvider, then learn the extracted nodes.
-    ///
-    /// Requires an ExtractionProvider to be set via `set_extraction_provider()`.
-    /// Returns an error if no provider is configured.
-    ///
-    /// This is the core mechanism for sidecar LLM auto-consolidation:
-    /// the MCP server calls this when the unconsolidated episode threshold
-    /// is reached, and the provider calls a lightweight LLM to extract facts.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use alaya::{AlayaStore, MockExtractionProvider};
-    ///
-    /// let mut store = AlayaStore::open_in_memory().unwrap();
-    /// store.set_extraction_provider(Box::new(MockExtractionProvider::empty()));
-    /// let report = store.auto_consolidate().unwrap();
-    /// assert_eq!(report.nodes_created, 0);
-    /// ```
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
+    /// Deprecated: use `self.lifecycle().auto_consolidate()`.
+    #[deprecated(note = "Use alaya.lifecycle().auto_consolidate() instead")]
     pub fn auto_consolidate(&self) -> Result<ConsolidationReport> {
-        /// Maximum episodes to fetch per auto-consolidation pass.
-        /// Set to 2x the MCP trigger threshold (10) to catch any episodes
-        /// that arrived between threshold checks.
-        const AUTO_CONSOLIDATE_BATCH: u32 = 20;
-
-        let provider = self.extraction_provider.as_ref().ok_or_else(|| {
-            AlayaError::InvalidInput(
-                "no extraction provider configured; call set_extraction_provider() first".into(),
-            )
-        })?;
-        let episodes = self.unconsolidated_episodes(AUTO_CONSOLIDATE_BATCH)?;
-        if episodes.is_empty() {
-            return Ok(ConsolidationReport::default());
-        }
-        let nodes = provider.extract(&episodes)?;
-        self.learn(nodes)
+        self.lifecycle().auto_consolidate()
     }
 
-    /// Return all episodes belonging to the given session, ordered by timestamp.
-    ///
-    /// This is useful for resolving a session ID to episode IDs when linking
-    /// learned knowledge back to its source conversation.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use alaya::{AlayaStore, NewEpisode, Role, EpisodeContext};
-    ///
-    /// let store = AlayaStore::open_in_memory().unwrap();
-    /// store.store_episode(&NewEpisode {
-    ///     content: "hello".to_string(),
-    ///     role: Role::User,
-    ///     session_id: "s1".to_string(),
-    ///     timestamp: 1000,
-    ///     context: EpisodeContext::default(),
-    ///     embedding: None,
-    /// }).unwrap();
-    /// let eps = store.episodes_by_session("s1").unwrap();
-    /// assert_eq!(eps.len(), 1);
-    /// ```
-    pub fn episodes_by_session(&self, session_id: &str) -> Result<Vec<Episode>> {
-        store::episodic::get_episodes_by_session(&self.conn, session_id)
-    }
-
-    /// Return unconsolidated episodes (those not yet linked to any semantic node).
-    ///
-    /// An episode is considered "consolidated" once a Causal link connects it
-    /// to a semantic node (created by [`consolidate`](Self::consolidate) or
-    /// [`learn`](Self::learn)).
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let store = alaya::AlayaStore::open_in_memory().unwrap();
-    /// let eps = store.unconsolidated_episodes(100).unwrap();
-    /// assert!(eps.is_empty());
-    /// ```
-    pub fn unconsolidated_episodes(&self, limit: u32) -> Result<Vec<Episode>> {
-        store::episodic::get_unconsolidated_episodes(&self.conn, limit)
-    }
-
-    /// Run perfuming: extract impressions, crystallize preferences (vasana).
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use alaya::{AlayaStore, NoOpProvider, Interaction, Role, EpisodeContext};
-    ///
-    /// let store = AlayaStore::open_in_memory().unwrap();
-    /// let interaction = Interaction {
-    ///     text: "I prefer dark themes.".to_string(),
-    ///     role: Role::User,
-    ///     session_id: "s1".to_string(),
-    ///     timestamp: 1000,
-    ///     context: EpisodeContext::default(),
-    /// };
-    /// let report = store.perfume(&interaction, &NoOpProvider).unwrap();
-    /// ```
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self, provider)))]
+    /// Deprecated: use `self.lifecycle().perfume(i, p)`.
+    #[deprecated(note = "Use alaya.lifecycle().perfume() instead")]
     pub fn perfume(
         &self,
         interaction: &Interaction,
         provider: &dyn ConsolidationProvider,
     ) -> Result<PerfumingReport> {
-        let tx = schema::begin_immediate(&self.conn)?;
-        let report = lifecycle::perfuming::perfume(&tx, interaction, provider)?;
-        tx.commit()?;
-        Ok(report)
+        self.lifecycle().perfume(interaction, provider)
     }
 
-    /// Run transformation: dedup, prune, decay (asraya-paravrtti).
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let store = alaya::AlayaStore::open_in_memory().unwrap();
-    /// let report = store.transform().unwrap();
-    /// assert_eq!(report.duplicates_merged, 0);
-    /// ```
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
+    /// Deprecated: use `self.lifecycle().transform()`.
+    #[deprecated(note = "Use alaya.lifecycle().transform() instead")]
     pub fn transform(&self) -> Result<TransformationReport> {
-        let tx = schema::begin_immediate(&self.conn)?;
-        let report = lifecycle::transformation::transform(&tx)?;
-        tx.commit()?;
-        Ok(report)
+        self.lifecycle().transform()
     }
 
-    /// Run forgetting: decay retrieval strengths, archive weak nodes (Bjork).
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let store = alaya::AlayaStore::open_in_memory().unwrap();
-    /// let report = store.forget().unwrap();
-    /// assert_eq!(report.nodes_decayed, 0);
-    /// ```
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
+    /// Deprecated: use `self.lifecycle().forget()`.
+    #[deprecated(note = "Use alaya.lifecycle().forget() instead")]
     pub fn forget(&self) -> Result<ForgettingReport> {
-        let tx = schema::begin_immediate(&self.conn)?;
-        let report = lifecycle::forgetting::forget(&tx)?;
-        tx.commit()?;
-        Ok(report)
+        self.lifecycle().forget()
     }
 
-    // -----------------------------------------------------------------------
-    // Conflict resolution
-    // -----------------------------------------------------------------------
-
-    /// Run conflict detection and resolution.
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
-    pub fn reconcile(&self) -> Result<ReconcileReport> {
-        let tx = schema::begin_immediate(&self.conn)?;
-        let report = lifecycle::reconciliation::reconcile(&tx, self.conflict_strategy)?;
-        tx.commit()?;
-        Ok(report)
-    }
-
-    /// Query unresolved conflicts (for Manual strategy).
-    pub fn conflicts(&self) -> Result<Vec<Conflict>> {
-        store::conflicts::get_unresolved_conflicts(&self.conn)
-    }
-
-    /// Manually resolve a specific conflict by choosing a winner.
-    pub fn resolve_conflict(&self, conflict_id: ConflictId, winner_id: NodeId) -> Result<()> {
-        let tx = schema::begin_immediate(&self.conn)?;
-        let now = crate::db::now();
-
-        // Find the conflict to determine the loser
-        let conflicts = store::conflicts::get_unresolved_conflicts(&tx)?;
-        let conflict = conflicts
-            .iter()
-            .find(|c| c.id == conflict_id)
-            .ok_or_else(|| AlayaError::NotFound(format!("conflict {}", conflict_id.0)))?;
-
-        let loser = if winner_id == conflict.node_a {
-            conflict.node_b
-        } else {
-            conflict.node_a
-        };
-
-        store::conflicts::resolve_conflict(&tx, conflict_id, winner_id, "manual", now)?;
-        store::conflicts::supersede_node(&tx, loser, winner_id)?;
-        graph::links::create_link(
-            &tx,
-            NodeRef::Semantic(winner_id),
-            NodeRef::Semantic(loser),
-            LinkType::Supersedes,
-            1.0,
-        )?;
-
-        tx.commit()?;
-        Ok(())
-    }
-
-    /// Configure the resolution strategy (default: Recency).
-    pub fn set_conflict_strategy(&mut self, strategy: ConflictStrategy) {
-        self.conflict_strategy = strategy;
-    }
-
-    // -----------------------------------------------------------------------
-    // Dream (convenience lifecycle)
-    // -----------------------------------------------------------------------
-
-    /// Run the full cognitive lifecycle in one call: consolidate, optionally
-    /// perfume, transform, and forget.
-    ///
-    /// This is a convenience method for periodic maintenance. Pass an
-    /// `Interaction` to include perfuming (impression extraction); pass `None`
-    /// to skip it.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use alaya::{AlayaStore, NoOpProvider};
-    ///
-    /// let store = AlayaStore::open_in_memory().unwrap();
-    /// let report = store.dream(&NoOpProvider, None).unwrap();
-    /// assert_eq!(report.consolidation.episodes_processed, 0);
-    /// assert!(report.perfuming.is_none());
-    /// ```
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self, provider)))]
+    /// Deprecated: use `self.lifecycle().dream(p, i)`.
+    #[deprecated(note = "Use alaya.lifecycle().dream() instead")]
     pub fn dream(
         &self,
         provider: &dyn ConsolidationProvider,
         interaction: Option<&Interaction>,
     ) -> Result<DreamReport> {
-        let consolidation = self.consolidate(provider)?;
-        let perfuming = match interaction {
-            Some(inter) => Some(self.perfume(inter, provider)?),
-            None => None,
-        };
-        let transformation = self.transform()?;
-        let forgetting = self.forget()?;
-
-        Ok(DreamReport {
-            consolidation,
-            perfuming,
-            transformation,
-            forgetting,
-        })
+        self.lifecycle().dream(provider, interaction)
     }
 
-    // -----------------------------------------------------------------------
-    // Admin
-    // -----------------------------------------------------------------------
-
-    /// Counts across all stores.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let store = alaya::AlayaStore::open_in_memory().unwrap();
-    /// let status = store.status().unwrap();
-    /// assert_eq!(status.episode_count, 0);
-    /// assert_eq!(status.semantic_node_count, 0);
-    /// ```
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
-    pub fn status(&self) -> Result<MemoryStatus> {
-        Ok(MemoryStatus {
-            episode_count: store::episodic::count_episodes(&self.conn)?,
-            semantic_node_count: store::semantic::count_nodes(&self.conn)?,
-            preference_count: store::implicit::count_preferences(&self.conn)?,
-            impression_count: store::implicit::count_impressions(&self.conn)?,
-            link_count: graph::links::count_links(&self.conn)?,
-            embedding_count: store::embeddings::count_embeddings(&self.conn)?,
-            category_count: store::categories::count_categories(&self.conn)?,
-        })
+    /// Deprecated: use `self.admin().preferences(domain)`.
+    #[deprecated(note = "Use alaya.admin().preferences() instead")]
+    pub fn preferences(&self, domain: Option<&str>) -> Result<Vec<Preference>> {
+        self.admin().preferences(domain)
     }
 
-    /// Count semantic knowledge nodes grouped by type (Fact, Relationship, Event, Concept).
+    /// Deprecated: use `self.knowledge().filter(filter)`.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// let store = alaya::AlayaStore::open_in_memory().unwrap();
-    /// let breakdown = store.knowledge_breakdown().unwrap();
-    /// assert!(breakdown.is_empty());
-    /// ```
-    pub fn knowledge_breakdown(&self) -> Result<std::collections::HashMap<SemanticType, u64>> {
-        store::semantic::count_nodes_by_type(&self.conn)
+    /// Note: the method was named `knowledge()` on AlayaStore but is renamed
+    /// to `filter()` on the Knowledge sub-manager to avoid name collision.
+    #[deprecated(note = "Use alaya.knowledge().filter() instead")]
+    pub fn knowledge_nodes(&self, filter: Option<KnowledgeFilter>) -> Result<Vec<SemanticNode>> {
+        self.knowledge().filter(filter)
     }
 
-    /// Returns the link with the highest forward weight, if any exist.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let store = alaya::AlayaStore::open_in_memory().unwrap();
-    /// assert!(store.strongest_link().unwrap().is_none());
-    /// ```
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
+    /// Deprecated: use `self.admin().categories(min_stability)`.
+    #[deprecated(note = "Use alaya.admin().categories() instead")]
+    pub fn categories(&self, min_stability: Option<f32>) -> Result<Vec<Category>> {
+        self.admin().categories(min_stability)
+    }
+
+    /// Deprecated: use `self.admin().subcategories(parent_id)`.
+    #[deprecated(note = "Use alaya.admin().subcategories() instead")]
+    pub fn subcategories(&self, parent_id: CategoryId) -> Result<Vec<Category>> {
+        self.admin().subcategories(parent_id)
+    }
+
+    /// Deprecated: use `self.admin().node_category(node_id)`.
+    #[deprecated(note = "Use alaya.admin().node_category() instead")]
+    pub fn node_category(&self, node_id: NodeId) -> Result<Option<Category>> {
+        self.admin().node_category(node_id)
+    }
+
+    /// Deprecated: use `self.graph().neighbors(node, depth)`.
+    #[deprecated(note = "Use alaya.graph().neighbors() instead")]
+    pub fn neighbors(&self, node: NodeRef, depth: u32) -> Result<Vec<(NodeRef, f32)>> {
+        self.graph().neighbors(node, depth)
+    }
+
+    /// Deprecated: use `self.graph().strongest_link()`.
+    #[deprecated(note = "Use alaya.graph().strongest_link() instead")]
     pub fn strongest_link(&self) -> Result<Option<(NodeRef, NodeRef, f32)>> {
-        graph::links::strongest_link(&self.conn)
+        self.graph().strongest_link()
     }
 
-    /// Resolve a `NodeRef` to a human-readable content string (first 30 chars).
-    ///
-    /// Returns `None` if the referenced node no longer exists.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use alaya::{AlayaStore, NodeRef, EpisodeId};
-    ///
-    /// let store = AlayaStore::open_in_memory().unwrap();
-    /// // A node that does not exist returns None.
-    /// let content = store.node_content(NodeRef::Episode(EpisodeId(999))).unwrap();
-    /// assert!(content.is_none());
-    /// ```
+    /// Deprecated: use `self.admin().node_content(node)`.
+    #[deprecated(note = "Use alaya.admin().node_content() instead")]
     pub fn node_content(&self, node: NodeRef) -> Result<Option<String>> {
-        fn not_found_to_none(result: Result<String>) -> Result<Option<String>> {
-            match result {
-                Ok(s) => Ok(Some(s)),
-                Err(AlayaError::NotFound(_)) => Ok(None),
-                Err(e) => Err(e),
-            }
-        }
-
-        match node {
-            NodeRef::Episode(id) => not_found_to_none(
-                store::episodic::get_episode(&self.conn, id)
-                    .map(|ep| truncate_label(&ep.content, 30)),
-            ),
-            NodeRef::Semantic(id) => not_found_to_none(
-                store::semantic::get_semantic_node(&self.conn, id)
-                    .map(|n| truncate_label(&n.content, 30)),
-            ),
-            NodeRef::Category(id) => not_found_to_none(
-                store::categories::get_category(&self.conn, id)
-                    .map(|c| truncate_label(&c.label, 30)),
-            ),
-            _ => Ok(Some(format!("{}#{}", node.type_str(), node.id()))),
-        }
+        self.admin().node_content(node)
     }
 
-    /// Purge data matching the filter.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use alaya::{AlayaStore, NewEpisode, Role, EpisodeContext, PurgeFilter};
-    ///
-    /// let store = AlayaStore::open_in_memory().unwrap();
-    /// store.store_episode(&NewEpisode {
-    ///     content: "temporary".to_string(),
-    ///     role: Role::User,
-    ///     session_id: "s1".to_string(),
-    ///     timestamp: 1000,
-    ///     context: EpisodeContext::default(),
-    ///     embedding: None,
-    /// }).unwrap();
-    ///
-    /// store.purge(PurgeFilter::All).unwrap();
-    /// assert_eq!(store.status().unwrap().episode_count, 0);
-    /// ```
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
+    /// Deprecated: use `self.knowledge().breakdown()`.
+    #[deprecated(note = "Use alaya.knowledge().breakdown() instead")]
+    pub fn knowledge_breakdown(&self) -> Result<std::collections::HashMap<SemanticType, u64>> {
+        self.knowledge().breakdown()
+    }
+
+    /// Deprecated: use `self.episodes().by_session(session_id)`.
+    #[deprecated(note = "Use alaya.episodes().by_session() instead")]
+    pub fn episodes_by_session(&self, session_id: &str) -> Result<Vec<Episode>> {
+        self.episodes().by_session(session_id)
+    }
+
+    /// Deprecated: use `self.episodes().unconsolidated(limit)`.
+    #[deprecated(note = "Use alaya.episodes().unconsolidated() instead")]
+    pub fn unconsolidated_episodes(&self, limit: u32) -> Result<Vec<Episode>> {
+        self.episodes().unconsolidated(limit)
+    }
+
+    /// Deprecated: use `self.admin().purge(filter)`.
+    #[deprecated(note = "Use alaya.admin().purge() instead")]
     pub fn purge(&self, filter: PurgeFilter) -> Result<PurgeReport> {
-        let tx = schema::begin_immediate(&self.conn)?;
-        let mut report = PurgeReport::default();
-        match filter {
-            PurgeFilter::Session(ref session_id) => {
-                let eps = store::episodic::get_episodes_by_session(&tx, session_id)?;
-                let ids: Vec<EpisodeId> = eps.iter().map(|e| e.id).collect();
-                report.episodes_deleted = store::episodic::delete_episodes(&tx, &ids)? as u32;
-            }
-            PurgeFilter::OlderThan(ts) => {
-                report.episodes_deleted =
-                    tx.execute("DELETE FROM episodes WHERE timestamp < ?1", [ts])? as u32;
-            }
-            PurgeFilter::All => {
-                tx.execute_batch(
-                    "DELETE FROM episodes;
-                     DELETE FROM impressions;
-                     DELETE FROM preferences;
-                     DELETE FROM embeddings;
-                     DELETE FROM links;
-                     DELETE FROM node_strengths;
-                     UPDATE semantic_nodes SET category_id = NULL;
-                     DELETE FROM categories;
-                     DELETE FROM semantic_nodes;",
-                )?;
-            }
-        }
-        tx.commit()?;
-        Ok(report)
+        self.admin().purge(filter)
+    }
+
+    /// Deprecated: use `self.lifecycle().reconcile()`.
+    #[deprecated(note = "Use alaya.lifecycle().reconcile() instead")]
+    pub fn reconcile(&self) -> Result<ReconcileReport> {
+        self.lifecycle().reconcile()
+    }
+
+    /// Deprecated: use `self.lifecycle().conflicts()`.
+    #[deprecated(note = "Use alaya.lifecycle().conflicts() instead")]
+    pub fn conflicts(&self) -> Result<Vec<Conflict>> {
+        self.lifecycle().conflicts()
+    }
+
+    /// Deprecated: use `self.lifecycle().resolve_conflict(cid, wid)`.
+    #[deprecated(note = "Use alaya.lifecycle().resolve_conflict() instead")]
+    pub fn resolve_conflict(&self, conflict_id: ConflictId, winner_id: NodeId) -> Result<()> {
+        self.lifecycle().resolve_conflict(conflict_id, winner_id)
     }
 }
 
@@ -1003,29 +355,21 @@ impl Alaya {
     }
 }
 
-/// Truncate a string to at most `max_chars` characters, appending "..." if truncated.
-fn truncate_label(s: &str, max_chars: usize) -> String {
-    if s.chars().count() <= max_chars {
-        s.to_string()
-    } else {
-        let truncated: String = s.chars().take(max_chars).collect();
-        format!("{truncated}...")
-    }
-}
-
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::*;
     use crate::provider::MockProvider;
 
     #[test]
     fn test_full_lifecycle() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
 
         // Store some episodes
         for i in 0..5 {
-            store
-                .store_episode(&NewEpisode {
+            alaya
+                .episodes()
+                .store(&NewEpisode {
                     content: format!("message about Rust programming {i}"),
                     role: Role::User,
                     session_id: "s1".to_string(),
@@ -1036,25 +380,29 @@ mod tests {
                 .unwrap();
         }
 
-        let status = store.status().unwrap();
+        let status = alaya.admin().status().unwrap();
         assert_eq!(status.episode_count, 5);
 
         // Query
-        let results = store.query(&Query::simple("Rust programming")).unwrap();
+        let results = alaya
+            .knowledge()
+            .query(&Query::simple("Rust programming"))
+            .unwrap();
         assert!(!results.is_empty());
 
         // Lifecycle with no-op provider
         let noop = NoOpProvider;
-        let _cr = store.consolidate(&noop).unwrap();
-        let _tr = store.transform().unwrap();
-        let _fr = store.forget().unwrap();
+        let _cr = alaya.lifecycle().consolidate(&noop).unwrap();
+        let _tr = alaya.lifecycle().transform().unwrap();
+        let _fr = alaya.lifecycle().forget().unwrap();
     }
 
     #[test]
     fn test_purge_all() {
-        let store = AlayaStore::open_in_memory().unwrap();
-        store
-            .store_episode(&NewEpisode {
+        let alaya = Alaya::open_in_memory().unwrap();
+        alaya
+            .episodes()
+            .store(&NewEpisode {
                 content: "hello".to_string(),
                 role: Role::User,
                 session_id: "s1".to_string(),
@@ -1064,19 +412,20 @@ mod tests {
             })
             .unwrap();
 
-        assert_eq!(store.status().unwrap().episode_count, 1);
-        store.purge(PurgeFilter::All).unwrap();
-        assert_eq!(store.status().unwrap().episode_count, 0);
+        assert_eq!(alaya.admin().status().unwrap().episode_count, 1);
+        alaya.admin().purge(PurgeFilter::All).unwrap();
+        assert_eq!(alaya.admin().status().unwrap().episode_count, 0);
     }
 
     #[test]
     fn test_open_persistent_db() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("test.db");
-        let store = AlayaStore::open(&path).unwrap();
+        let alaya = Alaya::open(&path).unwrap();
 
-        store
-            .store_episode(&NewEpisode {
+        alaya
+            .episodes()
+            .store(&NewEpisode {
                 content: "persistent test".to_string(),
                 role: Role::User,
                 session_id: "s1".to_string(),
@@ -1086,18 +435,18 @@ mod tests {
             })
             .unwrap();
 
-        assert_eq!(store.status().unwrap().episode_count, 1);
+        assert_eq!(alaya.admin().status().unwrap().episode_count, 1);
 
-        // Drop and reopen — data should persist
-        drop(store);
-        let store2 = AlayaStore::open(&path).unwrap();
-        assert_eq!(store2.status().unwrap().episode_count, 1);
+        // Drop and reopen -- data should persist
+        drop(alaya);
+        let alaya2 = Alaya::open(&path).unwrap();
+        assert_eq!(alaya2.admin().status().unwrap().episode_count, 1);
     }
 
     #[test]
     fn test_store_episode_rejects_empty_content() {
-        let store = AlayaStore::open_in_memory().unwrap();
-        let result = store.store_episode(&NewEpisode {
+        let alaya = Alaya::open_in_memory().unwrap();
+        let result = alaya.episodes().store(&NewEpisode {
             content: "".to_string(),
             role: Role::User,
             session_id: "s1".to_string(),
@@ -1114,8 +463,8 @@ mod tests {
 
     #[test]
     fn test_store_episode_rejects_empty_session_id() {
-        let store = AlayaStore::open_in_memory().unwrap();
-        let result = store.store_episode(&NewEpisode {
+        let alaya = Alaya::open_in_memory().unwrap();
+        let result = alaya.episodes().store(&NewEpisode {
             content: "hello".to_string(),
             role: Role::User,
             session_id: "".to_string(),
@@ -1132,8 +481,8 @@ mod tests {
 
     #[test]
     fn test_query_rejects_empty_text() {
-        let store = AlayaStore::open_in_memory().unwrap();
-        let result = store.query(&Query {
+        let alaya = Alaya::open_in_memory().unwrap();
+        let result = alaya.knowledge().query(&Query {
             text: "".to_string(),
             embedding: None,
             context: QueryContext::default(),
@@ -1149,8 +498,8 @@ mod tests {
 
     #[test]
     fn test_query_rejects_zero_max_results() {
-        let store = AlayaStore::open_in_memory().unwrap();
-        let result = store.query(&Query {
+        let alaya = Alaya::open_in_memory().unwrap();
+        let result = alaya.knowledge().query(&Query {
             text: "hello".to_string(),
             embedding: None,
             context: QueryContext::default(),
@@ -1166,10 +515,11 @@ mod tests {
 
     #[test]
     fn test_store_episode_with_embedding_is_atomic() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
 
-        let id = store
-            .store_episode(&NewEpisode {
+        let id = alaya
+            .episodes()
+            .store(&NewEpisode {
                 content: "atomic test".to_string(),
                 role: Role::User,
                 session_id: "s1".to_string(),
@@ -1179,7 +529,7 @@ mod tests {
             })
             .unwrap();
 
-        let status = store.status().unwrap();
+        let status = alaya.admin().status().unwrap();
         assert_eq!(status.episode_count, 1);
         assert_eq!(status.embedding_count, 1);
         assert!(id.0 > 0);
@@ -1214,7 +564,7 @@ mod tests {
 
     #[test]
     fn test_preferences_with_domain_filter() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
 
         // MockProvider returns 1 impression in domain "style" per perfume call
         let provider = MockProvider::with_impressions(vec![NewImpression {
@@ -1227,18 +577,21 @@ mod tests {
         for i in 0..6 {
             let interaction =
                 make_interaction(&format!("style interaction {i}"), "s1", 1000 + i * 100);
-            store.perfume(&interaction, &provider).unwrap();
+            alaya
+                .lifecycle()
+                .perfume(&interaction, &provider)
+                .unwrap();
         }
 
         // Preferences for "style" domain should be non-empty
-        let style_prefs = store.preferences(Some("style")).unwrap();
+        let style_prefs = alaya.admin().preferences(Some("style")).unwrap();
         assert!(
             !style_prefs.is_empty(),
             "should have crystallized a style preference"
         );
 
         // Preferences for a nonexistent domain should be empty
-        let none_prefs = store.preferences(Some("nonexistent")).unwrap();
+        let none_prefs = alaya.admin().preferences(Some("nonexistent")).unwrap();
         assert!(
             none_prefs.is_empty(),
             "nonexistent domain should have no preferences"
@@ -1247,7 +600,7 @@ mod tests {
 
     #[test]
     fn test_preferences_without_filter() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
 
         let provider = MockProvider::with_impressions(vec![NewImpression {
             domain: "style".to_string(),
@@ -1258,11 +611,14 @@ mod tests {
         for i in 0..6 {
             let interaction =
                 make_interaction(&format!("bullet interaction {i}"), "s1", 2000 + i * 100);
-            store.perfume(&interaction, &provider).unwrap();
+            alaya
+                .lifecycle()
+                .perfume(&interaction, &provider)
+                .unwrap();
         }
 
-        // No domain filter — should return all preferences
-        let all_prefs = store.preferences(None).unwrap();
+        // No domain filter -- should return all preferences
+        let all_prefs = alaya.admin().preferences(None).unwrap();
         assert!(
             !all_prefs.is_empty(),
             "preferences(None) should return all crystallized preferences"
@@ -1271,13 +627,13 @@ mod tests {
 
     #[test]
     fn test_knowledge_with_type_filter() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
 
-        // Store 5 episodes (enough for consolidation, which requires >= 3 unconsolidated)
         let mut ep_ids = Vec::new();
         for i in 0..5 {
-            let id = store
-                .store_episode(&make_new_episode(
+            let id = alaya
+                .episodes()
+                .store(&make_new_episode(
                     &format!("knowledge episode {i}"),
                     "s1",
                     1000 + i * 100,
@@ -1286,7 +642,6 @@ mod tests {
             ep_ids.push(id);
         }
 
-        // MockProvider returns nodes of type Fact and Relationship
         let provider = MockProvider::with_knowledge(vec![
             NewSemanticNode {
                 content: "User likes Rust".to_string(),
@@ -1304,12 +659,13 @@ mod tests {
             },
         ]);
 
-        let report = store.consolidate(&provider).unwrap();
+        let report = alaya.lifecycle().consolidate(&provider).unwrap();
         assert_eq!(report.nodes_created, 2);
 
         // Filter for Facts only
-        let facts = store
-            .knowledge(Some(KnowledgeFilter {
+        let facts = alaya
+            .knowledge()
+            .filter(Some(KnowledgeFilter {
                 node_type: Some(SemanticType::Fact),
                 ..Default::default()
             }))
@@ -1320,8 +676,9 @@ mod tests {
         }
 
         // Filter for Relationship only
-        let rels = store
-            .knowledge(Some(KnowledgeFilter {
+        let rels = alaya
+            .knowledge()
+            .filter(Some(KnowledgeFilter {
                 node_type: Some(SemanticType::Relationship),
                 ..Default::default()
             }))
@@ -1334,12 +691,13 @@ mod tests {
 
     #[test]
     fn test_knowledge_with_min_confidence() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
 
         let mut ep_ids = Vec::new();
         for i in 0..5 {
-            let id = store
-                .store_episode(&make_new_episode(
+            let id = alaya
+                .episodes()
+                .store(&make_new_episode(
                     &format!("confidence episode {i}"),
                     "s1",
                     1000 + i * 100,
@@ -1365,11 +723,12 @@ mod tests {
             },
         ]);
 
-        store.consolidate(&provider).unwrap();
+        alaya.lifecycle().consolidate(&provider).unwrap();
 
         // Filter with min_confidence 0.7 (no node_type filter => goes through the None branch)
-        let filtered = store
-            .knowledge(Some(KnowledgeFilter {
+        let filtered = alaya
+            .knowledge()
+            .filter(Some(KnowledgeFilter {
                 min_confidence: Some(0.7),
                 ..Default::default()
             }))
@@ -1390,12 +749,13 @@ mod tests {
 
     #[test]
     fn test_knowledge_with_limit() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
 
         let mut ep_ids = Vec::new();
         for i in 0..5 {
-            let id = store
-                .store_episode(&make_new_episode(
+            let id = alaya
+                .episodes()
+                .store(&make_new_episode(
                     &format!("limit episode {i}"),
                     "s1",
                     1000 + i * 100,
@@ -1428,11 +788,12 @@ mod tests {
             },
         ]);
 
-        store.consolidate(&provider).unwrap();
+        alaya.lifecycle().consolidate(&provider).unwrap();
 
         // Request limit of 1 (no node_type filter)
-        let limited = store
-            .knowledge(Some(KnowledgeFilter {
+        let limited = alaya
+            .knowledge()
+            .filter(Some(KnowledgeFilter {
                 limit: Some(1),
                 ..Default::default()
             }))
@@ -1442,23 +803,25 @@ mod tests {
 
     #[test]
     fn test_neighbors_with_links() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
 
-        // Store 3+ episodes with preceding_episode to create temporal links
-        let id1 = store
-            .store_episode(&make_new_episode("first msg", "s1", 1000))
+        let id1 = alaya
+            .episodes()
+            .store(&make_new_episode("first msg", "s1", 1000))
             .unwrap();
 
         let mut ep2 = make_new_episode("second msg", "s1", 2000);
         ep2.context.preceding_episode = Some(id1);
-        let id2 = store.store_episode(&ep2).unwrap();
+        let id2 = alaya.episodes().store(&ep2).unwrap();
 
         let mut ep3 = make_new_episode("third msg", "s1", 3000);
         ep3.context.preceding_episode = Some(id2);
-        let _id3 = store.store_episode(&ep3).unwrap();
+        let _id3 = alaya.episodes().store(&ep3).unwrap();
 
-        // Spread activation from the first episode with depth 2
-        let neighbors = store.neighbors(NodeRef::Episode(id1), 2).unwrap();
+        let neighbors = alaya
+            .graph()
+            .neighbors(NodeRef::Episode(id1), 2)
+            .unwrap();
         assert!(
             !neighbors.is_empty(),
             "episode with temporal links should have neighbors"
@@ -1467,14 +830,17 @@ mod tests {
 
     #[test]
     fn test_neighbors_without_links() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
 
-        // Store a single episode with no links
-        let id = store
-            .store_episode(&make_new_episode("isolated msg", "s1", 1000))
+        let id = alaya
+            .episodes()
+            .store(&make_new_episode("isolated msg", "s1", 1000))
             .unwrap();
 
-        let neighbors = store.neighbors(NodeRef::Episode(id), 2).unwrap();
+        let neighbors = alaya
+            .graph()
+            .neighbors(NodeRef::Episode(id), 2)
+            .unwrap();
         assert!(
             neighbors.is_empty(),
             "isolated node should have no neighbors"
@@ -1483,9 +849,8 @@ mod tests {
 
     #[test]
     fn test_perfume_dedicated() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
 
-        // MockProvider returns 2 impressions per perfume call
         let provider = MockProvider::with_impressions(vec![
             NewImpression {
                 domain: "tone".to_string(),
@@ -1500,31 +865,34 @@ mod tests {
         ]);
 
         let interaction = make_interaction("Please use formal markdown", "s1", 1000);
-        let report = store.perfume(&interaction, &provider).unwrap();
+        let report = alaya
+            .lifecycle()
+            .perfume(&interaction, &provider)
+            .unwrap();
 
         assert_eq!(
             report.impressions_stored, 2,
             "should store both impressions"
         );
-        let status = store.status().unwrap();
+        let status = alaya.admin().status().unwrap();
         assert_eq!(status.impression_count, 2);
     }
 
     #[test]
     fn test_transform_dedicated() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
 
-        // Store two episodes to have valid node refs for the link
-        store
-            .store_episode(&make_new_episode("ep1", "s1", 1000))
+        alaya
+            .episodes()
+            .store(&make_new_episode("ep1", "s1", 1000))
             .unwrap();
-        store
-            .store_episode(&make_new_episode("ep2", "s1", 2000))
+        alaya
+            .episodes()
+            .store(&make_new_episode("ep2", "s1", 2000))
             .unwrap();
 
-        // Create a weak link directly via the graph module (weight 0.01, below prune threshold of 0.02)
         graph::links::create_link(
-            &store.conn,
+            alaya.raw_conn(),
             NodeRef::Episode(EpisodeId(1)),
             NodeRef::Episode(EpisodeId(2)),
             LinkType::Topical,
@@ -1532,38 +900,41 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(store.status().unwrap().link_count, 1);
+        assert_eq!(alaya.admin().status().unwrap().link_count, 1);
 
-        let report = store.transform().unwrap();
+        let report = alaya.lifecycle().transform().unwrap();
         assert!(report.links_pruned > 0, "weak link should have been pruned");
-        assert_eq!(store.status().unwrap().link_count, 0);
+        assert_eq!(alaya.admin().status().unwrap().link_count, 0);
     }
 
     #[test]
     fn test_forget_dedicated() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
 
-        // Store episodes (store_episode auto-initializes strength with retrieval_strength = 1.0)
-        let id1 = store
-            .store_episode(&make_new_episode("remember me", "s1", 1000))
+        let id1 = alaya
+            .episodes()
+            .store(&make_new_episode("remember me", "s1", 1000))
             .unwrap();
-        let id2 = store
-            .store_episode(&make_new_episode("remember me too", "s1", 2000))
+        let id2 = alaya
+            .episodes()
+            .store(&make_new_episode("remember me too", "s1", 2000))
             .unwrap();
 
-        // Check initial retrieval strength
-        let s1_before = store::strengths::get_strength(&store.conn, NodeRef::Episode(id1)).unwrap();
-        let s2_before = store::strengths::get_strength(&store.conn, NodeRef::Episode(id2)).unwrap();
+        let s1_before =
+            store::strengths::get_strength(alaya.raw_conn(), NodeRef::Episode(id1)).unwrap();
+        let s2_before =
+            store::strengths::get_strength(alaya.raw_conn(), NodeRef::Episode(id2)).unwrap();
         assert!((s1_before.retrieval_strength - 1.0).abs() < 0.01);
         assert!((s2_before.retrieval_strength - 1.0).abs() < 0.01);
 
-        // Run forget multiple times to accumulate decay
         for _ in 0..5 {
-            store.forget().unwrap();
+            alaya.lifecycle().forget().unwrap();
         }
 
-        let s1_after = store::strengths::get_strength(&store.conn, NodeRef::Episode(id1)).unwrap();
-        let s2_after = store::strengths::get_strength(&store.conn, NodeRef::Episode(id2)).unwrap();
+        let s1_after =
+            store::strengths::get_strength(alaya.raw_conn(), NodeRef::Episode(id1)).unwrap();
+        let s2_after =
+            store::strengths::get_strength(alaya.raw_conn(), NodeRef::Episode(id2)).unwrap();
 
         assert!(
             s1_after.retrieval_strength < s1_before.retrieval_strength,
@@ -1581,64 +952,69 @@ mod tests {
 
     #[test]
     fn test_purge_session() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
 
-        // Store episodes in session "s1"
-        store
-            .store_episode(&make_new_episode("s1 msg1", "s1", 1000))
+        alaya
+            .episodes()
+            .store(&make_new_episode("s1 msg1", "s1", 1000))
             .unwrap();
-        store
-            .store_episode(&make_new_episode("s1 msg2", "s1", 2000))
+        alaya
+            .episodes()
+            .store(&make_new_episode("s1 msg2", "s1", 2000))
+            .unwrap();
+        alaya
+            .episodes()
+            .store(&make_new_episode("s2 msg1", "s2", 3000))
             .unwrap();
 
-        // Store episodes in session "s2"
-        store
-            .store_episode(&make_new_episode("s2 msg1", "s2", 3000))
+        assert_eq!(alaya.admin().status().unwrap().episode_count, 3);
+
+        let report = alaya
+            .admin()
+            .purge(PurgeFilter::Session("s1".to_string()))
             .unwrap();
-
-        assert_eq!(store.status().unwrap().episode_count, 3);
-
-        // Purge session "s1"
-        let report = store.purge(PurgeFilter::Session("s1".to_string())).unwrap();
         assert_eq!(report.episodes_deleted, 2);
 
-        // s1 episodes gone, s2 remain
-        assert_eq!(store.status().unwrap().episode_count, 1);
+        assert_eq!(alaya.admin().status().unwrap().episode_count, 1);
 
-        // Verify the remaining episode is from s2
-        let results = store.query(&Query::simple("s2 msg1")).unwrap();
+        let results = alaya
+            .knowledge()
+            .query(&Query::simple("s2 msg1"))
+            .unwrap();
         assert!(!results.is_empty(), "s2 episodes should still be queryable");
     }
 
     #[test]
     fn test_purge_older_than() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
 
-        // Store episodes with timestamps 1000 and 2000
-        store
-            .store_episode(&make_new_episode("old episode", "s1", 1000))
+        alaya
+            .episodes()
+            .store(&make_new_episode("old episode", "s1", 1000))
             .unwrap();
-        store
-            .store_episode(&make_new_episode("new episode", "s1", 2000))
+        alaya
+            .episodes()
+            .store(&make_new_episode("new episode", "s1", 2000))
             .unwrap();
 
-        assert_eq!(store.status().unwrap().episode_count, 2);
+        assert_eq!(alaya.admin().status().unwrap().episode_count, 2);
 
-        // Purge episodes older than 1500
-        let report = store.purge(PurgeFilter::OlderThan(1500)).unwrap();
+        let report = alaya.admin().purge(PurgeFilter::OlderThan(1500)).unwrap();
         assert_eq!(
             report.episodes_deleted, 1,
             "should delete the episode at ts=1000"
         );
 
         assert_eq!(
-            store.status().unwrap().episode_count,
+            alaya.admin().status().unwrap().episode_count,
             1,
             "only the newer episode should remain"
         );
 
-        // Verify the remaining episode is the newer one
-        let results = store.query(&Query::simple("new episode")).unwrap();
+        let results = alaya
+            .knowledge()
+            .query(&Query::simple("new episode"))
+            .unwrap();
         assert!(
             !results.is_empty(),
             "the newer episode should still be queryable"
@@ -1647,46 +1023,45 @@ mod tests {
 
     #[test]
     fn test_neighbors_depth_zero() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
 
-        // Create a chain with temporal links
-        let id1 = store
-            .store_episode(&make_new_episode("first msg", "s1", 1000))
+        let id1 = alaya
+            .episodes()
+            .store(&make_new_episode("first msg", "s1", 1000))
             .unwrap();
         let mut ep2 = make_new_episode("second msg", "s1", 2000);
         ep2.context.preceding_episode = Some(id1);
-        store.store_episode(&ep2).unwrap();
+        alaya.episodes().store(&ep2).unwrap();
 
-        // depth=0 means zero hops -- should find no neighbors
-        let neighbors = store.neighbors(NodeRef::Episode(id1), 0).unwrap();
+        let neighbors = alaya
+            .graph()
+            .neighbors(NodeRef::Episode(id1), 0)
+            .unwrap();
         assert!(neighbors.is_empty(), "depth=0 should return no neighbors");
     }
 
     #[test]
     fn test_forget_archives_weak_nodes() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
 
-        let id = store
-            .store_episode(&make_new_episode("archival test", "s1", 1000))
+        let id = alaya
+            .episodes()
+            .store(&make_new_episode("archival test", "s1", 1000))
             .unwrap();
-        assert_eq!(store.status().unwrap().episode_count, 1);
+        assert_eq!(alaya.admin().status().unwrap().episode_count, 1);
 
-        // Directly set storage_strength below the archive threshold (0.1).
-        // init_strength sets storage=0.5, which never decreases through normal
-        // forget() cycles, so we must set it manually to test the archival path.
-        store.conn.execute(
+        alaya.raw_conn().execute(
             "UPDATE node_strengths SET storage_strength = 0.05, retrieval_strength = 0.01 WHERE node_id = ?1",
             [id.0],
         ).unwrap();
 
-        // A single forget pass should now archive this node
-        let report = store.forget().unwrap();
+        let report = alaya.lifecycle().forget().unwrap();
         assert!(
             report.nodes_archived > 0,
             "node with low storage+retrieval should be archived"
         );
         assert_eq!(
-            store.status().unwrap().episode_count,
+            alaya.admin().status().unwrap().episode_count,
             0,
             "archived episode should be deleted"
         );
@@ -1698,21 +1073,17 @@ mod tests {
 
     #[test]
     fn test_categories_api() {
-        let store = AlayaStore::open_in_memory().unwrap();
-        let cats = store.categories(None).unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
+        let cats = alaya.admin().categories(None).unwrap();
         assert!(cats.is_empty());
     }
 
     #[test]
     fn test_node_category_api() {
-        let store = AlayaStore::open_in_memory().unwrap();
-        let result = store.node_category(NodeId(999)).unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
+        let result = alaya.admin().node_category(NodeId(999)).unwrap();
         assert!(result.is_none());
     }
-
-    // -----------------------------------------------------------------------
-    // Task 8: Knowledge filter by category
-    // -----------------------------------------------------------------------
 
     // -----------------------------------------------------------------------
     // Task 10: purge(All) clears categories
@@ -1720,36 +1091,35 @@ mod tests {
 
     #[test]
     fn test_purge_all_clears_categories() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
 
-        // Create a semantic node first so FK on prototype_node_id is satisfied
-        store.conn.execute(
+        alaya.raw_conn().execute(
             "INSERT INTO semantic_nodes (content, node_type, confidence, created_at, last_corroborated)
              VALUES ('proto', 'fact', 0.8, 1000, 1000)",
             [],
         ).unwrap();
-        let proto_id = NodeId(store.conn.last_insert_rowid());
+        let proto_id = NodeId(alaya.raw_conn().last_insert_rowid());
 
-        // Create a category directly
-        store::categories::store_category(&store.conn, "test-cat", proto_id, None, None).unwrap();
-        assert_eq!(store.categories(None).unwrap().len(), 1);
+        store::categories::store_category(alaya.raw_conn(), "test-cat", proto_id, None, None)
+            .unwrap();
+        assert_eq!(alaya.admin().categories(None).unwrap().len(), 1);
 
-        store.purge(PurgeFilter::All).unwrap();
+        alaya.admin().purge(PurgeFilter::All).unwrap();
         assert!(
-            store.categories(None).unwrap().is_empty(),
+            alaya.admin().categories(None).unwrap().is_empty(),
             "purge(All) should delete all categories"
         );
     }
 
     #[test]
     fn test_knowledge_filter_by_category() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
 
-        // Store 5 episodes and consolidate to create a semantic node
         let mut ep_ids = Vec::new();
         for i in 0..5 {
-            let id = store
-                .store_episode(&make_new_episode(
+            let id = alaya
+                .episodes()
+                .store(&make_new_episode(
                     &format!("category filter ep {i}"),
                     "s1",
                     1000 + i * 100,
@@ -1765,11 +1135,11 @@ mod tests {
             source_episodes: ep_ids,
             embedding: None,
         }]);
-        store.consolidate(&provider).unwrap();
+        alaya.lifecycle().consolidate(&provider).unwrap();
 
-        // Filter by a category that doesn't exist — should return empty
-        let filtered = store
-            .knowledge(Some(KnowledgeFilter {
+        let filtered = alaya
+            .knowledge()
+            .filter(Some(KnowledgeFilter {
                 category: Some("nonexistent-cat".to_string()),
                 ..Default::default()
             }))
@@ -1779,32 +1149,32 @@ mod tests {
             "filtering by nonexistent category should return empty"
         );
 
-        // Without category filter, should find the node
-        let all = store.knowledge(None).unwrap();
+        let all = alaya.knowledge().filter(None).unwrap();
         assert!(!all.is_empty(), "without filter should find nodes");
     }
 
     // -----------------------------------------------------------------------
-    // Task 7 (embedding wiring): EmbeddingProvider integration tests
+    // EmbeddingProvider integration tests
     // -----------------------------------------------------------------------
 
     #[test]
     fn test_set_embedding_provider_auto_embeds_episode() {
-        let mut store = AlayaStore::open_in_memory().unwrap();
-        store.set_embedding_provider(Box::new(MockEmbeddingProvider::new(4)));
+        let mut alaya = Alaya::open_in_memory().unwrap();
+        alaya.set_embedding_provider(Box::new(MockEmbeddingProvider::new(4)));
 
-        store
-            .store_episode(&NewEpisode {
+        alaya
+            .episodes()
+            .store(&NewEpisode {
                 content: "auto-embedded episode".into(),
                 role: Role::User,
                 session_id: "s1".into(),
                 timestamp: 1000,
                 context: EpisodeContext::default(),
-                embedding: None, // should auto-embed
+                embedding: None,
             })
             .unwrap();
 
-        let status = store.status().unwrap();
+        let status = alaya.admin().status().unwrap();
         assert_eq!(
             status.embedding_count, 1,
             "should have auto-embedded the episode"
@@ -1813,12 +1183,13 @@ mod tests {
 
     #[test]
     fn test_explicit_embedding_overrides_provider() {
-        let mut store = AlayaStore::open_in_memory().unwrap();
-        store.set_embedding_provider(Box::new(MockEmbeddingProvider::new(4)));
+        let mut alaya = Alaya::open_in_memory().unwrap();
+        alaya.set_embedding_provider(Box::new(MockEmbeddingProvider::new(4)));
 
         let explicit_emb = vec![1.0, 2.0, 3.0, 4.0];
-        store
-            .store_episode(&NewEpisode {
+        alaya
+            .episodes()
+            .store(&NewEpisode {
                 content: "explicit embedding".into(),
                 role: Role::User,
                 session_id: "s1".into(),
@@ -1828,17 +1199,17 @@ mod tests {
             })
             .unwrap();
 
-        // Should use explicit embedding, not provider's
-        let status = store.status().unwrap();
+        let status = alaya.admin().status().unwrap();
         assert_eq!(status.embedding_count, 1);
     }
 
     #[test]
     fn test_no_provider_preserves_v1_behavior() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
 
-        store
-            .store_episode(&NewEpisode {
+        alaya
+            .episodes()
+            .store(&NewEpisode {
                 content: "no provider episode".into(),
                 role: Role::User,
                 session_id: "s1".into(),
@@ -1848,18 +1219,18 @@ mod tests {
             })
             .unwrap();
 
-        let status = store.status().unwrap();
+        let status = alaya.admin().status().unwrap();
         assert_eq!(status.embedding_count, 0, "no auto-embed without provider");
     }
 
     #[test]
     fn test_embedding_provider_auto_embeds_query() {
-        let mut store = AlayaStore::open_in_memory().unwrap();
-        store.set_embedding_provider(Box::new(MockEmbeddingProvider::new(4)));
+        let mut alaya = Alaya::open_in_memory().unwrap();
+        alaya.set_embedding_provider(Box::new(MockEmbeddingProvider::new(4)));
 
-        // Store an episode with auto-embed
-        store
-            .store_episode(&NewEpisode {
+        alaya
+            .episodes()
+            .store(&NewEpisode {
                 content: "Rust programming language".into(),
                 role: Role::User,
                 session_id: "s1".into(),
@@ -1869,8 +1240,10 @@ mod tests {
             })
             .unwrap();
 
-        // Query without embedding — provider should auto-embed the query text
-        let results = store.query(&Query::simple("Rust programming")).unwrap();
+        let results = alaya
+            .knowledge()
+            .query(&Query::simple("Rust programming"))
+            .unwrap();
         assert!(
             !results.is_empty(),
             "query with auto-embedded text should return results"
@@ -1879,7 +1252,7 @@ mod tests {
 
     #[test]
     fn test_perfume_crystallization_dedicated() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
 
         let provider = MockProvider::with_impressions(vec![NewImpression {
             domain: "verbosity".to_string(),
@@ -1887,32 +1260,42 @@ mod tests {
             valence: 0.9,
         }]);
 
-        // Perfume below threshold -- no crystallization
         for i in 0..4 {
             let interaction = make_interaction(&format!("msg {i}"), "s1", 1000 + i * 100);
-            let report = store.perfume(&interaction, &provider).unwrap();
+            let report = alaya
+                .lifecycle()
+                .perfume(&interaction, &provider)
+                .unwrap();
             assert_eq!(
                 report.preferences_crystallized, 0,
                 "should not crystallize below threshold"
             );
         }
-        assert!(store.preferences(Some("verbosity")).unwrap().is_empty());
+        assert!(alaya
+            .admin()
+            .preferences(Some("verbosity"))
+            .unwrap()
+            .is_empty());
 
-        // Perfume past threshold (5th impression triggers crystallization)
         let interaction = make_interaction("msg 4", "s1", 1400);
-        let report = store.perfume(&interaction, &provider).unwrap();
+        let report = alaya
+            .lifecycle()
+            .perfume(&interaction, &provider)
+            .unwrap();
         assert_eq!(
             report.preferences_crystallized, 1,
             "5th impression should trigger crystallization"
         );
 
-        let prefs = store.preferences(Some("verbosity")).unwrap();
+        let prefs = alaya.admin().preferences(Some("verbosity")).unwrap();
         assert_eq!(prefs.len(), 1);
         assert_eq!(prefs[0].domain, "verbosity");
 
-        // 6th perfume should reinforce, not crystallize again
         let interaction = make_interaction("msg 5", "s1", 1500);
-        let report = store.perfume(&interaction, &provider).unwrap();
+        let report = alaya
+            .lifecycle()
+            .perfume(&interaction, &provider)
+            .unwrap();
         assert_eq!(report.preferences_crystallized, 0);
         assert_eq!(
             report.preferences_reinforced, 1,
@@ -1921,57 +1304,63 @@ mod tests {
     }
 
     // -----------------------------------------------------------------------
-    // Coverage: subcategories(), node_content variants, truncate_label
+    // Coverage: subcategories(), node_content variants
     // -----------------------------------------------------------------------
 
     #[test]
     fn test_subcategories_empty() {
-        let store = AlayaStore::open_in_memory().unwrap();
-        let subs = store.subcategories(CategoryId(999)).unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
+        let subs = alaya.admin().subcategories(CategoryId(999)).unwrap();
         assert!(subs.is_empty());
     }
 
     #[test]
     fn test_node_content_episode() {
-        let store = AlayaStore::open_in_memory().unwrap();
-        store
-            .store_episode(&make_new_episode("hello world", "s1", 1000))
+        let alaya = Alaya::open_in_memory().unwrap();
+        alaya
+            .episodes()
+            .store(&make_new_episode("hello world", "s1", 1000))
             .unwrap();
-        let content = store.node_content(NodeRef::Episode(EpisodeId(1))).unwrap();
+        let content = alaya
+            .admin()
+            .node_content(NodeRef::Episode(EpisodeId(1)))
+            .unwrap();
         assert_eq!(content, Some("hello world".to_string()));
     }
 
     #[test]
     fn test_node_content_semantic() {
-        let store = AlayaStore::open_in_memory().unwrap();
-        // Create a semantic node directly
-        store
-            .conn
+        let alaya = Alaya::open_in_memory().unwrap();
+        alaya
+            .raw_conn()
             .execute(
                 "INSERT INTO semantic_nodes (content, node_type, confidence, created_at, last_corroborated)
                  VALUES ('semantic test content', 'fact', 0.8, 1000, 1000)",
                 [],
             )
             .unwrap();
-        let content = store.node_content(NodeRef::Semantic(NodeId(1))).unwrap();
+        let content = alaya
+            .admin()
+            .node_content(NodeRef::Semantic(NodeId(1)))
+            .unwrap();
         assert_eq!(content, Some("semantic test content".to_string()));
     }
 
     #[test]
     fn test_node_content_category() {
-        let store = AlayaStore::open_in_memory().unwrap();
-        // Create a semantic node as prototype
-        store
-            .conn
+        let alaya = Alaya::open_in_memory().unwrap();
+        alaya
+            .raw_conn()
             .execute(
                 "INSERT INTO semantic_nodes (content, node_type, confidence, created_at, last_corroborated)
                  VALUES ('proto', 'fact', 0.8, 1000, 1000)",
                 [],
             )
             .unwrap();
-        store::categories::store_category(&store.conn, "test-category", NodeId(1), None, None)
+        store::categories::store_category(alaya.raw_conn(), "test-category", NodeId(1), None, None)
             .unwrap();
-        let content = store
+        let content = alaya
+            .admin()
             .node_content(NodeRef::Category(CategoryId(1)))
             .unwrap();
         assert_eq!(content, Some("test-category".to_string()));
@@ -1979,9 +1368,9 @@ mod tests {
 
     #[test]
     fn test_node_content_preference_fallback() {
-        let store = AlayaStore::open_in_memory().unwrap();
-        // Preference fallback uses the _ arm which returns "preference#ID"
-        let content = store
+        let alaya = Alaya::open_in_memory().unwrap();
+        let content = alaya
+            .admin()
             .node_content(NodeRef::Preference(PreferenceId(42)))
             .unwrap();
         assert_eq!(content, Some("preference#42".to_string()));
@@ -1989,19 +1378,21 @@ mod tests {
 
     #[test]
     fn test_node_content_not_found() {
-        let store = AlayaStore::open_in_memory().unwrap();
-        // Episode that doesn't exist
-        let content = store
+        let alaya = Alaya::open_in_memory().unwrap();
+        let content = alaya
+            .admin()
             .node_content(NodeRef::Episode(EpisodeId(999)))
             .unwrap();
         assert!(content.is_none());
 
-        // Semantic node that doesn't exist
-        let content = store.node_content(NodeRef::Semantic(NodeId(999))).unwrap();
+        let content = alaya
+            .admin()
+            .node_content(NodeRef::Semantic(NodeId(999)))
+            .unwrap();
         assert!(content.is_none());
 
-        // Category that doesn't exist
-        let content = store
+        let content = alaya
+            .admin()
             .node_content(NodeRef::Category(CategoryId(999)))
             .unwrap();
         assert!(content.is_none());
@@ -2009,21 +1400,24 @@ mod tests {
 
     #[test]
     fn test_truncate_label_long_string() {
-        let store = AlayaStore::open_in_memory().unwrap();
-        store
-            .store_episode(&make_new_episode(
+        let alaya = Alaya::open_in_memory().unwrap();
+        alaya
+            .episodes()
+            .store(&make_new_episode(
                 "this is a very long content string that exceeds thirty characters easily",
                 "s1",
                 1000,
             ))
             .unwrap();
-        let content = store.node_content(NodeRef::Episode(EpisodeId(1))).unwrap();
+        let content = alaya
+            .admin()
+            .node_content(NodeRef::Episode(EpisodeId(1)))
+            .unwrap();
         let label = content.unwrap();
         assert!(
             label.ends_with("..."),
             "long content should be truncated with ..., got: {label}",
         );
-        // 30 chars + "..." = 33
         assert!(
             label.len() <= 33,
             "truncated label should be at most 33 chars, got {}",
@@ -2032,42 +1426,20 @@ mod tests {
     }
 
     #[test]
-    fn test_truncate_label_short_string() {
-        // Directly test the truncate_label function with short input (covers line 640-641)
-        let result = truncate_label("short", 30);
-        assert_eq!(result, "short");
-    }
-
-    #[test]
-    fn test_truncate_label_exact_boundary() {
-        // String exactly at the boundary
-        let input = "a".repeat(30);
-        let result = truncate_label(&input, 30);
-        assert_eq!(result, input);
-    }
-
-    #[test]
-    fn test_truncate_label_over_boundary() {
-        // String just over the boundary
-        let input = "b".repeat(31);
-        let result = truncate_label(&input, 30);
-        assert!(result.ends_with("..."));
-        assert_eq!(result.len(), 33); // 30 + "..."
-    }
-
-    #[test]
     fn test_node_content_semantic_not_found_explicit() {
-        // Explicitly test the Semantic NotFound path (covers line 572)
-        let store = AlayaStore::open_in_memory().unwrap();
-        let content = store.node_content(NodeRef::Semantic(NodeId(9999))).unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
+        let content = alaya
+            .admin()
+            .node_content(NodeRef::Semantic(NodeId(9999)))
+            .unwrap();
         assert!(content.is_none());
     }
 
     #[test]
     fn test_node_content_category_not_found_explicit() {
-        // Explicitly test the Category NotFound path (covers line 579)
-        let store = AlayaStore::open_in_memory().unwrap();
-        let content = store
+        let alaya = Alaya::open_in_memory().unwrap();
+        let content = alaya
+            .admin()
             .node_content(NodeRef::Category(CategoryId(9999)))
             .unwrap();
         assert!(content.is_none());
@@ -2075,22 +1447,17 @@ mod tests {
 
     #[test]
     fn test_node_category_not_found_explicit() {
-        // Explicitly test node_category with a node that truly doesn't exist
-        // The semantic_nodes table has no row with id=99999, so get_node_category
-        // returns Err(NotFound), which gets mapped to Ok(None) (covers line 331)
-        let store = AlayaStore::open_in_memory().unwrap();
-        let result = store.node_category(NodeId(99999)).unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
+        let result = alaya.admin().node_category(NodeId(99999)).unwrap();
         assert!(result.is_none());
     }
 
     #[test]
     fn test_set_extraction_provider_enables_auto_consolidate() {
-        let mut store = AlayaStore::open_in_memory().unwrap();
-        // Without provider, auto_consolidate should fail
-        assert!(store.auto_consolidate().is_err());
+        let mut alaya = Alaya::open_in_memory().unwrap();
+        assert!(alaya.lifecycle().auto_consolidate().is_err());
 
-        // Set provider and store some episodes
-        store.set_extraction_provider(Box::new(MockExtractionProvider::new(vec![
+        alaya.set_extraction_provider(Box::new(MockExtractionProvider::new(vec![
             NewSemanticNode {
                 content: "User prefers Rust".into(),
                 node_type: SemanticType::Fact,
@@ -2100,8 +1467,9 @@ mod tests {
             },
         ])));
 
-        store
-            .store_episode(&NewEpisode {
+        alaya
+            .episodes()
+            .store(&NewEpisode {
                 content: "I really like Rust".into(),
                 role: Role::User,
                 session_id: "s1".into(),
@@ -2111,14 +1479,14 @@ mod tests {
             })
             .unwrap();
 
-        let report = store.auto_consolidate().unwrap();
+        let report = alaya.lifecycle().auto_consolidate().unwrap();
         assert_eq!(report.nodes_created, 1);
     }
 
     #[test]
     fn test_auto_consolidate_without_provider_errors() {
-        let store = AlayaStore::open_in_memory().unwrap();
-        let result = store.auto_consolidate();
+        let alaya = Alaya::open_in_memory().unwrap();
+        let result = alaya.lifecycle().auto_consolidate();
         assert!(result.is_err());
         let err_msg = format!("{}", result.unwrap_err());
         assert!(
@@ -2129,17 +1497,16 @@ mod tests {
 
     #[test]
     fn test_auto_consolidate_no_unconsolidated_episodes() {
-        let mut store = AlayaStore::open_in_memory().unwrap();
-        store.set_extraction_provider(Box::new(MockExtractionProvider::empty()));
-        // No episodes stored, so nothing to consolidate
-        let report = store.auto_consolidate().unwrap();
+        let mut alaya = Alaya::open_in_memory().unwrap();
+        alaya.set_extraction_provider(Box::new(MockExtractionProvider::empty()));
+        let report = alaya.lifecycle().auto_consolidate().unwrap();
         assert_eq!(report.nodes_created, 0);
     }
 
     #[test]
     fn test_auto_consolidate_learns_extracted_nodes() {
-        let mut store = AlayaStore::open_in_memory().unwrap();
-        store.set_extraction_provider(Box::new(MockExtractionProvider::new(vec![
+        let mut alaya = Alaya::open_in_memory().unwrap();
+        alaya.set_extraction_provider(Box::new(MockExtractionProvider::new(vec![
             NewSemanticNode {
                 content: "Fact one".into(),
                 node_type: SemanticType::Fact,
@@ -2156,10 +1523,10 @@ mod tests {
             },
         ])));
 
-        // Store episodes so there's something to consolidate
         for i in 0..3 {
-            store
-                .store_episode(&NewEpisode {
+            alaya
+                .episodes()
+                .store(&NewEpisode {
                     content: format!("Episode {i}"),
                     role: Role::User,
                     session_id: "s1".into(),
@@ -2170,21 +1537,19 @@ mod tests {
                 .unwrap();
         }
 
-        let report = store.auto_consolidate().unwrap();
+        let report = alaya.lifecycle().auto_consolidate().unwrap();
         assert_eq!(report.nodes_created, 2);
 
-        // Verify knowledge is queryable
-        let knowledge = store.knowledge(None).unwrap();
+        let knowledge = alaya.knowledge().filter(None).unwrap();
         assert_eq!(knowledge.len(), 2);
     }
 
     #[test]
     fn test_dream_empty_store_without_interaction() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
         let noop = NoOpProvider;
-        let report = store.dream(&noop, None).unwrap();
+        let report = alaya.lifecycle().dream(&noop, None).unwrap();
 
-        // All sub-reports should be zero/empty on an empty store
         assert_eq!(report.consolidation.episodes_processed, 0);
         assert!(report.perfuming.is_none());
         assert_eq!(report.transformation.duplicates_merged, 0);
@@ -2193,7 +1558,7 @@ mod tests {
 
     #[test]
     fn test_dream_with_interaction() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
         let noop = NoOpProvider;
 
         let interaction = Interaction {
@@ -2204,23 +1569,24 @@ mod tests {
             context: EpisodeContext::default(),
         };
 
-        let report = store.dream(&noop, Some(&interaction)).unwrap();
+        let report = alaya
+            .lifecycle()
+            .dream(&noop, Some(&interaction))
+            .unwrap();
 
-        // Perfuming should have run (even if noop produces nothing)
         assert!(report.perfuming.is_some());
         let perf = report.perfuming.unwrap();
-        // NoOpProvider extracts no impressions
         assert_eq!(perf.impressions_stored, 0);
     }
 
     #[test]
     fn test_dream_runs_full_lifecycle() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
 
-        // Store enough episodes to trigger consolidation (min 3)
         for i in 0..5 {
-            store
-                .store_episode(&NewEpisode {
+            alaya
+                .episodes()
+                .store(&NewEpisode {
                     content: format!("episode about topic {i}"),
                     role: Role::User,
                     session_id: "s1".to_string(),
@@ -2232,17 +1598,13 @@ mod tests {
         }
 
         let mock = MockProvider::empty();
-        let report = store.dream(&mock, None).unwrap();
+        let report = alaya.lifecycle().dream(&mock, None).unwrap();
 
-        // MockProvider creates semantic nodes from episodes
         assert!(report.consolidation.episodes_processed > 0);
-        // transform and forget ran (even if they did nothing)
-        // The key point: dream() returns without error
     }
 
     #[test]
     fn test_dream_report_type_has_all_fields() {
-        // Verify DreamReport composes all four sub-reports
         let report = DreamReport::default();
         let _c: ConsolidationReport = report.consolidation;
         let _p: Option<PerfumingReport> = report.perfuming;
@@ -2256,10 +1618,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("encrypted.db");
 
-        // Create encrypted DB
-        let store = AlayaStore::open_encrypted(&path, "test-key-123").unwrap();
-        store
-            .store_episode(&NewEpisode {
+        let alaya = Alaya::open_encrypted(&path, "test-key-123").unwrap();
+        alaya
+            .episodes()
+            .store(&NewEpisode {
                 content: "secret data".into(),
                 role: Role::User,
                 session_id: "s1".into(),
@@ -2268,11 +1630,10 @@ mod tests {
                 embedding: None,
             })
             .unwrap();
-        drop(store);
+        drop(alaya);
 
-        // Reopen with correct key
-        let store2 = AlayaStore::open_encrypted(&path, "test-key-123").unwrap();
-        assert_eq!(store2.status().unwrap().episode_count, 1);
+        let alaya2 = Alaya::open_encrypted(&path, "test-key-123").unwrap();
+        assert_eq!(alaya2.admin().status().unwrap().episode_count, 1);
     }
 
     #[cfg(feature = "sqlcipher")]
@@ -2281,9 +1642,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("encrypted.db");
 
-        let store = AlayaStore::open_encrypted(&path, "correct-key").unwrap();
-        store
-            .store_episode(&NewEpisode {
+        let alaya = Alaya::open_encrypted(&path, "correct-key").unwrap();
+        alaya
+            .episodes()
+            .store(&NewEpisode {
                 content: "secret".into(),
                 role: Role::User,
                 session_id: "s1".into(),
@@ -2292,10 +1654,9 @@ mod tests {
                 embedding: None,
             })
             .unwrap();
-        drop(store);
+        drop(alaya);
 
-        // Wrong key should fail
-        let result = AlayaStore::open_encrypted(&path, "wrong-key");
+        let result = Alaya::open_encrypted(&path, "wrong-key");
         assert!(result.is_err());
     }
 
@@ -2305,9 +1666,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("rekey.db");
 
-        let store = AlayaStore::open_encrypted(&path, "old-key").unwrap();
-        store
-            .store_episode(&NewEpisode {
+        let alaya = Alaya::open_encrypted(&path, "old-key").unwrap();
+        alaya
+            .episodes()
+            .store(&NewEpisode {
                 content: "rekey test".into(),
                 role: Role::User,
                 session_id: "s1".into(),
@@ -2316,15 +1678,13 @@ mod tests {
                 embedding: None,
             })
             .unwrap();
-        store.rekey("new-key").unwrap();
-        drop(store);
+        alaya.rekey("new-key").unwrap();
+        drop(alaya);
 
-        // Old key should fail
-        assert!(AlayaStore::open_encrypted(&path, "old-key").is_err());
+        assert!(Alaya::open_encrypted(&path, "old-key").is_err());
 
-        // New key should work
-        let store2 = AlayaStore::open_encrypted(&path, "new-key").unwrap();
-        assert_eq!(store2.status().unwrap().episode_count, 1);
+        let alaya2 = Alaya::open_encrypted(&path, "new-key").unwrap();
+        assert_eq!(alaya2.admin().status().unwrap().episode_count, 1);
     }
 
     // -----------------------------------------------------------------------
@@ -2333,31 +1693,31 @@ mod tests {
 
     #[test]
     fn test_reconcile_default_strategy() {
-        let store = AlayaStore::open_in_memory().unwrap();
-        let report = store.reconcile().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
+        let report = alaya.lifecycle().reconcile().unwrap();
         assert_eq!(report.conflicts_detected, 0);
     }
 
     #[test]
     fn test_set_conflict_strategy() {
-        let mut store = AlayaStore::open_in_memory().unwrap();
-        store.set_conflict_strategy(ConflictStrategy::Confidence);
-        let report = store.reconcile().unwrap();
+        let mut alaya = Alaya::open_in_memory().unwrap();
+        alaya.set_conflict_strategy(ConflictStrategy::Confidence);
+        let report = alaya.lifecycle().reconcile().unwrap();
         assert_eq!(report.conflicts_detected, 0);
     }
 
     #[test]
     fn test_conflicts_empty_store() {
-        let store = AlayaStore::open_in_memory().unwrap();
-        let conflicts = store.conflicts().unwrap();
+        let alaya = Alaya::open_in_memory().unwrap();
+        let conflicts = alaya.lifecycle().conflicts().unwrap();
         assert!(conflicts.is_empty());
     }
 
     #[test]
     fn test_resolve_conflict_manual() {
-        let store = AlayaStore::open_in_memory().unwrap();
-        // Learn two contradictory facts with similar embeddings
-        store
+        let alaya = Alaya::open_in_memory().unwrap();
+        alaya
+            .knowledge()
             .learn(vec![
                 NewSemanticNode {
                     content: "user prefers dark mode".to_string(),
@@ -2376,26 +1736,28 @@ mod tests {
             ])
             .unwrap();
 
-        // Use manual strategy to detect but not resolve
-        let mut store = store;
-        store.set_conflict_strategy(ConflictStrategy::Manual);
-        store.reconcile().unwrap();
+        let mut alaya = alaya;
+        alaya.set_conflict_strategy(ConflictStrategy::Manual);
+        alaya.lifecycle().reconcile().unwrap();
 
-        let conflicts = store.conflicts().unwrap();
+        let conflicts = alaya.lifecycle().conflicts().unwrap();
         assert_eq!(conflicts.len(), 1);
 
-        // Manually resolve: pick first node as winner
         let winner = conflicts[0].node_a;
-        store.resolve_conflict(conflicts[0].id, winner).unwrap();
+        alaya
+            .lifecycle()
+            .resolve_conflict(conflicts[0].id, winner)
+            .unwrap();
 
-        let remaining = store.conflicts().unwrap();
+        let remaining = alaya.lifecycle().conflicts().unwrap();
         assert!(remaining.is_empty());
     }
 
     #[test]
     fn test_resolve_conflict_picks_node_b_winner() {
-        let mut store = AlayaStore::open_in_memory().unwrap();
-        store
+        let mut alaya = Alaya::open_in_memory().unwrap();
+        alaya
+            .knowledge()
             .learn(vec![
                 NewSemanticNode {
                     content: "user uses vim".to_string(),
@@ -2414,30 +1776,32 @@ mod tests {
             ])
             .unwrap();
 
-        store.set_conflict_strategy(ConflictStrategy::Manual);
-        store.reconcile().unwrap();
-        let conflicts = store.conflicts().unwrap();
+        alaya.set_conflict_strategy(ConflictStrategy::Manual);
+        alaya.lifecycle().reconcile().unwrap();
+        let conflicts = alaya.lifecycle().conflicts().unwrap();
         assert_eq!(conflicts.len(), 1);
 
-        // Pick node_b as winner (instead of node_a)
         let winner = conflicts[0].node_b;
-        store.resolve_conflict(conflicts[0].id, winner).unwrap();
+        alaya
+            .lifecycle()
+            .resolve_conflict(conflicts[0].id, winner)
+            .unwrap();
 
-        let remaining = store.conflicts().unwrap();
+        let remaining = alaya.lifecycle().conflicts().unwrap();
         assert!(remaining.is_empty());
     }
 
     #[test]
     fn test_node_content_db_error_propagates() {
-        let store = AlayaStore::open_in_memory().unwrap();
-        // Drop the episodes table to cause a non-NotFound error
-        store
+        let alaya = Alaya::open_in_memory().unwrap();
+        alaya
             .raw_conn()
             .execute_batch("DROP TABLE episodes")
             .unwrap();
-        let result = store.node_content(NodeRef::Episode(EpisodeId(1)));
+        let result = alaya
+            .admin()
+            .node_content(NodeRef::Episode(EpisodeId(1)));
         assert!(result.is_err(), "should propagate DB error, not NotFound");
-        // Verify it's not silently converted to None
         assert!(
             !matches!(result, Ok(None)),
             "DB error should not become Ok(None)"

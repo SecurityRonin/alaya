@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use alaya::*;
 
 mod common;
@@ -242,7 +244,7 @@ fn test_cross_domain_bridging_via_categories() {
 
     // Verify neighbors() can traverse through category
     // Get the first semantic node
-    let knowledge = store.knowledge(None).unwrap();
+    let knowledge = store.knowledge_nodes(None).unwrap();
     assert!(knowledge.len() >= 3);
 
     // Use neighbors() from one semantic node — should find others through category

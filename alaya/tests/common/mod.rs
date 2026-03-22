@@ -1,3 +1,4 @@
+#[allow(deprecated)]
 use alaya::{AlayaStore, EpisodeContext, NewEpisode, NewSemanticNode, Role, SemanticType};
 
 /// Create an empty in-memory store for testing.

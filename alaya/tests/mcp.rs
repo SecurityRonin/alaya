@@ -4,6 +4,7 @@
 //! using an in-memory store.
 
 #![cfg(feature = "mcp")]
+#![allow(deprecated)]
 
 // We can't directly import AlayaMcp from the binary,
 // so we test the underlying AlayaStore operations that the MCP tools wrap.
@@ -118,12 +119,12 @@ fn test_mcp_knowledge_flow() {
     let store = AlayaStore::open_in_memory().unwrap();
 
     // No knowledge initially
-    let nodes = store.knowledge(None).unwrap();
+    let nodes = store.knowledge_nodes(None).unwrap();
     assert!(nodes.is_empty());
 
     // With type filter
     let nodes = store
-        .knowledge(Some(KnowledgeFilter {
+        .knowledge_nodes(Some(KnowledgeFilter {
             node_type: Some(SemanticType::Fact),
             ..Default::default()
         }))
@@ -253,7 +254,7 @@ fn test_mcp_learn_creates_knowledge() {
     let report = store.learn(nodes).unwrap();
     assert_eq!(report.nodes_created, 3);
 
-    let knowledge = store.knowledge(None).unwrap();
+    let knowledge = store.knowledge_nodes(None).unwrap();
     assert_eq!(knowledge.len(), 3);
 }
 
@@ -515,7 +516,7 @@ fn test_import_claude_mem_data_flow() {
     let report = store.learn(nodes).unwrap();
     assert_eq!(report.nodes_created, 6);
 
-    let knowledge = store.knowledge(None).unwrap();
+    let knowledge = store.knowledge_nodes(None).unwrap();
     assert_eq!(knowledge.len(), 6);
 
     // Verify types

@@ -27,7 +27,7 @@ pub(crate) fn initialize(conn: &Connection) -> Result<()> {
 /// This prevents SQLITE_BUSY errors under concurrent readers by acquiring
 /// the write lock at BEGIN rather than at first write statement.
 ///
-/// Uses `new_unchecked` because `AlayaStore` methods take `&self`, not `&mut self`.
+/// Uses `new_unchecked` because `Alaya` methods take `&self`, not `&mut self`.
 /// Safety from overlapping transactions is guaranteed at the application level:
 /// each write method opens, uses, and commits a single transaction.
 pub(crate) fn begin_immediate(conn: &Connection) -> Result<rusqlite::Transaction<'_>> {

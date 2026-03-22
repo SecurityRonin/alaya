@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use alaya::*;
 
 mod common;
@@ -137,7 +139,7 @@ fn test_learn_creates_knowledge() {
     );
 
     // Verify knowledge() returns the learned facts
-    let knowledge = store.knowledge(None).unwrap();
+    let knowledge = store.knowledge_nodes(None).unwrap();
     assert_eq!(knowledge.len(), 2, "should have 2 semantic nodes");
     let contents: Vec<&str> = knowledge.iter().map(|n| n.content.as_str()).collect();
     assert!(contents.contains(&"User programs in Rust"));
@@ -172,7 +174,7 @@ fn test_learn_creates_causal_links() {
     assert_eq!(report.links_created, 3);
 
     // Get the created semantic node
-    let knowledge = store.knowledge(None).unwrap();
+    let knowledge = store.knowledge_nodes(None).unwrap();
     assert_eq!(knowledge.len(), 1);
     let node_id = knowledge[0].id;
 

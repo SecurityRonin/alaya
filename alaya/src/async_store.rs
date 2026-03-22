@@ -1,6 +1,7 @@
 use crate::error::{AlayaError, Result};
 use crate::provider::{ConsolidationProvider, EmbeddingProvider, ExtractionProvider, NoOpProvider};
 use crate::types::*;
+#[allow(deprecated)]
 use crate::AlayaStore;
 use std::path::Path;
 use std::thread::JoinHandle;
@@ -177,7 +178,8 @@ fn run_actor(mut store: AlayaStore, rx: mpsc::Receiver<Request>) {
                 let _ = reply.send(store.preferences(domain.as_deref()));
             }
             Request::Knowledge { filter, reply } => {
-                let _ = reply.send(store.knowledge(filter));
+                #[allow(deprecated)]
+                let _ = reply.send(store.knowledge_nodes(filter));
             }
             Request::Categories {
                 min_stability,

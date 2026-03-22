@@ -12,7 +12,8 @@ pub fn handle_knowledge(server: &super::AlayaMcp, params: KnowledgeParams) -> St
         category: params.category,
     };
 
-    match server.with_store(|s| s.knowledge(Some(filter))) {
+    #[allow(deprecated)]
+    match server.with_store(|s| s.knowledge_nodes(Some(filter))) {
         Ok(nodes) if nodes.is_empty() => "No knowledge found.".to_string(),
         Ok(nodes) => {
             let mut out = format!("Found {} knowledge nodes:\n\n", nodes.len());
@@ -69,6 +70,7 @@ pub fn handle_node_category(server: &super::AlayaMcp, params: NodeCategoryParams
 }
 
 #[cfg(all(test, feature = "mcp"))]
+#[allow(deprecated)]
 mod tests {
     use crate::{
         AlayaStore, EpisodeContext, EpisodeId, NewEpisode, NewSemanticNode, Role, SemanticType,

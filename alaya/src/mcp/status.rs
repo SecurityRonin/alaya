@@ -70,6 +70,7 @@ pub fn handle_status(server: &super::AlayaMcp) -> String {
 }
 
 #[cfg(all(test, feature = "mcp"))]
+#[allow(deprecated)]
 mod tests {
     use crate::AlayaStore;
 

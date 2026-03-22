@@ -28,6 +28,7 @@ mod validation;
 use std::sync::atomic::AtomicU32;
 use std::sync::Mutex;
 
+#[allow(deprecated)]
 use crate::AlayaStore;
 use rmcp::{model::ServerInfo, schemars, tool, ServerHandler};
 
@@ -375,6 +376,7 @@ impl ServerHandler for AlayaMcp {
 // ---------------------------------------------------------------------------
 
 #[cfg(all(test, feature = "mcp"))]
+#[allow(deprecated)]
 mod tests {
     use super::*;
     use crate::AlayaStore;
