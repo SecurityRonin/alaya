@@ -20,7 +20,7 @@ where
 {
     let tx = schema::begin_immediate(conn)?;
     let result = f(&tx)?;
-    tx.commit()?;
+    tx.commit().with_context("commit")?;
     Ok(result)
 }
 
@@ -56,6 +56,8 @@ impl<T> ResultExt<T> for std::result::Result<T, rusqlite::Error> {
     }
 }
 
+/// Context is only applied to [`AlayaError::Db`] errors. For all other
+/// `AlayaError` variants the error is returned unchanged and `ctx` is ignored.
 impl<T> ResultExt<T> for Result<T> {
     fn with_context(self, ctx: &str) -> Result<T> {
         self.map_err(|e| match e {
