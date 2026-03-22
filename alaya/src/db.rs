@@ -14,6 +14,7 @@ pub(crate) fn now() -> i64 {
 }
 
 /// Run `f` inside a BEGIN IMMEDIATE transaction, committing on success.
+#[cfg_attr(feature = "tracing", tracing::instrument(skip(conn, f)))]
 pub(crate) fn transact<F, T>(conn: &Connection, f: F) -> Result<T>
 where
     F: FnOnce(&rusqlite::Transaction) -> Result<T>,

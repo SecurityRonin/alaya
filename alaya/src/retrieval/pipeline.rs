@@ -21,6 +21,9 @@ pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemor
     let fetch_limit = query.max_results * 3;
 
     // Stage 1: Parallel retrieval (BM25 + vector + graph)
+    #[cfg(feature = "tracing")]
+    let _bm25_span = tracing::info_span!("bm25_search").entered();
+
     let bm25_results: Vec<(NodeRef, f64)> = bm25::search_bm25(conn, &query.text, fetch_limit)?
         .into_iter()
         .map(|(eid, score)| (NodeRef::Episode(eid), score))
@@ -28,6 +31,12 @@ pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemor
 
     #[cfg(feature = "tracing")]
     trace!(bm25_count = bm25_results.len(), "BM25 search complete");
+
+    #[cfg(feature = "tracing")]
+    drop(_bm25_span);
+
+    #[cfg(feature = "tracing")]
+    let _vector_span = tracing::info_span!("vector_search").entered();
 
     let vector_results: Vec<(NodeRef, f64)> = match &query.embedding {
         Some(emb) => vector::search_vector(conn, emb, fetch_limit)?,
@@ -40,7 +49,13 @@ pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemor
         "vector search complete"
     );
 
+    #[cfg(feature = "tracing")]
+    drop(_vector_span);
+
     // Graph: seed from BM25 + vector top results, spread 1 hop
+    #[cfg(feature = "tracing")]
+    let _graph_span = tracing::info_span!("graph_activation").entered();
+
     let seed_nodes: Vec<NodeRef> = bm25_results
         .iter()
         .take(3)
@@ -60,7 +75,13 @@ pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemor
         .map(|(nr, act)| (nr, act as f64))
         .collect();
 
+    #[cfg(feature = "tracing")]
+    drop(_graph_span);
+
     // Stage 2: RRF fusion
+    #[cfg(feature = "tracing")]
+    let _rrf_span = tracing::info_span!("rrf_fusion").entered();
+
     let mut sets: Vec<Vec<(NodeRef, f64)>> = vec![bm25_results];
     if !vector_results.is_empty() {
         sets.push(vector_results);
@@ -72,6 +93,9 @@ pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemor
 
     #[cfg(feature = "tracing")]
     trace!(fused_count = fused.len(), "RRF fusion complete");
+
+    #[cfg(feature = "tracing")]
+    drop(_rrf_span);
 
     // Stage 3: Enrich candidates with content and context for reranking
     let candidates: Vec<(NodeRef, f64, String, Option<Role>, i64, EpisodeContext)> =
@@ -118,7 +142,13 @@ pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemor
             })
             .collect();
 
+    #[cfg(feature = "tracing")]
+    let _rerank_span = tracing::info_span!("rerank").entered();
+
     let results = rerank::rerank(candidates, &query.context, now, query.max_results);
+
+    #[cfg(feature = "tracing")]
+    drop(_rerank_span);
 
     // Stage 4: Post-retrieval updates (RIF + strength tracking)
     for scored in &results {
