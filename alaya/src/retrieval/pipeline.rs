@@ -93,6 +93,7 @@ pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemor
                 }),
                 NodeRef::Semantic(nid) => crate::store::semantic::get_semantic_node(conn, nid)
                     .ok()
+                    .filter(|node| node.confidence > 0.0) // superseded nodes have confidence 0.0
                     .map(|node| {
                         (
                             node_ref,
@@ -115,7 +116,7 @@ pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemor
                             EpisodeContext::default(),
                         )
                     }),
-                NodeRef::Category(_) => None,
+                _ => None, // Categories don't carry retrievable content
             })
             .collect();
 
@@ -1062,6 +1063,62 @@ mod tests {
         let conn = open_memory_db().unwrap();
         let results = execute_query(&conn, &Query::simple("")).unwrap();
         assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_query_excludes_superseded_semantic_nodes() {
+        let conn = open_memory_db().unwrap();
+        use crate::store::{conflicts, embeddings, semantic, strengths};
+
+        let winner = semantic::store_semantic_node(
+            &conn,
+            &NewSemanticNode {
+                content: "Rust has zero-cost abstractions".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.9,
+                source_episodes: vec![],
+                embedding: None,
+            },
+        )
+        .unwrap();
+        embeddings::store_embedding(&conn, "semantic", winner.0, &[1.0, 0.0, 0.0], "").unwrap();
+        strengths::init_strength(&conn, NodeRef::Semantic(winner)).unwrap();
+
+        let loser = semantic::store_semantic_node(
+            &conn,
+            &NewSemanticNode {
+                content: "Rust has high-cost abstractions".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.8,
+                source_episodes: vec![],
+                embedding: None,
+            },
+        )
+        .unwrap();
+        embeddings::store_embedding(&conn, "semantic", loser.0, &[0.9, 0.1, 0.0], "").unwrap();
+        strengths::init_strength(&conn, NodeRef::Semantic(loser)).unwrap();
+
+        // Supersede loser
+        conflicts::supersede_node(&conn, loser, winner).unwrap();
+
+        let results = execute_query(
+            &conn,
+            &Query {
+                text: "Rust abstractions".to_string(),
+                embedding: Some(vec![0.95, 0.05, 0.0]),
+                context: QueryContext {
+                    current_timestamp: Some(5000),
+                    ..Default::default()
+                },
+                max_results: 10,
+                boost_categories: None,
+            },
+        )
+        .unwrap();
+
+        // Loser should not appear in results
+        let has_loser = results.iter().any(|r| r.node == NodeRef::Semantic(loser));
+        assert!(!has_loser, "superseded node should be excluded from retrieval");
     }
 
     #[test]
