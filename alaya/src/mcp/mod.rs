@@ -16,6 +16,7 @@
 //! The binary `src/bin/alaya-mcp.rs` is a thin wrapper that provides `main()`
 //! and transport setup.
 
+pub(crate) mod handler;
 mod import;
 mod lifecycle;
 mod memory;
@@ -28,9 +29,13 @@ mod validation;
 use std::sync::atomic::AtomicU32;
 use std::sync::Mutex;
 
-#[allow(deprecated)]
-use crate::AlayaStore;
+use crate::Alaya;
 use rmcp::{model::ServerInfo, schemars, tool, ServerHandler};
+
+/// Format an error as a plain-text MCP error response string.
+pub(crate) fn error_response(msg: &str) -> String {
+    format!("Error: {msg}")
+}
 
 // ---------------------------------------------------------------------------
 // Parameter types (schemars::JsonSchema for MCP tool schemas)
@@ -189,7 +194,7 @@ pub struct ImportClaudeCodeParams {
 // ---------------------------------------------------------------------------
 
 pub struct AlayaMcp {
-    store: Mutex<AlayaStore>,
+    store: Mutex<Alaya>,
     /// Total episodes stored this session.
     pub(crate) episode_count: AtomicU32,
     /// Episodes stored since last `learn` call.
@@ -206,7 +211,7 @@ impl Clone for AlayaMcp {
 }
 
 impl AlayaMcp {
-    pub fn new(store: AlayaStore) -> Self {
+    pub fn new(store: Alaya) -> Self {
         Self {
             store: Mutex::new(store),
             episode_count: AtomicU32::new(0),
@@ -216,7 +221,7 @@ impl AlayaMcp {
 
     pub(crate) fn with_store<F, T>(&self, f: F) -> Result<T, String>
     where
-        F: FnOnce(&AlayaStore) -> crate::Result<T>,
+        F: FnOnce(&Alaya) -> crate::Result<T>,
     {
         let store = self.store.lock().map_err(|e| format!("lock error: {e}"))?;
         f(&store).map_err(|e| format!("{e}"))
@@ -376,13 +381,11 @@ impl ServerHandler for AlayaMcp {
 // ---------------------------------------------------------------------------
 
 #[cfg(all(test, feature = "mcp"))]
-#[allow(deprecated)]
 mod tests {
     use super::*;
-    use crate::AlayaStore;
 
     fn make_server() -> AlayaMcp {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         AlayaMcp::new(store)
     }
 
