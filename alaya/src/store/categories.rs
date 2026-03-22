@@ -3,13 +3,6 @@ use crate::store::embeddings::{deserialize_embedding, serialize_embedding};
 use crate::types::*;
 use rusqlite::{params, Connection, OptionalExtension};
 
-fn now() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64
-}
-
 pub fn store_category(
     conn: &Connection,
     label: &str,
@@ -17,7 +10,7 @@ pub fn store_category(
     centroid: Option<&[f32]>,
     parent_id: Option<CategoryId>,
 ) -> Result<CategoryId> {
-    let ts = now();
+    let ts = crate::db::now();
     let blob = centroid.map(serialize_embedding);
     conn.execute(
         "INSERT INTO categories (label, prototype_node_id, centroid_embedding, created_at, last_updated, parent_id)
@@ -132,7 +125,7 @@ pub fn assign_node_to_category(
     node_id: NodeId,
     category_id: CategoryId,
 ) -> Result<()> {
-    let ts = now();
+    let ts = crate::db::now();
 
     // Check if node was previously in a different category
     let old_cat: Option<i64> = conn
@@ -205,7 +198,7 @@ pub fn get_node_category(conn: &Connection, node_id: NodeId) -> Result<Option<Ca
 }
 
 pub fn update_centroid(conn: &Connection, category_id: CategoryId, centroid: &[f32]) -> Result<()> {
-    let ts = now();
+    let ts = crate::db::now();
     let blob = serialize_embedding(centroid);
     conn.execute(
         "UPDATE categories SET centroid_embedding = ?1, last_updated = ?2 WHERE id = ?3",
@@ -215,7 +208,7 @@ pub fn update_centroid(conn: &Connection, category_id: CategoryId, centroid: &[f
 }
 
 pub fn increment_stability(conn: &Connection, category_id: CategoryId) -> Result<()> {
-    let ts = now();
+    let ts = crate::db::now();
     conn.execute(
         "UPDATE categories SET stability = stability + 0.1 * (1.0 - stability), last_updated = ?2 WHERE id = ?1",
         params![category_id.0, ts],

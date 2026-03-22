@@ -3,10 +3,7 @@ use crate::types::*;
 use rusqlite::{params, Connection, OptionalExtension};
 
 pub fn store_semantic_node(conn: &Connection, node: &NewSemanticNode) -> Result<NodeId> {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
+    let now = crate::db::now();
     let sources_json = serde_json::to_string(&node.source_episodes)?;
     conn.execute(
         "INSERT INTO semantic_nodes (content, node_type, confidence, source_episodes_json, created_at, last_corroborated, corroboration_count)
@@ -50,10 +47,7 @@ pub fn get_semantic_node(conn: &Connection, id: NodeId) -> Result<SemanticNode> 
 
 #[allow(dead_code)]
 pub fn update_corroboration(conn: &Connection, id: NodeId) -> Result<()> {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
+    let now = crate::db::now();
     let changed = conn.execute(
         "UPDATE semantic_nodes SET corroboration_count = corroboration_count + 1,
                 last_corroborated = ?2 WHERE id = ?1",

@@ -3,10 +3,7 @@ use crate::types::*;
 use rusqlite::{params, Connection, OptionalExtension};
 
 pub fn init_strength(conn: &Connection, node: NodeRef) -> Result<()> {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
+    let now = crate::db::now();
     conn.execute(
         "INSERT OR IGNORE INTO node_strengths (node_type, node_id, storage_strength, retrieval_strength, access_count, last_accessed)
          VALUES (?1, ?2, 0.5, 1.0, 1, ?3)",
@@ -43,10 +40,7 @@ pub fn get_strength(conn: &Connection, node: NodeRef) -> Result<NodeStrength> {
 }
 
 pub fn on_access(conn: &Connection, node: NodeRef) -> Result<()> {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
+    let now = crate::db::now();
     // Upsert: if exists, update; if not, create
     conn.execute(
         "INSERT INTO node_strengths (node_type, node_id, storage_strength, retrieval_strength, access_count, last_accessed)

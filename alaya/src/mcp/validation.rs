@@ -16,10 +16,7 @@ pub fn parse_role(role: &str) -> Result<Role, String> {
 
 /// Get the current Unix timestamp.
 pub fn now_timestamp() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64
+    crate::db::now()
 }
 
 /// Expand `~/` prefix to the user's home directory.

@@ -52,10 +52,7 @@ pub fn transform(conn: &Connection) -> Result<TransformationReport> {
     };
 
     // 3. Decay un-reinforced preferences
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
+    let now = crate::db::now();
     report.preferences_decayed =
         implicit::decay_preferences(conn, now, PREFERENCE_HALF_LIFE_SECS)? as u32;
 

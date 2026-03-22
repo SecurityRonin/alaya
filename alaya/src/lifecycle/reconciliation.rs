@@ -56,10 +56,7 @@ fn detect_conflicts(conn: &Connection, report: &mut ReconcileReport) -> Result<(
         .filter_map(|r| r.ok())
         .collect();
 
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
+    let now = crate::db::now();
 
     // Compare within same category (or both uncategorized = None)
     for i in 0..nodes.len() {
@@ -95,10 +92,7 @@ fn resolve_conflicts(
 ) -> Result<()> {
     let unresolved = conflicts::get_unresolved_conflicts(conn)?;
 
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
+    let now = crate::db::now();
 
     for conflict in &unresolved {
         let node_a = semantic::get_semantic_node(conn, conflict.node_a)?;

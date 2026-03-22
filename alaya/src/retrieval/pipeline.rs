@@ -13,12 +13,10 @@ pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemor
     #[cfg(feature = "tracing")]
     debug!(query = %query.text, max_results = query.max_results, "executing retrieval pipeline");
 
-    let now = query.context.current_timestamp.unwrap_or_else(|| {
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs() as i64
-    });
+    let now = query
+        .context
+        .current_timestamp
+        .unwrap_or_else(crate::db::now);
 
     let fetch_limit = query.max_results * 3;
 

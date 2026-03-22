@@ -665,10 +665,7 @@ impl AlayaStore {
     /// Manually resolve a specific conflict by choosing a winner.
     pub fn resolve_conflict(&self, conflict_id: ConflictId, winner_id: NodeId) -> Result<()> {
         let tx = schema::begin_immediate(&self.conn)?;
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs() as i64;
+        let now = crate::db::now();
 
         // Find the conflict to determine the loser
         let conflicts = store::conflicts::get_unresolved_conflicts(&tx)?;

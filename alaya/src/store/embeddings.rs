@@ -40,10 +40,7 @@ pub fn store_embedding(
     embedding: &[f32],
     model: &str,
 ) -> Result<()> {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
+    let now = crate::db::now();
     let blob = serialize_embedding(embedding);
     conn.execute(
         "INSERT OR REPLACE INTO embeddings (node_type, node_id, embedding, model, created_at)

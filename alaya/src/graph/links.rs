@@ -9,10 +9,7 @@ pub fn create_link(
     link_type: LinkType,
     weight: f32,
 ) -> Result<LinkId> {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
+    let now = crate::db::now();
     conn.execute(
         "INSERT OR IGNORE INTO links (source_type, source_id, target_type, target_id, forward_weight, backward_weight, link_type, created_at, last_activated, activation_count)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8, 1)",
@@ -60,10 +57,7 @@ pub fn get_links_to(conn: &Connection, node: NodeRef) -> Result<Vec<Link>> {
 /// Hebbian co-retrieval: strengthen the forward weight when source and target
 /// are retrieved together. Asymptotic approach to 1.0.
 pub fn on_co_retrieval(conn: &Connection, source: NodeRef, target: NodeRef) -> Result<()> {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
+    let now = crate::db::now();
     let learning_rate = 0.1;
     // Try to update existing link
     let updated = conn.execute(

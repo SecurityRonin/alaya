@@ -3,10 +3,7 @@ use crate::types::*;
 use rusqlite::{params, Connection, OptionalExtension};
 
 pub fn store_impression(conn: &Connection, imp: &NewImpression) -> Result<ImpressionId> {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
+    let now = crate::db::now();
     conn.execute(
         "INSERT INTO impressions (domain, observation, valence, timestamp)
          VALUES (?1, ?2, ?3, ?4)",
@@ -52,10 +49,7 @@ pub fn store_preference(
     preference: &str,
     confidence: f32,
 ) -> Result<PreferenceId> {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
+    let now = crate::db::now();
     conn.execute(
         "INSERT INTO preferences (domain, preference, confidence, evidence_count, first_observed, last_reinforced)
          VALUES (?1, ?2, ?3, 1, ?4, ?4)",
@@ -114,10 +108,7 @@ pub fn reinforce_preference(
     id: PreferenceId,
     additional_evidence: u32,
 ) -> Result<()> {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
+    let now = crate::db::now();
     conn.execute(
         "UPDATE preferences SET evidence_count = evidence_count + ?2,
                 last_reinforced = ?3,
@@ -149,10 +140,7 @@ pub fn prune_weak_preferences(conn: &Connection, min_confidence: f32) -> Result<
 }
 
 pub fn prune_old_impressions(conn: &Connection, max_age_secs: i64) -> Result<u64> {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
+    let now = crate::db::now();
     let cutoff = now - max_age_secs;
     let deleted = conn.execute("DELETE FROM impressions WHERE timestamp < ?1", [cutoff])?;
     Ok(deleted as u64)
@@ -253,11 +241,7 @@ mod tests {
         // Decay with a half_life that is shorter than the age
         // Since the preference was just created (now), we need to
         // pass a "now" value far in the future to trigger decay
-        let future = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64
-            + 100_000; // ~27 hours later
+        let future = crate::db::now() + 100_000; // ~27 hours later
 
         let decayed = decay_preferences(&conn, future, 3600).unwrap(); // half_life = 1 hour
         assert_eq!(decayed, 1);
@@ -273,10 +257,7 @@ mod tests {
 
         // Decay with "now" = actual now; half_life is large
         // Since (now - last_reinforced) < half_life, no decay should happen
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64;
+        let now = crate::db::now();
 
         let decayed = decay_preferences(&conn, now, 999_999_999).unwrap();
         assert_eq!(decayed, 0);
@@ -474,11 +455,7 @@ mod tests {
         // Store a preference with very low confidence (at boundary)
         store_preference(&conn, "style", "minimal", 0.01).unwrap();
         // Decay won't touch confidence <= 0.01
-        let future = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64
-            + 200_000;
+        let future = crate::db::now() + 200_000;
         let decayed = decay_preferences(&conn, future, 3600).unwrap();
         assert_eq!(
             decayed, 0,
