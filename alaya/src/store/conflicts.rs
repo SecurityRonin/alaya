@@ -47,7 +47,8 @@ pub fn get_conflicts_by_status(
             detected_at: row.get(5)?,
         })
     })?;
-    Ok(rows.filter_map(|r| r.ok()).collect())
+    rows.collect::<std::result::Result<Vec<_>, _>>()
+        .map_err(Into::into)
 }
 
 /// Get unresolved conflicts (detected + verified).
@@ -68,7 +69,8 @@ pub fn get_unresolved_conflicts(conn: &Connection) -> Result<Vec<Conflict>> {
             detected_at: row.get(5)?,
         })
     })?;
-    Ok(rows.filter_map(|r| r.ok()).collect())
+    rows.collect::<std::result::Result<Vec<_>, _>>()
+        .map_err(Into::into)
 }
 
 /// Update a conflict's status.
