@@ -75,6 +75,7 @@ pub struct AlayaStore {
     conn: Connection,
     embedding_provider: Option<Box<dyn EmbeddingProvider>>,
     extraction_provider: Option<Box<dyn ExtractionProvider>>,
+    conflict_strategy: ConflictStrategy,
 }
 
 impl AlayaStore {
@@ -93,7 +94,14 @@ impl AlayaStore {
             conn,
             embedding_provider: None,
             extraction_provider: None,
+            conflict_strategy: ConflictStrategy::default(),
         })
+    }
+
+    /// Expose the raw SQLite connection for test-only DB corruption scenarios.
+    #[cfg(test)]
+    pub(crate) fn raw_conn(&self) -> &Connection {
+        &self.conn
     }
 
     /// Open an ephemeral in-memory database (useful for tests).
@@ -110,6 +118,7 @@ impl AlayaStore {
             conn,
             embedding_provider: None,
             extraction_provider: None,
+            conflict_strategy: ConflictStrategy::default(),
         })
     }
 
@@ -119,6 +128,7 @@ impl AlayaStore {
     ///
     /// Returns an error if the key is incorrect or the file is not an encrypted database.
     #[cfg(feature = "sqlcipher")]
+    #[cfg(not(tarpaulin_include))]
     pub fn open_encrypted(path: impl AsRef<Path>, key: &str) -> Result<Self> {
         let conn = Connection::open(path)?;
         conn.pragma_update(None, "key", key)?;
@@ -132,11 +142,13 @@ impl AlayaStore {
             conn,
             embedding_provider: None,
             extraction_provider: None,
+            conflict_strategy: ConflictStrategy::default(),
         })
     }
 
     /// Re-encrypt the database with a new key via `PRAGMA rekey`.
     #[cfg(feature = "sqlcipher")]
+    #[cfg(not(tarpaulin_include))]
     pub fn rekey(&self, new_key: &str) -> Result<()> {
         self.conn.pragma_update(None, "rekey", new_key)?;
         Ok(())
@@ -412,11 +424,7 @@ impl AlayaStore {
     /// ```
     #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn node_category(&self, node_id: NodeId) -> Result<Option<Category>> {
-        match store::categories::get_node_category(&self.conn, node_id) {
-            Ok(cat) => Ok(cat),
-            Err(AlayaError::NotFound(_)) => Ok(None),
-            Err(e) => Err(e),
-        }
+        store::categories::get_node_category(&self.conn, node_id)
     }
 
     /// Get graph neighbors of a node up to `depth` hops.
@@ -636,6 +644,64 @@ impl AlayaStore {
     }
 
     // -----------------------------------------------------------------------
+    // Conflict resolution
+    // -----------------------------------------------------------------------
+
+    /// Run conflict detection and resolution.
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
+    pub fn reconcile(&self) -> Result<ReconcileReport> {
+        let tx = schema::begin_immediate(&self.conn)?;
+        let report = lifecycle::reconciliation::reconcile(&tx, self.conflict_strategy)?;
+        tx.commit()?;
+        Ok(report)
+    }
+
+    /// Query unresolved conflicts (for Manual strategy).
+    pub fn conflicts(&self) -> Result<Vec<Conflict>> {
+        store::conflicts::get_unresolved_conflicts(&self.conn)
+    }
+
+    /// Manually resolve a specific conflict by choosing a winner.
+    pub fn resolve_conflict(&self, conflict_id: ConflictId, winner_id: NodeId) -> Result<()> {
+        let tx = schema::begin_immediate(&self.conn)?;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+
+        // Find the conflict to determine the loser
+        let conflicts = store::conflicts::get_unresolved_conflicts(&tx)?;
+        let conflict = conflicts
+            .iter()
+            .find(|c| c.id == conflict_id)
+            .ok_or_else(|| AlayaError::NotFound(format!("conflict {}", conflict_id.0)))?;
+
+        let loser = if winner_id == conflict.node_a {
+            conflict.node_b
+        } else {
+            conflict.node_a
+        };
+
+        store::conflicts::resolve_conflict(&tx, conflict_id, winner_id, "manual", now)?;
+        store::conflicts::supersede_node(&tx, loser, winner_id)?;
+        graph::links::create_link(
+            &tx,
+            NodeRef::Semantic(winner_id),
+            NodeRef::Semantic(loser),
+            LinkType::Supersedes,
+            1.0,
+        )?;
+
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Configure the resolution strategy (default: Recency).
+    pub fn set_conflict_strategy(&mut self, strategy: ConflictStrategy) {
+        self.conflict_strategy = strategy;
+    }
+
+    // -----------------------------------------------------------------------
     // Dream (convenience lifecycle)
     // -----------------------------------------------------------------------
 
@@ -746,22 +812,27 @@ impl AlayaStore {
     /// assert!(content.is_none());
     /// ```
     pub fn node_content(&self, node: NodeRef) -> Result<Option<String>> {
+        fn not_found_to_none(result: Result<String>) -> Result<Option<String>> {
+            match result {
+                Ok(s) => Ok(Some(s)),
+                Err(AlayaError::NotFound(_)) => Ok(None),
+                Err(e) => Err(e),
+            }
+        }
+
         match node {
-            NodeRef::Episode(id) => match store::episodic::get_episode(&self.conn, id) {
-                Ok(ep) => Ok(Some(truncate_label(&ep.content, 30))),
-                Err(AlayaError::NotFound(_)) => Ok(None),
-                Err(e) => Err(e),
-            },
-            NodeRef::Semantic(id) => match store::semantic::get_semantic_node(&self.conn, id) {
-                Ok(node) => Ok(Some(truncate_label(&node.content, 30))),
-                Err(AlayaError::NotFound(_)) => Ok(None),
-                Err(e) => Err(e),
-            },
-            NodeRef::Category(id) => match store::categories::get_category(&self.conn, id) {
-                Ok(cat) => Ok(Some(truncate_label(&cat.label, 30))),
-                Err(AlayaError::NotFound(_)) => Ok(None),
-                Err(e) => Err(e),
-            },
+            NodeRef::Episode(id) => not_found_to_none(
+                store::episodic::get_episode(&self.conn, id)
+                    .map(|ep| truncate_label(&ep.content, 30)),
+            ),
+            NodeRef::Semantic(id) => not_found_to_none(
+                store::semantic::get_semantic_node(&self.conn, id)
+                    .map(|n| truncate_label(&n.content, 30)),
+            ),
+            NodeRef::Category(id) => not_found_to_none(
+                store::categories::get_category(&self.conn, id)
+                    .map(|c| truncate_label(&c.label, 30)),
+            ),
             _ => Ok(Some(format!("{}#{}", node.type_str(), node.id()))),
         }
     }
@@ -2141,5 +2212,70 @@ mod tests {
         // New key should work
         let store2 = AlayaStore::open_encrypted(&path, "new-key").unwrap();
         assert_eq!(store2.status().unwrap().episode_count, 1);
+    }
+
+    // -----------------------------------------------------------------------
+    // Conflict resolution API tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_reconcile_default_strategy() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        let report = store.reconcile().unwrap();
+        assert_eq!(report.conflicts_detected, 0);
+    }
+
+    #[test]
+    fn test_set_conflict_strategy() {
+        let mut store = AlayaStore::open_in_memory().unwrap();
+        store.set_conflict_strategy(ConflictStrategy::Confidence);
+        let report = store.reconcile().unwrap();
+        assert_eq!(report.conflicts_detected, 0);
+    }
+
+    #[test]
+    fn test_conflicts_empty_store() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        let conflicts = store.conflicts().unwrap();
+        assert!(conflicts.is_empty());
+    }
+
+    #[test]
+    fn test_resolve_conflict_manual() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        // Learn two contradictory facts with similar embeddings
+        store
+            .learn(vec![
+                NewSemanticNode {
+                    content: "user prefers dark mode".to_string(),
+                    node_type: SemanticType::Fact,
+                    confidence: 0.9,
+                    source_episodes: vec![],
+                    embedding: Some(vec![0.9, 0.1, 0.0]),
+                },
+                NewSemanticNode {
+                    content: "user prefers light mode".to_string(),
+                    node_type: SemanticType::Fact,
+                    confidence: 0.8,
+                    source_episodes: vec![],
+                    embedding: Some(vec![0.85, 0.15, 0.0]),
+                },
+            ])
+            .unwrap();
+
+        // Use manual strategy to detect but not resolve
+        let mut store = store;
+        store.set_conflict_strategy(ConflictStrategy::Manual);
+        store.reconcile().unwrap();
+
+        let conflicts = store.conflicts().unwrap();
+        assert_eq!(conflicts.len(), 1);
+
+        // Manually resolve: pick first node as winner
+        let winner = conflicts[0].node_a;
+        store.resolve_conflict(conflicts[0].id, winner).unwrap();
+
+        let remaining = store.conflicts().unwrap();
+        assert!(remaining.is_empty());
     }
 }
