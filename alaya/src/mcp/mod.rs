@@ -5,7 +5,7 @@
 //! domain-focused submodules:
 //!
 //! - `memory`      — `remember`, `recall`
-//! - `lifecycle`   — `maintain`, `purge`
+//! - `lifecycle`   — `maintain`, `purge`, `reconcile_memories`, `list_conflicts`
 //! - `preferences` — `learn`, `preferences`
 //! - `query`       — `knowledge`, `categories`, `neighbors`, `node_category`
 //! - `import`      — `import_claude_mem`, `import_claude_code`
@@ -331,6 +331,22 @@ impl AlayaMcp {
     fn purge(&self, #[tool(aggr)] params: PurgeParams) -> String {
         lifecycle::handle_purge(self, params)
     }
+
+    /// Run conflict detection and resolution.
+    #[tool(
+        description = "Run conflict detection and resolution on semantic knowledge. Finds contradictory facts via embedding similarity, resolves using the configured strategy (recency by default), and archives superseded nodes."
+    )]
+    fn reconcile_memories(&self) -> String {
+        lifecycle::handle_reconcile(self)
+    }
+
+    /// List unresolved conflicts.
+    #[tool(
+        description = "List unresolved conflicts between semantic knowledge nodes. Use after reconcile with manual strategy, or to review detected contradictions."
+    )]
+    fn list_conflicts(&self) -> String {
+        lifecycle::handle_conflicts(self)
+    }
 }
 
 #[tool(tool_box)]
@@ -345,7 +361,8 @@ impl ServerHandler for AlayaMcp {
                  traversal, 'node_category' to check a node's category, 'maintain' for cleanup, \
                  'import_claude_mem' to import from claude-mem.db, \
                  'import_claude_code' to import from Claude Code JSONL files, \
-                 and 'purge' to delete data."
+                 'purge' to delete data, 'reconcile_memories' to detect and resolve \
+                 contradictions, and 'list_conflicts' to review unresolved conflicts."
                     .into(),
             ),
             ..Default::default()
@@ -365,6 +382,18 @@ mod tests {
     fn make_server() -> AlayaMcp {
         let store = AlayaStore::open_in_memory().unwrap();
         AlayaMcp::new(store)
+    }
+
+    #[test]
+    fn get_info_returns_instructions() {
+        use rmcp::ServerHandler;
+        let srv = make_server();
+        let info = srv.get_info();
+        let instructions = info.instructions.expect("should have instructions");
+        assert!(instructions.contains("Alaya is a memory engine"));
+        assert!(instructions.contains("remember"));
+        assert!(instructions.contains("recall"));
+        assert!(instructions.contains("learn"));
     }
 
     #[test]

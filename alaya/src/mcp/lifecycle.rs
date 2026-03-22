@@ -1,4 +1,4 @@
-//! Handler logic for the `maintain` and `purge` MCP tools.
+//! Handler logic for the `maintain`, `purge`, `reconcile`, and `conflicts` MCP tools.
 
 use crate::PurgeFilter;
 
@@ -45,6 +45,40 @@ pub fn handle_purge(server: &super::AlayaMcp, params: PurgeParams) -> String {
             "Purge complete: {} episodes deleted",
             report.episodes_deleted
         ),
+        Err(e) => format!("Error: {e}"),
+    }
+}
+
+pub fn handle_reconcile(server: &super::AlayaMcp) -> String {
+    match server.with_store(|s| s.reconcile()) {
+        Ok(report) => format!(
+            "Reconciliation complete: detected: {}, resolved: {}, pending: {}, superseded: {}",
+            report.conflicts_detected,
+            report.conflicts_resolved,
+            report.conflicts_pending,
+            report.nodes_superseded,
+        ),
+        Err(e) => format!("Error: {e}"),
+    }
+}
+
+pub fn handle_conflicts(server: &super::AlayaMcp) -> String {
+    match server.with_store(|s| s.conflicts()) {
+        Ok(conflicts) if conflicts.is_empty() => "No unresolved conflicts.".to_string(),
+        Ok(conflicts) => {
+            let mut out = format!("Found {} unresolved conflicts:\n\n", conflicts.len());
+            for c in &conflicts {
+                out.push_str(&format!(
+                    "- Conflict #{}: node {} vs node {} (similarity: {:.2}, status: {})\n",
+                    c.id.0,
+                    c.node_a.0,
+                    c.node_b.0,
+                    c.similarity,
+                    c.status.as_str(),
+                ));
+            }
+            out
+        }
         Err(e) => format!("Error: {e}"),
     }
 }
@@ -187,6 +221,40 @@ mod tests {
     }
 
     #[test]
+    fn maintain_db_error() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        store
+            .raw_conn()
+            .execute_batch("DROP TABLE semantic_nodes")
+            .unwrap();
+        let srv = AlayaMcp::new(store);
+        let result = srv.maintain();
+        assert!(
+            result.starts_with("Error:"),
+            "Should return error when DB is corrupted: {result}"
+        );
+    }
+
+    #[test]
+    fn purge_db_error() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        store
+            .raw_conn()
+            .execute_batch("DROP TABLE episodes")
+            .unwrap();
+        let srv = AlayaMcp::new(store);
+        let result = srv.purge(PurgeParams {
+            scope: "all".into(),
+            session_id: None,
+            before_timestamp: None,
+        });
+        assert!(
+            result.starts_with("Error:"),
+            "Should return error when DB is corrupted: {result}"
+        );
+    }
+
+    #[test]
     fn purge_session_deletes_only_that_session() {
         let srv = make_server();
         srv.remember(RememberParams {
@@ -213,5 +281,50 @@ mod tests {
         });
         assert!(result.contains("Found"));
         assert!(result.contains("Keep me"));
+    }
+
+    #[test]
+    fn reconcile_empty_store() {
+        let srv = make_server();
+        let result = srv.reconcile_memories();
+        assert!(result.contains("Reconciliation complete"));
+        assert!(result.contains("detected: 0"));
+    }
+
+    #[test]
+    fn conflicts_empty_store() {
+        let srv = make_server();
+        let result = srv.list_conflicts();
+        assert_eq!(result, "No unresolved conflicts.");
+    }
+
+    #[test]
+    fn reconcile_db_error() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        store
+            .raw_conn()
+            .execute_batch("DROP TABLE conflicts")
+            .unwrap();
+        let srv = AlayaMcp::new(store);
+        let result = srv.reconcile_memories();
+        assert!(
+            result.starts_with("Error:"),
+            "Should return error when DB is corrupted: {result}"
+        );
+    }
+
+    #[test]
+    fn conflicts_db_error() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        store
+            .raw_conn()
+            .execute_batch("DROP TABLE conflicts")
+            .unwrap();
+        let srv = AlayaMcp::new(store);
+        let result = srv.list_conflicts();
+        assert!(
+            result.starts_with("Error:"),
+            "Should return error when DB is corrupted: {result}"
+        );
     }
 }
