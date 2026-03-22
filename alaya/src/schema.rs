@@ -41,7 +41,7 @@ fn init_db(conn: &Connection) -> Result<()> {
     conn.execute_batch("PRAGMA journal_mode = WAL;")?;
     conn.execute_batch("PRAGMA foreign_keys = ON;")?;
     conn.execute_batch("PRAGMA synchronous = NORMAL;")?;
-    conn.execute_batch("PRAGMA user_version = 4;")?;
+    conn.execute_batch("PRAGMA user_version = 5;")?;
 
     conn.execute_batch(
         "
@@ -215,6 +215,23 @@ fn init_db(conn: &Connection) -> Result<()> {
             reason      TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_tombstones_type_id ON tombstones(node_type, node_id);
+
+        -- =================================================================
+        -- Conflicts (reconciliation)
+        -- =================================================================
+        CREATE TABLE IF NOT EXISTS conflicts (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            node_a_id       INTEGER NOT NULL REFERENCES semantic_nodes(id),
+            node_b_id       INTEGER NOT NULL REFERENCES semantic_nodes(id),
+            similarity      REAL    NOT NULL,
+            status          TEXT    NOT NULL DEFAULT 'detected',
+            resolution      TEXT,
+            winner_id       INTEGER REFERENCES semantic_nodes(id),
+            detected_at     INTEGER NOT NULL,
+            resolved_at     INTEGER,
+            UNIQUE(node_a_id, node_b_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_conflicts_status ON conflicts(status);
         ",
     )?;
 
@@ -226,6 +243,16 @@ fn init_db(conn: &Connection) -> Result<()> {
         conn.execute_batch(
             "ALTER TABLE semantic_nodes ADD COLUMN category_id INTEGER REFERENCES categories(id);
              CREATE INDEX IF NOT EXISTS idx_semantic_category ON semantic_nodes(category_id);",
+        )?;
+    }
+
+    // Migration v4->v5: add superseded_by to semantic_nodes
+    let has_superseded: bool = conn
+        .prepare("SELECT superseded_by FROM semantic_nodes LIMIT 0")
+        .is_ok();
+    if !has_superseded {
+        conn.execute_batch(
+            "ALTER TABLE semantic_nodes ADD COLUMN superseded_by INTEGER REFERENCES semantic_nodes(id);",
         )?;
     }
 
@@ -331,20 +358,20 @@ mod tests {
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .unwrap();
         assert_eq!(
-            version, 4,
-            "schema version should be 4 after parent_id migration"
+            version, 5,
+            "schema version should be 5 after conflicts migration"
         );
     }
 
     #[test]
-    fn test_schema_version_is_4_compat() {
+    fn test_schema_version_is_5_compat() {
         let conn = open_memory_db().unwrap();
         let version: i64 = conn
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .unwrap();
         assert_eq!(
-            version, 4,
-            "schema version should be 4 after parent_id migration"
+            version, 5,
+            "schema version should be 5 after conflicts migration"
         );
     }
 
@@ -441,12 +468,12 @@ mod tests {
     }
 
     #[test]
-    fn test_schema_version_is_4() {
+    fn test_schema_version_is_5() {
         let conn = open_memory_db().unwrap();
         let version: i64 = conn
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 4);
+        assert_eq!(version, 5);
     }
 
     #[test]
@@ -490,5 +517,23 @@ mod tests {
             .query_row("SELECT count(*) FROM episodes", [], |r| r.get(0))
             .unwrap();
         assert_eq!(count, 0, "uncommitted transaction should rollback on drop");
+    }
+
+    #[test]
+    fn test_conflicts_table_exists() {
+        let conn = open_memory_db().unwrap();
+        let exists: bool = conn.prepare("SELECT 1 FROM conflicts LIMIT 0").is_ok();
+        assert!(exists, "conflicts table should exist");
+    }
+
+    #[test]
+    fn test_semantic_nodes_has_superseded_by() {
+        let conn = open_memory_db().unwrap();
+        conn.execute(
+            "INSERT INTO semantic_nodes (content, node_type, confidence, created_at, last_corroborated, superseded_by)
+             VALUES ('test', 'fact', 0.5, 1000, 1000, NULL)",
+            [],
+        )
+        .unwrap();
     }
 }
