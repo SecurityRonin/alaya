@@ -1,6 +1,6 @@
 use crate::error::{AlayaError, Result};
 use crate::types::*;
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 
 pub fn store_semantic_node(conn: &Connection, node: &NewSemanticNode) -> Result<NodeId> {
     let now = std::time::SystemTime::now()
@@ -44,12 +44,8 @@ pub fn get_semantic_node(conn: &Connection, id: NodeId) -> Result<SemanticNode> 
             })
         },
     )
-    .map_err(|e| match e {
-        rusqlite::Error::QueryReturnedNoRows => {
-            AlayaError::NotFound(format!("semantic node {}", id.0))
-        }
-        other => AlayaError::Db(other),
-    })
+    .optional()?
+    .ok_or_else(|| AlayaError::NotFound(format!("semantic node {}", id.0)))
 }
 
 #[allow(dead_code)]
@@ -77,7 +73,7 @@ pub fn find_by_type(
     let mut stmt = conn.prepare(
         "SELECT id, content, node_type, confidence, source_episodes_json,
                 created_at, last_corroborated, corroboration_count
-         FROM semantic_nodes WHERE node_type = ?1
+         FROM semantic_nodes WHERE node_type = ?1 AND superseded_by IS NULL
          ORDER BY confidence DESC LIMIT ?2",
     )?;
     let rows = stmt.query_map(params![node_type.as_str(), limit], |row| {
@@ -115,7 +111,7 @@ pub fn delete_node(conn: &Connection, id: NodeId) -> Result<()> {
 }
 
 pub fn count_nodes(conn: &Connection) -> Result<u64> {
-    let count: i64 = conn.query_row("SELECT count(*) FROM semantic_nodes", [], |row| row.get(0))?;
+    let count: i64 = conn.query_row("SELECT count(*) FROM semantic_nodes WHERE superseded_by IS NULL", [], |row| row.get(0))?;
     Ok(count as u64)
 }
 
@@ -124,7 +120,7 @@ pub fn count_nodes_by_type(
     conn: &Connection,
 ) -> Result<std::collections::HashMap<SemanticType, u64>> {
     let mut stmt =
-        conn.prepare("SELECT node_type, count(*) FROM semantic_nodes GROUP BY node_type")?;
+        conn.prepare("SELECT node_type, count(*) FROM semantic_nodes WHERE superseded_by IS NULL GROUP BY node_type")?;
     let rows = stmt.query_map([], |row| {
         let type_str: String = row.get(0)?;
         let count: i64 = row.get(1)?;
@@ -371,6 +367,76 @@ mod tests {
         let node = get_semantic_node(&conn, id).unwrap();
         // SemanticType::from_str returns None for unknown, code falls back to SemanticType::Fact
         assert_eq!(node.node_type, SemanticType::Fact);
+    }
+
+    #[test]
+    fn test_find_by_type_excludes_superseded() {
+        let conn = open_memory_db().unwrap();
+        let winner = store_semantic_node(
+            &conn,
+            &NewSemanticNode {
+                content: "user prefers dark mode".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.9,
+                source_episodes: vec![],
+                embedding: None,
+            },
+        )
+        .unwrap();
+        let loser = store_semantic_node(
+            &conn,
+            &NewSemanticNode {
+                content: "user prefers light mode".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.8,
+                source_episodes: vec![],
+                embedding: None,
+            },
+        )
+        .unwrap();
+
+        // Before supersession: both visible
+        let facts = find_by_type(&conn, SemanticType::Fact, 10).unwrap();
+        assert_eq!(facts.len(), 2);
+
+        // Supersede loser
+        crate::store::conflicts::supersede_node(&conn, loser, winner).unwrap();
+
+        // After supersession: only winner visible
+        let facts = find_by_type(&conn, SemanticType::Fact, 10).unwrap();
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].id, winner);
+    }
+
+    #[test]
+    fn test_count_nodes_excludes_superseded() {
+        let conn = open_memory_db().unwrap();
+        let winner = store_semantic_node(
+            &conn,
+            &NewSemanticNode {
+                content: "fact A".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.9,
+                source_episodes: vec![],
+                embedding: None,
+            },
+        )
+        .unwrap();
+        let loser = store_semantic_node(
+            &conn,
+            &NewSemanticNode {
+                content: "fact B".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.8,
+                source_episodes: vec![],
+                embedding: None,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(count_nodes(&conn).unwrap(), 2);
+        crate::store::conflicts::supersede_node(&conn, loser, winner).unwrap();
+        assert_eq!(count_nodes(&conn).unwrap(), 1);
     }
 
     #[test]
