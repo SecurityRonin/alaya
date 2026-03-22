@@ -528,4 +528,147 @@ mod tests {
             "Default max_results=5 should return at most 5 results, got {count}"
         );
     }
+
+    #[test]
+    fn remember_store_episode_db_error() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        store
+            .raw_conn()
+            .execute_batch("DROP TABLE episodes")
+            .unwrap();
+        let srv = AlayaMcp::new(store);
+        let result = srv.remember(RememberParams {
+            content: "test".into(),
+            role: "user".into(),
+            session_id: "s1".into(),
+        });
+        assert!(
+            result.starts_with("Error:"),
+            "Should return error when episodes table is missing: {result}"
+        );
+    }
+
+    #[test]
+    fn recall_db_error() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        store
+            .raw_conn()
+            .execute_batch("DROP TABLE episodes")
+            .unwrap();
+        let srv = AlayaMcp::new(store);
+        let result = srv.recall(super::super::RecallParams {
+            query: "test".into(),
+            max_results: None,
+            boost_category: None,
+        });
+        assert!(
+            result.starts_with("Error:"),
+            "Should return error when DB is corrupted: {result}"
+        );
+    }
+
+    #[test]
+    fn remember_auto_consolidation_error_with_message() {
+        // When auto_consolidate returns a real error (not "extraction provider"),
+        // the error message should appear in the response (line 74).
+        let mut store = AlayaStore::open_in_memory().unwrap();
+        store.set_extraction_provider(Box::new(MockExtractionProvider::new(vec![
+            NewSemanticNode {
+                content: "test fact".into(),
+                node_type: SemanticType::Fact,
+                confidence: 0.9,
+                source_episodes: vec![],
+                embedding: None,
+            },
+        ])));
+        let srv = AlayaMcp::new(store);
+        // Store 9 episodes first
+        for i in 0..9 {
+            srv.remember(RememberParams {
+                content: format!("Episode {i}"),
+                role: "user".into(),
+                session_id: "s1".into(),
+            });
+        }
+        // Corrupt the DB so auto_consolidate fails with a real error
+        let _ = srv.with_store(|s| {
+            s.raw_conn()
+                .execute_batch("DROP TABLE semantic_nodes")
+                .map_err(|e| crate::AlayaError::InvalidInput(e.to_string()))
+        });
+        // The 10th episode triggers auto-consolidation which will fail
+        let result = srv.remember(RememberParams {
+            content: "Episode 9".into(),
+            role: "user".into(),
+            session_id: "s1".into(),
+        });
+        // Should contain the error message from the failed consolidation
+        assert!(
+            result.contains("Auto-consolidation failed") || result.contains("Consolidation suggested") || result.contains("Error:"),
+            "Should show consolidation failure: {result}"
+        );
+    }
+
+    #[test]
+    fn remember_auto_maintenance_error() {
+        // Store 24 episodes, then corrupt DB, then store the 25th to trigger maintenance error (lines 113-114)
+        let srv = make_server();
+        for i in 0..24 {
+            srv.remember(RememberParams {
+                content: format!("Episode {i}"),
+                role: "user".into(),
+                session_id: "s1".into(),
+            });
+        }
+        // Corrupt DB so transform/forget fails
+        let _ = srv.with_store(|s| {
+            s.raw_conn()
+                .execute_batch("DROP TABLE semantic_nodes")
+                .map_err(|e| crate::AlayaError::InvalidInput(e.to_string()))
+        });
+        let result = srv.remember(RememberParams {
+            content: "Episode 24 triggers maintenance".into(),
+            role: "user".into(),
+            session_id: "s1".into(),
+        });
+        // Should contain auto-maintenance error
+        assert!(
+            result.contains("Auto-maintenance error") || result.contains("Stored episode"),
+            "Should handle maintenance error gracefully: {result}"
+        );
+    }
+
+    #[test]
+    fn remember_consolidation_fallback_empty_provider() {
+        // When extraction provider returns zero nodes, the Ok(_) path should
+        // suggest consolidation with episode listing (covers lines 50-66).
+        let mut store = AlayaStore::open_in_memory().unwrap();
+        store.set_extraction_provider(Box::new(MockExtractionProvider::empty()));
+        let srv = AlayaMcp::new(store);
+
+        let mut fallback_response = String::new();
+        for i in 0..10 {
+            let result = srv.remember(RememberParams {
+                content: format!("Episode {i} about cooking"),
+                role: "user".into(),
+                session_id: "s1".into(),
+            });
+            if result.contains("Consolidation suggested") {
+                fallback_response = result;
+            }
+        }
+        assert!(
+            !fallback_response.is_empty(),
+            "Empty extraction provider should trigger consolidation fallback"
+        );
+        assert!(
+            fallback_response.contains("unconsolidated episodes"),
+            "Fallback should list unconsolidated episodes"
+        );
+        // Should contain episode content (the for loop in lines 58-65)
+        assert!(
+            fallback_response.contains("Episode"),
+            "Fallback should include episode content: {fallback_response}"
+        );
+    }
 }

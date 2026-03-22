@@ -28,27 +28,20 @@ pub fn spread_activation(
         let mut delta: HashMap<NodeRef, f32> = HashMap::new();
 
         for (node, &act) in &activation {
-            if act < threshold {
-                continue;
-            }
+            if act >= threshold {
+                let outgoing = links::get_links_from(conn, *node)?;
+                let total_weight: f32 = outgoing.iter().map(|l| l.forward_weight).sum();
 
-            let outgoing = links::get_links_from(conn, *node)?;
-            if outgoing.is_empty() {
-                continue;
-            }
-
-            let total_weight: f32 = outgoing.iter().map(|l| l.forward_weight).sum();
-            if total_weight <= 0.0 {
-                continue;
-            }
-
-            for link in &outgoing {
-                // Use absolute weight (not proportion) so weak links carry weak signal
-                // regardless of how many other links exist. This matches neuroscience:
-                // synaptic strength is absolute, not relative to other synapses.
-                let spread = act * link.forward_weight * decay_per_hop;
-                if spread >= threshold * 0.1 {
-                    *delta.entry(link.target).or_default() += spread;
+                if !outgoing.is_empty() && total_weight > 0.0 {
+                    for link in &outgoing {
+                        // Use absolute weight (not proportion) so weak links carry weak signal
+                        // regardless of how many other links exist. This matches neuroscience:
+                        // synaptic strength is absolute, not relative to other synapses.
+                        let spread = act * link.forward_weight * decay_per_hop;
+                        if spread >= threshold * 0.1 {
+                            *delta.entry(link.target).or_default() += spread;
+                        }
+                    }
                 }
             }
         }

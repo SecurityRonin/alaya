@@ -122,21 +122,22 @@ pub fn strongest_link(conn: &Connection) -> Result<Option<(NodeRef, NodeRef, f32
         "SELECT source_type, source_id, target_type, target_id, forward_weight
          FROM links ORDER BY forward_weight DESC LIMIT 1",
     )?;
-    let mut rows = stmt.query_map([], |row| {
-        let source_type: String = row.get(0)?;
-        let source_id: i64 = row.get(1)?;
-        let target_type: String = row.get(2)?;
-        let target_id: i64 = row.get(3)?;
-        let weight: f32 = row.get(4)?;
-        Ok((source_type, source_id, target_type, target_id, weight))
-    })?;
-    match rows.next() {
-        Some(Ok((st, si, tt, ti, w))) => {
-            let source = NodeRef::from_parts(&st, si).unwrap_or(NodeRef::Episode(EpisodeId(0)));
-            let target = NodeRef::from_parts(&tt, ti).unwrap_or(NodeRef::Episode(EpisodeId(0)));
-            Ok(Some((source, target, w)))
+    let rows: Vec<_> = stmt
+        .query_map([], |row| {
+            let source_type: String = row.get(0)?;
+            let source_id: i64 = row.get(1)?;
+            let target_type: String = row.get(2)?;
+            let target_id: i64 = row.get(3)?;
+            let weight: f32 = row.get(4)?;
+            Ok((source_type, source_id, target_type, target_id, weight))
+        })?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    match rows.first() {
+        Some((st, si, tt, ti, w)) => {
+            let source = NodeRef::from_parts(st, *si).unwrap_or(NodeRef::Episode(EpisodeId(0)));
+            let target = NodeRef::from_parts(tt, *ti).unwrap_or(NodeRef::Episode(EpisodeId(0)));
+            Ok(Some((source, target, *w)))
         }
-        Some(Err(e)) => Err(e.into()),
         None => Ok(None),
     }
 }

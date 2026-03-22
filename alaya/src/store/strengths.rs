@@ -1,6 +1,6 @@
 use crate::error::Result;
 use crate::types::*;
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 
 pub fn init_strength(conn: &Connection, node: NodeRef) -> Result<()> {
     let now = std::time::SystemTime::now()
@@ -17,34 +17,29 @@ pub fn init_strength(conn: &Connection, node: NodeRef) -> Result<()> {
 
 #[allow(dead_code)]
 pub fn get_strength(conn: &Connection, node: NodeRef) -> Result<NodeStrength> {
-    let result = conn.query_row(
-        "SELECT storage_strength, retrieval_strength, access_count, last_accessed
-         FROM node_strengths WHERE node_type = ?1 AND node_id = ?2",
-        params![node.type_str(), node.id()],
-        |row| {
-            Ok(NodeStrength {
-                node,
-                storage_strength: row.get(0)?,
-                retrieval_strength: row.get(1)?,
-                access_count: row.get(2)?,
-                last_accessed: row.get(3)?,
-            })
-        },
-    );
-    match result {
-        Ok(s) => Ok(s),
-        Err(rusqlite::Error::QueryReturnedNoRows) => {
-            // Return default strength if not tracked yet
-            Ok(NodeStrength {
-                node,
-                storage_strength: 0.5,
-                retrieval_strength: 0.5,
-                access_count: 0,
-                last_accessed: 0,
-            })
-        }
-        Err(e) => Err(e.into()),
-    }
+    Ok(conn
+        .query_row(
+            "SELECT storage_strength, retrieval_strength, access_count, last_accessed
+             FROM node_strengths WHERE node_type = ?1 AND node_id = ?2",
+            params![node.type_str(), node.id()],
+            |row| {
+                Ok(NodeStrength {
+                    node,
+                    storage_strength: row.get(0)?,
+                    retrieval_strength: row.get(1)?,
+                    access_count: row.get(2)?,
+                    last_accessed: row.get(3)?,
+                })
+            },
+        )
+        .optional()?
+        .unwrap_or(NodeStrength {
+            node,
+            storage_strength: 0.5,
+            retrieval_strength: 0.5,
+            access_count: 0,
+            last_accessed: 0,
+        }))
 }
 
 pub fn on_access(conn: &Connection, node: NodeRef) -> Result<()> {

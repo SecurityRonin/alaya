@@ -1,6 +1,6 @@
 use crate::error::Result;
 use crate::types::*;
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 
 pub fn serialize_embedding(vec: &[f32]) -> Vec<u8> {
     vec.iter().flat_map(|f| f.to_le_bytes()).collect()
@@ -54,19 +54,16 @@ pub fn store_embedding(
 }
 
 pub fn get_embedding(conn: &Connection, node_type: &str, node_id: i64) -> Result<Option<Vec<f32>>> {
-    let result = conn.query_row(
+    conn.query_row(
         "SELECT embedding FROM embeddings WHERE node_type = ?1 AND node_id = ?2",
         params![node_type, node_id],
         |row| {
             let blob: Vec<u8> = row.get(0)?;
             Ok(deserialize_embedding(&blob))
         },
-    );
-    match result {
-        Ok(vec) => Ok(Some(vec)),
-        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-        Err(e) => Err(e.into()),
-    }
+    )
+    .optional()
+    .map_err(|e| e.into())
 }
 
 #[allow(dead_code)]

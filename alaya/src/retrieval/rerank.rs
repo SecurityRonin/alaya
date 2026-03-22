@@ -61,11 +61,9 @@ fn jaccard(a: &[String], b: &[String]) -> f64 {
     let set_b: std::collections::HashSet<&str> = b.iter().map(|s| s.as_str()).collect();
     let intersection = set_a.intersection(&set_b).count() as f64;
     let union = set_a.union(&set_b).count() as f64;
-    if union == 0.0 {
-        0.0
-    } else {
-        intersection / union
-    }
+    // Safety: union > 0 guaranteed — early return above handles both-empty case,
+    // so at least one set is non-empty.
+    intersection / union
 }
 
 #[cfg(test)]

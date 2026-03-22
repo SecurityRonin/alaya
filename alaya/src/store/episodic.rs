@@ -1,6 +1,6 @@
 use crate::error::{AlayaError, Result};
 use crate::types::*;
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 
 pub fn store_episode(conn: &Connection, ep: &NewEpisode) -> Result<EpisodeId> {
     let ctx_json = serde_json::to_string(&ep.context)?;
@@ -35,10 +35,8 @@ pub fn get_episode(conn: &Connection, id: EpisodeId) -> Result<Episode> {
             })
         },
     )
-    .map_err(|e| match e {
-        rusqlite::Error::QueryReturnedNoRows => AlayaError::NotFound(format!("episode {}", id.0)),
-        other => AlayaError::Db(other),
-    })
+    .optional()?
+    .ok_or_else(|| AlayaError::NotFound(format!("episode {}", id.0)))
 }
 
 pub fn get_episodes_by_session(conn: &Connection, session_id: &str) -> Result<Vec<Episode>> {

@@ -2,12 +2,15 @@
 # Measure both line and branch coverage
 branch = true
 # All features to cover all code paths
-features = "mcp,llm"
+features = "mcp,llm,async"
 # Output HTML for local dev, JSON for CI
 out = ["html", "json"]
-# Exclude test code from coverage measurement
-exclude-files = ["tests/*", "src/bin/*"]
+# Exclude test code and binary entrypoints from coverage measurement
+# Patterns must match paths as reported by tarpaulin (relative to workspace root)
+exclude-files = ["tests/*", "src/bin/*", "alaya/src/bin/*", "*/src/bin/*", "**/bin/*"]
 # Timeout per test (seconds)
 test-timeout = 120
 # Run all test types
-run-types = ["tests", "doctests"]
+run-types = ["Tests", "Lib", "Doctests"]
+# Target only the library crate
+packages = ["alaya"]

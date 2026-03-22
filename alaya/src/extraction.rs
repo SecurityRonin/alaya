@@ -155,6 +155,7 @@ impl LlmExtractionProvider {
     }
 }
 
+#[cfg_attr(tarpaulin, coverage(off))]
 impl LlmExtractionProviderBuilder {
     /// Set the API endpoint URL.
     /// Default: "https://api.openai.com/v1/chat/completions"

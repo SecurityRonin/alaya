@@ -17,6 +17,7 @@ use alaya::AlayaStore;
 use rmcp::ServiceExt;
 use tokio::io::{stdin, stdout};
 
+#[cfg(not(tarpaulin_include))]
 fn resolve_db_path() -> PathBuf {
     if let Ok(path) = std::env::var("ALAYA_DB") {
         return PathBuf::from(path);
@@ -30,6 +31,7 @@ fn resolve_db_path() -> PathBuf {
 /// Configure LLM extraction provider from environment variables.
 /// Returns silently if ALAYA_LLM_API_KEY is not set (auto-consolidation disabled).
 #[cfg(feature = "llm")]
+#[cfg(not(tarpaulin_include))]
 fn configure_extraction(store: &mut AlayaStore) {
     let api_key = match std::env::var("ALAYA_LLM_API_KEY") {
         Ok(key) if !key.is_empty() => key,
@@ -64,6 +66,7 @@ fn configure_extraction(store: &mut AlayaStore) {
 }
 
 #[tokio::main]
+#[cfg(not(tarpaulin_include))]
 async fn main() -> anyhow::Result<()> {
     #[cfg(feature = "tracing")]
     {

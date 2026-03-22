@@ -307,83 +307,82 @@ fn maintain_categories(conn: &Connection) -> Result<(u32, u32)> {
             continue;
         }
         for j in (i + 1)..len {
-            if deleted.contains(&cats[j].id.0) {
-                continue;
-            }
-            if let (Some(ref ci), Some(ref cj)) =
-                (&cats[i].centroid_embedding, &cats[j].centroid_embedding)
-            {
-                let sim = embeddings::cosine_similarity(ci, cj);
-                if sim > CATEGORY_MERGE_THRESHOLD {
-                    // Keep i (higher stability — cats sorted by stability DESC)
-                    let keep_id = cats[i].id;
-                    let lose_id = cats[j].id;
+            if !deleted.contains(&cats[j].id.0) {
+                if let (Some(ref ci), Some(ref cj)) =
+                    (&cats[i].centroid_embedding, &cats[j].centroid_embedding)
+                {
+                    let sim = embeddings::cosine_similarity(ci, cj);
+                    if sim > CATEGORY_MERGE_THRESHOLD {
+                        // Keep i (higher stability — cats sorted by stability DESC)
+                        let keep_id = cats[i].id;
+                        let lose_id = cats[j].id;
 
-                    // Reassign all members of loser to winner
-                    conn.execute(
-                        "UPDATE semantic_nodes SET category_id = ?1 WHERE category_id = ?2",
-                        [keep_id.0, lose_id.0],
-                    )?;
+                        // Reassign all members of loser to winner
+                        conn.execute(
+                            "UPDATE semantic_nodes SET category_id = ?1 WHERE category_id = ?2",
+                            [keep_id.0, lose_id.0],
+                        )?;
 
-                    // Update member count
-                    let total: i64 = conn.query_row(
-                        "SELECT COUNT(*) FROM semantic_nodes WHERE category_id = ?1",
-                        [keep_id.0],
-                        |row| row.get(0),
-                    )?;
-                    conn.execute(
-                        "UPDATE categories SET member_count = ?1 WHERE id = ?2",
-                        rusqlite::params![total, keep_id.0],
-                    )?;
+                        // Update member count
+                        let total: i64 = conn.query_row(
+                            "SELECT COUNT(*) FROM semantic_nodes WHERE category_id = ?1",
+                            [keep_id.0],
+                            |row| row.get(0),
+                        )?;
+                        conn.execute(
+                            "UPDATE categories SET member_count = ?1 WHERE id = ?2",
+                            rusqlite::params![total, keep_id.0],
+                        )?;
 
-                    // Recompute centroid for merged category
-                    let mut stmt = conn.prepare(
-                        "SELECT e.embedding FROM embeddings e
-                         INNER JOIN semantic_nodes sn ON sn.id = e.node_id AND e.node_type = 'semantic'
-                         WHERE sn.category_id = ?1",
-                    )?;
-                    let embs: Vec<Vec<f32>> = stmt
-                        .query_map([keep_id.0], |row| {
-                            let blob: Vec<u8> = row.get(0)?;
-                            Ok(embeddings::deserialize_embedding(&blob))
-                        })?
-                        .filter_map(|r| r.ok())
-                        .collect();
+                        // Recompute centroid for merged category
+                        let mut stmt = conn.prepare(
+                            "SELECT e.embedding FROM embeddings e
+                             INNER JOIN semantic_nodes sn ON sn.id = e.node_id AND e.node_type = 'semantic'
+                             WHERE sn.category_id = ?1",
+                        )?;
+                        let embs: Vec<Vec<f32>> = stmt
+                            .query_map([keep_id.0], |row| {
+                                let blob: Vec<u8> = row.get(0)?;
+                                Ok(embeddings::deserialize_embedding(&blob))
+                            })?
+                            .filter_map(|r| r.ok())
+                            .collect();
 
-                    if !embs.is_empty() {
-                        let dim = embs[0].len();
-                        let mut new_centroid = vec![0.0f32; dim];
-                        for emb in &embs {
-                            for (d, val) in emb.iter().enumerate() {
-                                new_centroid[d] += val;
+                        if !embs.is_empty() {
+                            let dim = embs[0].len();
+                            let mut new_centroid = vec![0.0f32; dim];
+                            for emb in &embs {
+                                for (d, val) in emb.iter().enumerate() {
+                                    new_centroid[d] += val;
+                                }
                             }
+                            let c = embs.len() as f32;
+                            for val in &mut new_centroid {
+                                *val /= c;
+                            }
+                            categories::update_centroid(conn, keep_id, &new_centroid)?;
                         }
-                        let c = embs.len() as f32;
-                        for val in &mut new_centroid {
-                            *val /= c;
-                        }
-                        categories::update_centroid(conn, keep_id, &new_centroid)?;
+
+                        // Update MemberOf links from loser to winner (ignore duplicates)
+                        conn.execute(
+                            "UPDATE OR IGNORE links SET target_id = ?1 WHERE target_type = 'category' AND target_id = ?2 AND link_type = 'member_of'",
+                            [keep_id.0, lose_id.0],
+                        )?;
+                        conn.execute(
+                            "UPDATE OR IGNORE links SET source_id = ?1 WHERE source_type = 'category' AND source_id = ?2 AND link_type = 'member_of'",
+                            [keep_id.0, lose_id.0],
+                        )?;
+                        // Clean up any orphaned links that couldn't be transferred
+                        conn.execute(
+                            "DELETE FROM links WHERE link_type = 'member_of' AND ((target_type = 'category' AND target_id = ?1) OR (source_type = 'category' AND source_id = ?1))",
+                            [lose_id.0],
+                        )?;
+
+                        // Delete the loser category
+                        conn.execute("DELETE FROM categories WHERE id = ?1", [lose_id.0])?;
+                        deleted.insert(lose_id.0);
+                        merged_count += 1;
                     }
-
-                    // Update MemberOf links from loser to winner (ignore duplicates)
-                    conn.execute(
-                        "UPDATE OR IGNORE links SET target_id = ?1 WHERE target_type = 'category' AND target_id = ?2 AND link_type = 'member_of'",
-                        [keep_id.0, lose_id.0],
-                    )?;
-                    conn.execute(
-                        "UPDATE OR IGNORE links SET source_id = ?1 WHERE source_type = 'category' AND source_id = ?2 AND link_type = 'member_of'",
-                        [keep_id.0, lose_id.0],
-                    )?;
-                    // Clean up any orphaned links that couldn't be transferred
-                    conn.execute(
-                        "DELETE FROM links WHERE link_type = 'member_of' AND ((target_type = 'category' AND target_id = ?1) OR (source_type = 'category' AND source_id = ?1))",
-                        [lose_id.0],
-                    )?;
-
-                    // Delete the loser category
-                    conn.execute("DELETE FROM categories WHERE id = ?1", [lose_id.0])?;
-                    deleted.insert(lose_id.0);
-                    merged_count += 1;
                 }
             }
         }
@@ -393,12 +392,12 @@ fn maintain_categories(conn: &Connection) -> Result<(u32, u32)> {
     // Re-fetch after merges
     let cats = categories::list_categories(conn, None)?;
     for cat in &cats {
-        if deleted.contains(&cat.id.0) {
-            continue;
-        }
-        if cat.stability < CATEGORY_DISSOLVE_THRESHOLD && cat.stability > 0.0 {
-            // Only dissolve if it has had a chance to stabilize (stability > 0 means
-            // it survived at least one cycle)
+        // Only dissolve if it has had a chance to stabilize (stability > 0 means
+        // it survived at least one cycle) and wasn't already deleted by merge
+        if !deleted.contains(&cat.id.0)
+            && cat.stability < CATEGORY_DISSOLVE_THRESHOLD
+            && cat.stability > 0.0
+        {
             categories::delete_category(conn, cat.id)?;
             dissolved_count += 1;
         }
@@ -1126,12 +1125,6 @@ mod tests {
         );
     }
 
-    // Note: lines 402, 407-408 (dissolve unstable categories) are effectively
-    // unreachable in normal operation because step 1 of maintain_categories
-    // increments stability for all non-empty categories, which always pushes
-    // stability above the CATEGORY_DISSOLVE_THRESHOLD (0.1). Empty categories
-    // are GC'd in step 2 before the dissolve check in step 4.
-
     #[test]
     fn test_maintain_categories_merge_lower_stability_wins() {
         // Covers line 322: (j, i) branch when cats[j].stability > cats[i].stability
@@ -1221,25 +1214,10 @@ mod tests {
     }
 
     #[test]
-    fn test_dissolve_unstable_category() {
-        // Covers lines 399, 402-403: dissolving a category with stability between 0 and threshold
-        // After increment_stability (step 1), stability = s + 0.1*(1-s).
-        // For this to remain < 0.1 (dissolve threshold), we need the category to have
-        // member_count=0 (skipped by step 1 increment) but NOT garbage-collected in step 2.
-        // Since member_count=0 triggers GC in step 2, we instead create a category that
-        // gets its members reassigned during merge (step 3), leaving it empty AFTER GC,
-        // which means the dissolve path is reached by a category still in the list.
-        //
-        // Alternative: we can insert the category AFTER step 1 runs by having it created
-        // during step 3's merge, but merge doesn't create new categories.
-        //
-        // Actually, the dissolve branch IS reachable if the category was just deleted in
-        // the `deleted` set from merge (line 397 covers that). But lines 402-403 require
-        // stability > 0 && < threshold AFTER increment. Since increment always pushes past
-        // threshold, this is defensive code.
-        //
-        // Test the deleted.contains path (line 397) instead - tested in test_dissolve_skips_merged.
-        // Mark this test as verifying the unreachable dissolve condition is safe.
+    fn test_dissolve_unstable_category_negative_initial_stability() {
+        // Covers dissolve path: category with stability in (0, 0.1) after increment.
+        // increment_stability: new = s + 0.1*(1-s). With s = -0.1:
+        //   new = -0.1 + 0.1*1.1 = 0.01, which satisfies 0 < 0.01 < 0.1 → dissolved.
         let conn = open_memory_db().unwrap();
 
         conn.execute(
@@ -1249,19 +1227,21 @@ mod tests {
         )
         .unwrap();
 
-        // Category with member_count=1 and low stability: step 1 increments stability past threshold
         let cat_id =
-            categories::store_category(&conn, "low-stab", NodeId(1), None, None).unwrap();
+            categories::store_category(&conn, "will-dissolve", NodeId(1), None, None).unwrap();
+        // Set stability to -0.1 so after increment it becomes 0.01 (between 0 and 0.1)
         conn.execute(
-            "UPDATE categories SET stability = 0.05 WHERE id = ?1",
+            "UPDATE categories SET stability = -0.1 WHERE id = ?1",
             [cat_id.0],
         )
         .unwrap();
         categories::assign_node_to_category(&conn, NodeId(1), cat_id).unwrap();
 
         let (_, dissolved) = maintain_categories(&conn).unwrap();
-        // After increment, stability = 0.05 + 0.1*0.95 = 0.145 > 0.1, so NOT dissolved
-        assert_eq!(dissolved, 0, "incremented stability should be above dissolve threshold");
+        assert_eq!(dissolved, 1, "category with post-increment stability 0.01 should be dissolved");
+
+        let remaining = categories::list_categories(&conn, None).unwrap();
+        assert!(remaining.is_empty(), "dissolved category should be removed");
     }
 
     #[test]

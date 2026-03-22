@@ -137,12 +137,11 @@ fn try_assign_category(
         let ep_links = links::get_links_from(conn, NodeRef::Episode(*ep_id))?;
         for link in &ep_links {
             if let NodeRef::Semantic(linked_node_id) = link.target {
-                if linked_node_id == node_id {
-                    continue; // skip self
-                }
-                if let Ok(Some(cat)) = categories::get_node_category(conn, linked_node_id) {
-                    *votes.entry(cat.id).or_insert(0) += 1;
-                    total_votes += 1;
+                if linked_node_id != node_id {
+                    if let Ok(Some(cat)) = categories::get_node_category(conn, linked_node_id) {
+                        *votes.entry(cat.id).or_insert(0) += 1;
+                        total_votes += 1;
+                    }
                 }
             }
         }

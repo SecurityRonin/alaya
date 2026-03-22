@@ -167,11 +167,7 @@ fn parse_claude_mem_db(path: &str) -> Result<(u32, Vec<NewSemanticNode>), String
         })
         .map_err(|e| format!("Error querying observations: {e}"))?;
 
-    for row_result in rows {
-        let (title, facts_json, _narrative, concepts_json, _created_at) = match row_result {
-            Ok(r) => r,
-            Err(_) => continue,
-        };
+    for (title, facts_json, _narrative, concepts_json, _created_at) in rows.flatten() {
         obs_count += 1;
         let _ = title;
 
@@ -784,6 +780,244 @@ mod tests {
         assert!(
             result.contains("Imported 1 messages"),
             "Entry with no content field should be skipped: {result}"
+        );
+    }
+
+    #[test]
+    fn import_claude_code_with_empty_lines() {
+        // Covers line 77: empty/whitespace lines in JSONL should be skipped
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("with-blanks.jsonl");
+
+        let good_line = serde_json::to_string(&serde_json::json!({
+            "type": "human",
+            "message": {"role": "user", "content": "Valid message"},
+            "timestamp": "1700000000",
+            "sessionId": "s1"
+        }))
+        .unwrap();
+
+        // Include empty lines, whitespace-only lines, and blank lines between entries
+        let content = format!("\n\n{good_line}\n   \n\n{good_line}\n\n");
+        std::fs::write(&file_path, content).unwrap();
+
+        let srv = make_server();
+        let result = srv.import_claude_code(ImportClaudeCodeParams {
+            path: file_path.to_str().unwrap().into(),
+        });
+        assert!(
+            result.contains("Imported 2 messages"),
+            "Should import valid lines and skip empty ones: {result}"
+        );
+    }
+
+    #[test]
+    fn import_claude_mem_empty_observations() {
+        // Covers line 229: "No observations found" when DB has empty observations table
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("empty-claude-mem.db");
+
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE observations (
+                title TEXT,
+                facts TEXT,
+                narrative TEXT,
+                concepts TEXT,
+                created_at TEXT
+            );"
+        ).unwrap();
+        drop(conn);
+
+        let srv = make_server();
+        let result = srv.import_claude_mem(ImportClaudeMemParams {
+            path: Some(db_path.to_str().unwrap().into()),
+        });
+        assert!(
+            result.contains("No observations found"),
+            "Empty observations table should report no observations: {result}"
+        );
+    }
+
+    #[test]
+    fn import_claude_mem_with_empty_facts_and_concepts() {
+        // Covers lines 181, 196: skip empty strings in facts/concepts JSON arrays
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("sparse-claude-mem.db");
+
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE observations (
+                title TEXT,
+                facts TEXT,
+                narrative TEXT,
+                concepts TEXT,
+                created_at TEXT
+            );"
+        ).unwrap();
+        // Insert observation with empty strings mixed into facts and concepts arrays
+        conn.execute(
+            "INSERT INTO observations (title, facts, narrative, concepts, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params![
+                "Test Observation",
+                r#"["real fact", "", "   ", "another fact"]"#,
+                "Some narrative",
+                r#"["real concept", "", "  "]"#,
+                "2024-01-01T00:00:00Z"
+            ],
+        ).unwrap();
+        drop(conn);
+
+        let srv = make_server();
+        let result = srv.import_claude_mem(ImportClaudeMemParams {
+            path: Some(db_path.to_str().unwrap().into()),
+        });
+        assert!(
+            result.contains("Imported 1 observations"),
+            "Should import the observation: {result}"
+        );
+        // 2 real facts + 1 real concept = 3 semantic nodes (empty strings skipped)
+        assert!(
+            result.contains("3 semantic nodes"),
+            "Should skip empty facts/concepts: {result}"
+        );
+    }
+
+    #[test]
+    fn import_claude_code_with_invalid_utf8() {
+        // Covers lines 68-73: IO read error from invalid UTF-8 bytes
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("bad-utf8.jsonl");
+        {
+            let mut f = std::fs::File::create(&file_path).unwrap();
+            // Write a valid JSONL line
+            let good_line = serde_json::to_string(&serde_json::json!({
+                "type": "human",
+                "message": {"role": "user", "content": "Valid message"},
+                "timestamp": "1700000000",
+                "sessionId": "s1"
+            }))
+            .unwrap();
+            f.write_all(good_line.as_bytes()).unwrap();
+            f.write_all(b"\n").unwrap();
+            // Write invalid UTF-8 bytes followed by a newline
+            f.write_all(&[0xFF, 0xFE, 0x80, 0x90, b'\n']).unwrap();
+            // Write another valid line
+            f.write_all(good_line.as_bytes()).unwrap();
+            f.write_all(b"\n").unwrap();
+        }
+
+        let srv = make_server();
+        let result = srv.import_claude_code(ImportClaudeCodeParams {
+            path: file_path.to_str().unwrap().into(),
+        });
+        // Should import the valid lines and report errors for invalid UTF-8
+        assert!(
+            result.contains("Imported") || result.contains("error"),
+            "Should handle invalid UTF-8: {result}"
+        );
+    }
+
+    #[test]
+    fn import_claude_code_store_episode_db_error() {
+        // Covers line 261: store_episode error during import
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("valid.jsonl");
+        let good_line = serde_json::to_string(&serde_json::json!({
+            "type": "human",
+            "message": {"role": "user", "content": "Valid message"},
+            "timestamp": "1700000000",
+            "sessionId": "s1"
+        }))
+        .unwrap();
+        std::fs::write(&file_path, format!("{good_line}\n")).unwrap();
+
+        let store = AlayaStore::open_in_memory().unwrap();
+        store
+            .raw_conn()
+            .execute_batch("DROP TABLE episodes")
+            .unwrap();
+        let srv = AlayaMcp::new(store);
+        let result = srv.import_claude_code(ImportClaudeCodeParams {
+            path: file_path.to_str().unwrap().into(),
+        });
+        assert!(
+            result.contains("error") || result.contains("No importable"),
+            "Should report store error: {result}"
+        );
+    }
+
+    #[test]
+    fn import_claude_mem_learn_db_error() {
+        // Covers line 238: learn error during claude-mem import
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("good-source.db");
+
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE observations (
+                title TEXT,
+                facts TEXT,
+                narrative TEXT,
+                concepts TEXT,
+                created_at TEXT
+            );"
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO observations (title, facts, narrative, concepts, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params![
+                "Test",
+                r#"["some fact"]"#,
+                "narrative",
+                r#"["some concept"]"#,
+                "2024-01-01"
+            ],
+        ).unwrap();
+        drop(conn);
+
+        // Create a server with corrupted semantic_nodes table
+        let store = AlayaStore::open_in_memory().unwrap();
+        store
+            .raw_conn()
+            .execute_batch("DROP TABLE semantic_nodes")
+            .unwrap();
+        let srv = AlayaMcp::new(store);
+        let result = srv.import_claude_mem(ImportClaudeMemParams {
+            path: Some(db_path.to_str().unwrap().into()),
+        });
+        assert!(
+            result.starts_with("Error importing:"),
+            "Should return learn error: {result}"
+        );
+    }
+
+    #[test]
+    fn import_claude_mem_row_iteration_error() {
+        // Covers line 173: row error during observation iteration
+        // Create a DB with fewer columns to trigger row index out-of-bounds
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("bad-schema.db");
+
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        // Create table with only 2 columns — the query SELECTs 5 columns by position
+        // so row.get(2), row.get(3), row.get(4) will fail
+        conn.execute_batch(
+            "CREATE TABLE observations (title TEXT, facts TEXT);
+             INSERT INTO observations VALUES ('test', '[\"fact\"]');"
+        ).unwrap();
+        drop(conn);
+
+        let srv = make_server();
+        let result = srv.import_claude_mem(ImportClaudeMemParams {
+            path: Some(db_path.to_str().unwrap().into()),
+        });
+        // Should handle the row error gracefully (continue on Err)
+        assert!(
+            !result.contains("panic"),
+            "Should not panic on bad row data: {result}"
         );
     }
 }

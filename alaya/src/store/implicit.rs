@@ -1,6 +1,6 @@
 use crate::error::Result;
 use crate::types::*;
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 
 pub fn store_impression(conn: &Connection, imp: &NewImpression) -> Result<ImpressionId> {
     let now = std::time::SystemTime::now()
@@ -71,12 +71,8 @@ pub fn get_preference(conn: &Connection, id: PreferenceId) -> Result<Preference>
         [id.0],
         map_preference,
     )
-    .map_err(|e| match e {
-        rusqlite::Error::QueryReturnedNoRows => {
-            crate::error::AlayaError::NotFound(format!("preference {}", id.0))
-        }
-        other => crate::error::AlayaError::Db(other),
-    })
+    .optional()?
+    .ok_or_else(|| crate::error::AlayaError::NotFound(format!("preference {}", id.0)))
 }
 
 pub fn get_preferences(conn: &Connection, domain: Option<&str>) -> Result<Vec<Preference>> {

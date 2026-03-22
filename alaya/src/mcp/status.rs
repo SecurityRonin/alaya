@@ -208,6 +208,55 @@ mod tests {
     }
 
     #[test]
+    fn status_db_error_episodes_table() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        store
+            .raw_conn()
+            .execute_batch("DROP TABLE episodes")
+            .unwrap();
+        let srv = AlayaMcp::new(store);
+        let result = srv.status();
+        assert!(
+            result.starts_with("Error:"),
+            "Should return error when episodes table is missing: {result}"
+        );
+    }
+
+    #[test]
+    fn status_db_error_knowledge_breakdown() {
+        // Rename node_type column so knowledge_breakdown() fails (line 19)
+        // but status() itself succeeds (only needs COUNT(*))
+        let store = AlayaStore::open_in_memory().unwrap();
+        store
+            .raw_conn()
+            .execute_batch("ALTER TABLE semantic_nodes RENAME COLUMN node_type TO broken_col")
+            .unwrap();
+        let srv = AlayaMcp::new(store);
+        let result = srv.status();
+        assert!(
+            result.contains("error"),
+            "Knowledge line should show error from broken column: {result}"
+        );
+    }
+
+    #[test]
+    fn status_db_error_categories() {
+        // Rename a column so list_categories() fails (line 25)
+        // but count_categories (COUNT(*)) still works for status()
+        let store = AlayaStore::open_in_memory().unwrap();
+        store
+            .raw_conn()
+            .execute_batch("ALTER TABLE categories RENAME COLUMN stability TO broken_stab")
+            .unwrap();
+        let srv = AlayaMcp::new(store);
+        let result = srv.status();
+        assert!(
+            result.contains("error"),
+            "Categories line should show error from broken column: {result}"
+        );
+    }
+
+    #[test]
     fn status_preferences_line_present() {
         let srv = make_server();
         let result = srv.status();

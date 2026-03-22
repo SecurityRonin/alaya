@@ -56,6 +56,8 @@ pub fn handle_preferences(server: &super::AlayaMcp, params: PreferencesParams) -
 
 #[cfg(all(test, feature = "mcp"))]
 mod tests {
+    use crate::provider::MockProvider;
+    use crate::types::{EpisodeContext, Interaction, NewImpression, Role};
     use crate::AlayaStore;
 
     use super::super::{AlayaMcp, LearnFactEntry, LearnParams, PreferencesParams, RememberParams};
@@ -228,5 +230,95 @@ mod tests {
             session_id: Some("nonexistent-session".into()),
         });
         assert!(result.starts_with("Learned 1 facts:"));
+    }
+
+    #[test]
+    fn learn_session_resolve_db_error() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        store
+            .raw_conn()
+            .execute_batch("DROP TABLE episodes")
+            .unwrap();
+        let srv = AlayaMcp::new(store);
+        let result = srv.learn(LearnParams {
+            facts: vec![LearnFactEntry {
+                content: "A fact".into(),
+                node_type: "fact".into(),
+                confidence: None,
+            }],
+            session_id: Some("nonexistent".into()),
+        });
+        assert!(
+            result.starts_with("Error resolving session"),
+            "Should return session resolve error: {result}"
+        );
+    }
+
+    #[test]
+    fn learn_db_error() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        store
+            .raw_conn()
+            .execute_batch("DROP TABLE semantic_nodes")
+            .unwrap();
+        let srv = AlayaMcp::new(store);
+        let result = srv.learn(LearnParams {
+            facts: vec![LearnFactEntry {
+                content: "A fact".into(),
+                node_type: "fact".into(),
+                confidence: None,
+            }],
+            session_id: None,
+        });
+        assert!(
+            result.starts_with("Error:"),
+            "Should return error: {result}"
+        );
+    }
+
+    #[test]
+    fn preferences_db_error() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        store
+            .raw_conn()
+            .execute_batch("DROP TABLE preferences")
+            .unwrap();
+        let srv = AlayaMcp::new(store);
+        let result = srv.preferences(PreferencesParams { domain: None });
+        assert!(
+            result.starts_with("Error:"),
+            "Should return error: {result}"
+        );
+    }
+
+    #[test]
+    fn preferences_with_crystallized_data() {
+        // Pre-populate preferences via perfuming, then test the handler (covers line 52)
+        let store = AlayaStore::open_in_memory().unwrap();
+        let provider = MockProvider::with_impressions(vec![NewImpression {
+            domain: "style".to_string(),
+            observation: "prefers dark mode".to_string(),
+            valence: 1.0,
+        }]);
+
+        // Perfume 6 times to reach crystallization threshold (5)
+        for i in 0..6 {
+            let interaction = Interaction {
+                text: format!("interaction {i}"),
+                role: Role::User,
+                session_id: "s1".to_string(),
+                timestamp: 1000 + i * 100,
+                context: EpisodeContext::default(),
+            };
+            store.perfume(&interaction, &provider).unwrap();
+        }
+
+        let srv = AlayaMcp::new(store);
+        let result = srv.preferences(PreferencesParams { domain: None });
+        // Should format non-empty preferences (covers line 52)
+        assert!(
+            !result.contains("No preferences found"),
+            "Should have crystallized preferences: {result}"
+        );
     }
 }

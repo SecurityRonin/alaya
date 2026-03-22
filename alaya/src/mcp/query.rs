@@ -70,7 +70,9 @@ pub fn handle_node_category(server: &super::AlayaMcp, params: NodeCategoryParams
 
 #[cfg(all(test, feature = "mcp"))]
 mod tests {
-    use crate::AlayaStore;
+    use crate::{
+        AlayaStore, EpisodeContext, EpisodeId, NewEpisode, NewSemanticNode, Role, SemanticType,
+    };
 
     use super::super::{
         AlayaMcp, CategoriesParams, KnowledgeParams, LearnFactEntry, LearnParams, NeighborsParams,
@@ -333,5 +335,168 @@ mod tests {
         });
         let result = srv.node_category(NodeCategoryParams { node_id: 1 });
         assert!(result.contains("Node 1"));
+    }
+
+    /// Pre-populate a store with categorized semantic nodes for testing.
+    fn make_server_with_categories() -> AlayaMcp {
+        let store = AlayaStore::open_in_memory().unwrap();
+        for i in 0..5 {
+            store
+                .store_episode(&NewEpisode {
+                    content: format!("cooking topic {i}"),
+                    role: Role::User,
+                    session_id: "s1".to_string(),
+                    timestamp: 1000 + i * 100,
+                    context: EpisodeContext::default(),
+                    embedding: None,
+                })
+                .unwrap();
+        }
+        store
+            .learn(vec![
+                NewSemanticNode {
+                    content: "User cooks pasta regularly".to_string(),
+                    node_type: SemanticType::Fact,
+                    confidence: 0.9,
+                    source_episodes: vec![EpisodeId(1)],
+                    embedding: Some(vec![0.8, 0.3, 0.1]),
+                },
+                NewSemanticNode {
+                    content: "User likes Italian food".to_string(),
+                    node_type: SemanticType::Fact,
+                    confidence: 0.85,
+                    source_episodes: vec![EpisodeId(2)],
+                    embedding: Some(vec![0.4, 0.8, 0.2]),
+                },
+                NewSemanticNode {
+                    content: "User knows many recipes".to_string(),
+                    node_type: SemanticType::Concept,
+                    confidence: 0.8,
+                    source_episodes: vec![EpisodeId(3)],
+                    embedding: Some(vec![0.6, 0.5, 0.5]),
+                },
+            ])
+            .unwrap();
+        store.transform().unwrap();
+        AlayaMcp::new(store)
+    }
+
+    #[test]
+    fn categories_with_data() {
+        let srv = make_server_with_categories();
+        let result = srv.categories(CategoriesParams {
+            min_stability: None,
+        });
+        // Should format non-empty categories (covers line 36)
+        assert!(
+            !result.starts_with("No categories") && !result.starts_with("Error"),
+            "Should have categories: {result}"
+        );
+    }
+
+    #[test]
+    fn neighbors_with_data() {
+        let srv = make_server_with_categories();
+        // Semantic nodes have Causal links to episodes — use semantic node to find neighbors
+        let result = srv.neighbors(NeighborsParams {
+            node_type: "semantic".into(),
+            node_id: 1,
+            depth: Some(2),
+        });
+        // Should format non-empty neighbors (covers line 58)
+        assert!(
+            !result.starts_with("No neighbors") && !result.starts_with("Error"),
+            "Semantic node should have neighbors via causal links: {result}"
+        );
+    }
+
+    #[test]
+    fn knowledge_db_error() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        store
+            .raw_conn()
+            .execute_batch("DROP TABLE semantic_nodes")
+            .unwrap();
+        let srv = AlayaMcp::new(store);
+        let result = srv.knowledge(KnowledgeParams {
+            node_type: None,
+            min_confidence: None,
+            limit: None,
+            category: None,
+        });
+        assert!(
+            result.starts_with("Error:"),
+            "Should return error: {result}"
+        );
+    }
+
+    #[test]
+    fn categories_db_error() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        store
+            .raw_conn()
+            .execute_batch("DROP TABLE categories")
+            .unwrap();
+        let srv = AlayaMcp::new(store);
+        let result = srv.categories(CategoriesParams {
+            min_stability: None,
+        });
+        assert!(
+            result.starts_with("Error:"),
+            "Should return error: {result}"
+        );
+    }
+
+    #[test]
+    fn neighbors_db_error() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        store
+            .raw_conn()
+            .execute_batch("DROP TABLE links")
+            .unwrap();
+        let srv = AlayaMcp::new(store);
+        let result = srv.neighbors(NeighborsParams {
+            node_type: "episode".into(),
+            node_id: 1,
+            depth: None,
+        });
+        assert!(
+            result.starts_with("Error:"),
+            "Should return error: {result}"
+        );
+    }
+
+    #[test]
+    fn node_category_db_error() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        store
+            .raw_conn()
+            .execute_batch("DROP TABLE semantic_nodes")
+            .unwrap();
+        let srv = AlayaMcp::new(store);
+        let result = srv.node_category(NodeCategoryParams { node_id: 1 });
+        assert!(
+            result.starts_with("Error:"),
+            "Should return error: {result}"
+        );
+    }
+
+    #[test]
+    fn node_category_with_categorized_node() {
+        let srv = make_server_with_categories();
+        // After transform, at least some semantic nodes should be categorized.
+        // Try node IDs 1-3 (the semantic nodes we created)
+        let mut found_categorized = false;
+        for id in 1..=3 {
+            let result = srv.node_category(NodeCategoryParams { node_id: id });
+            if !result.contains("uncategorized") && !result.starts_with("Error") {
+                found_categorized = true;
+                break;
+            }
+        }
+        assert!(
+            found_categorized,
+            "At least one semantic node should be categorized after transform"
+        );
     }
 }

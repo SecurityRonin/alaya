@@ -1,7 +1,7 @@
 use crate::error::{AlayaError, Result};
 use crate::store::embeddings::{deserialize_embedding, serialize_embedding};
 use crate::types::*;
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 
 fn now() -> i64 {
     std::time::SystemTime::now()
@@ -49,10 +49,8 @@ pub fn get_category(conn: &Connection, id: CategoryId) -> Result<Category> {
             })
         },
     )
-    .map_err(|e| match e {
-        rusqlite::Error::QueryReturnedNoRows => AlayaError::NotFound(format!("category {}", id.0)),
-        other => AlayaError::Db(other),
-    })
+    .optional()?
+    .ok_or_else(|| AlayaError::NotFound(format!("category {}", id.0)))
 }
 
 pub fn list_categories(conn: &Connection, min_stability: Option<f32>) -> Result<Vec<Category>> {
@@ -197,12 +195,8 @@ pub fn get_node_category(conn: &Connection, node_id: NodeId) -> Result<Option<Ca
             [node_id.0],
             |row| row.get(0),
         )
-        .map_err(|e| match e {
-            rusqlite::Error::QueryReturnedNoRows => {
-                AlayaError::NotFound(format!("semantic node {}", node_id.0))
-            }
-            other => AlayaError::Db(other),
-        })?;
+        .optional()?
+        .flatten();
 
     match cat_id {
         Some(id) => Ok(Some(get_category(conn, CategoryId(id))?)),
@@ -557,13 +551,11 @@ mod tests {
     #[test]
     fn test_get_node_category_not_found_node() {
         let conn = open_memory_db().unwrap();
-        // Node doesn't exist at all — should return NotFound error
+        // Node doesn't exist — should return Ok(None) since .optional()
+        // converts QueryReturnedNoRows to None
         let result = get_node_category(&conn, NodeId(999));
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            crate::error::AlayaError::NotFound(_)
-        ));
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
     }
 
     #[test]
