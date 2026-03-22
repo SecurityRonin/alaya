@@ -1,4 +1,5 @@
 pub mod categories;
+pub mod conflicts;
 pub mod embeddings;
 pub mod episodic;
 pub mod implicit;
