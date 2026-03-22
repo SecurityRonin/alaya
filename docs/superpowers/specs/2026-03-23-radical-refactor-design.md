@@ -19,32 +19,49 @@ Replace the `AlayaStore` god object with a coordinator + sub-manager architectur
 `AlayaStore` (32 methods, 900-line impl block) is replaced by `Alaya`, a coordinator that owns the SQLite connection and hands out typed sub-manager references:
 
 ```rust
-let alaya = Alaya::open_in_memory()?;
+let mut alaya = Alaya::open_in_memory()?;
 
+// Configuration (on coordinator directly)
+alaya.set_embedding_provider(Box::new(provider));
+alaya.set_conflict_strategy(ConflictStrategy::Confidence);
+
+// Episodes
 alaya.episodes().store(&episode)?;
 alaya.episodes().by_session("s1")?;
+alaya.episodes().unconsolidated(100)?;
 
+// Knowledge (read/write semantic nodes)
 alaya.knowledge().query(&q)?;
 alaya.knowledge().learn(nodes)?;
 alaya.knowledge().filter(KnowledgeFilter { .. })?;
+alaya.knowledge().breakdown()?;
 
+// Lifecycle (maintenance processes)
 alaya.lifecycle().consolidate(&provider)?;
+alaya.lifecycle().auto_consolidate()?;
 alaya.lifecycle().transform()?;
 alaya.lifecycle().forget()?;
 alaya.lifecycle().dream(&provider, None)?;
 alaya.lifecycle().reconcile()?;
+alaya.lifecycle().conflicts()?;
+alaya.lifecycle().resolve_conflict(conflict_id, winner_id)?;
 
+// Graph
 alaya.graph().neighbors(node, 2)?;
 alaya.graph().strongest_link()?;
 
+// Admin
 alaya.admin().status()?;
 alaya.admin().purge(PurgeFilter::All)?;
+alaya.admin().preferences(None)?;
 alaya.admin().categories(None)?;
+alaya.admin().node_content(node)?;
 ```
 
-Each sub-manager is a zero-cost wrapper borrowing `&Connection`:
+Each sub-manager is a zero-cost wrapper borrowing `&Connection`. Sub-manager structs are `#[non_exhaustive]` to allow future field additions:
 
 ```rust
+#[non_exhaustive]
 pub struct Episodes<'a> {
     conn: &'a Connection,
     embedding_provider: Option<&'a dyn EmbeddingProvider>,
@@ -62,29 +79,52 @@ pub struct Alaya {
 }
 
 impl Alaya {
+    // Sub-manager accessors (immutable borrows)
     pub fn episodes(&self) -> Episodes<'_> { ... }
     pub fn knowledge(&self) -> Knowledge<'_> { ... }
     pub fn lifecycle(&self) -> Lifecycle<'_> { ... }
     pub fn graph(&self) -> Graph<'_> { ... }
     pub fn admin(&self) -> Admin<'_> { ... }
+
+    // Configuration methods stay on Alaya directly (require &mut self)
+    pub fn set_embedding_provider(&mut self, provider: Box<dyn EmbeddingProvider>) { ... }
+    pub fn set_extraction_provider(&mut self, provider: Box<dyn ExtractionProvider>) { ... }
+    pub fn set_conflict_strategy(&mut self, strategy: ConflictStrategy) { ... }
+
+    #[cfg(feature = "sqlcipher")]
+    pub fn rekey(&self, new_key: &str) -> Result<()> { ... }
+
+    // Test-only raw connection access
+    #[cfg(test)]
+    pub(crate) fn raw_conn(&self) -> &Connection { &self.conn }
 }
 ```
+
+Configuration methods (`set_*`) stay on `Alaya` directly because they mutate the coordinator's owned state. Sub-managers borrow immutably and never need `&mut self`.
 
 ### Sub-Manager Responsibilities
 
 | Sub-Manager | Methods | Delegates To |
 |-------------|---------|-------------|
 | `Episodes` | `store`, `by_session`, `unconsolidated` | `store::episodic`, `store::embeddings`, `graph::links` |
-| `Knowledge` | `query`, `learn`, `filter`, `breakdown`, `auto_consolidate` | `retrieval::pipeline`, `lifecycle::consolidation`, `store::semantic` |
-| `Lifecycle` | `consolidate`, `transform`, `forget`, `perfume`, `dream`, `reconcile`, `conflicts`, `resolve_conflict` | `lifecycle::*` |
+| `Knowledge` | `query`, `learn`, `filter`, `breakdown` | `retrieval::pipeline`, `store::semantic` |
+| `Lifecycle` | `consolidate`, `auto_consolidate`, `transform`, `forget`, `perfume`, `dream`, `reconcile`, `conflicts`, `resolve_conflict` | `lifecycle::*` |
 | `Graph` | `neighbors`, `strongest_link` | `graph::activation`, `graph::links` |
-| `Admin` | `status`, `purge`, `categories`, `subcategories`, `node_category`, `node_content`, `knowledge_breakdown` | `store::*` |
+| `Admin` | `status`, `purge`, `preferences`, `categories`, `subcategories`, `node_category`, `node_content` | `store::*` |
+
+**Design decisions:**
+
+- **`auto_consolidate` lives in `Lifecycle`**, not `Knowledge`. Consolidation is a lifecycle process (episodic -> semantic). `Knowledge` handles reading/querying knowledge; `Lifecycle` handles creating/maintaining it. `learn()` stays in `Knowledge` because it's a direct write ("here are nodes, store them"), not a lifecycle process.
+- **`preferences` lives in `Admin`** as a read-only accessor, alongside other store-level reads like `status` and `categories`.
+- **`knowledge_breakdown` lives in `Knowledge` only** (removed from Admin). It's a query about semantic nodes, not a system-level admin operation.
+- **`node_content` is an existing method** in the current `AlayaStore` (lib.rs:814), not a new addition.
+- **`store_episode` cross-cutting transaction**: The `Episodes` sub-manager borrows `&Connection` and runs a single `db::transact` that spans episodic insert + embedding store + strength init + temporal link creation. This matches the current pattern in `AlayaStore::store_episode`. The sub-manager struct also borrows `embedding_provider` to handle auto-embedding within the transaction.
 
 ## Module Structure
 
 ```
 alaya/src/
-├── lib.rs              # Alaya coordinator (~150 LOC)
+├── lib.rs              # Alaya coordinator (~200 LOC)
 ├── db.rs               # Shared DB helpers: now(), transact(), JSON, ResultExt
 ├── error.rs            # AlayaError with context enrichment
 ├── schema.rs           # Migrations (unchanged)
@@ -158,7 +198,14 @@ pub(crate) fn to_json<T: serde::Serialize>(value: &T) -> Result<String> {
 }
 
 pub(crate) fn from_json_or_default<T: serde::de::DeserializeOwned + Default>(s: &str) -> T {
-    serde_json::from_str(s).unwrap_or_default()
+    match serde_json::from_str(s) {
+        Ok(v) => v,
+        Err(_e) => {
+            #[cfg(feature = "tracing")]
+            tracing::warn!(input = s, error = %_e, "JSON parse failed, using default");
+            T::default()
+        }
+    }
 }
 ```
 
@@ -201,6 +248,22 @@ impl<T> ResultExt<T> for std::result::Result<T, rusqlite::Error> {
 ```
 
 Context is added at the sub-manager layer (meaningful operation names), not at every SQL call (too noisy).
+
+**Error conversion boundary:** Store modules continue returning `Result<T>` using the `From<rusqlite::Error>` impl. The `ResultExt::with_context` trait is for the rare cases where sub-managers call `rusqlite` directly (e.g., `store_episode`'s multi-step transaction). For store module calls that already return `AlayaError::Db`, sub-managers can add context via a second trait impl:
+
+```rust
+impl<T> ResultExt<T> for Result<T> {
+    fn with_context(self, ctx: &str) -> Result<T> {
+        self.map_err(|e| match e {
+            AlayaError::Db { source, context: _ } => AlayaError::Db {
+                source,
+                context: ctx.to_string(),
+            },
+            other => other,
+        })
+    }
+}
+```
 
 ## Tracing Integration
 
@@ -297,13 +360,52 @@ pub(crate) mod testutil {
 - `schema.rs` — migrations are stable
 - `provider.rs` — traits are clean
 
+## Async Store Refactoring
+
+`AsyncAlayaStore` becomes `AsyncAlaya`. The actor pattern stays the same (mpsc channel + oneshot reply) but the `Request` enum variants restructure to match the sub-manager API:
+
+```rust
+enum Request {
+    // Episodes
+    StoreEpisode { episode: NewEpisode, reply: Sender<Result<EpisodeId>> },
+    EpisodesBySession { session_id: String, reply: Sender<Result<Vec<Episode>>> },
+    UnconsolidatedEpisodes { limit: u32, reply: Sender<Result<Vec<Episode>>> },
+
+    // Knowledge
+    Query { query: Query, reply: Sender<Result<Vec<ScoredMemory>>> },
+    Learn { nodes: Vec<NewSemanticNode>, reply: Sender<Result<ConsolidationReport>> },
+    // ... etc
+}
+```
+
+The `run_actor` function's match arms call sub-manager methods on the inner `Alaya`:
+
+```rust
+Request::StoreEpisode { episode, reply } => {
+    let _ = reply.send(store.episodes().store(&episode));
+}
+```
+
+`AsyncAlaya` exposes the same sub-manager grouping via async methods, but does NOT expose sub-manager structs (since the actor is on a different thread). Instead, methods are namespaced by prefix:
+
+```rust
+impl AsyncAlaya {
+    pub async fn store_episode(&self, episode: NewEpisode) -> Result<EpisodeId> { ... }
+    pub async fn query(&self, q: Query) -> Result<Vec<ScoredMemory>> { ... }
+    pub async fn transform(&self) -> Result<TransformationReport> { ... }
+    // ... flat async methods matching sub-manager methods
+}
+```
+
+This keeps the async API simple while the sync API gets full sub-manager ergonomics.
+
 ## Breaking Changes
 
 - `AlayaStore` renamed to `Alaya`
 - Flat methods become sub-manager calls: `store.query()` becomes `alaya.knowledge().query()`
 - `AlayaError::Db` changes from `Db(rusqlite::Error)` to `Db { source, context }`
-- `AsyncAlayaStore` renamed to `AsyncAlaya`, updated for new API
-- Python bindings (`alaya-py`) need updating
+- `AsyncAlayaStore` renamed to `AsyncAlaya`, flat async methods with restructured `Request` enum
+- Python bindings (`alaya-py`) need updating — method names change to match sub-manager API
 - Doc examples all need updating
 
 ## Unchanged Files
