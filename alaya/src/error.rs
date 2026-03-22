@@ -3,8 +3,12 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum AlayaError {
-    #[error("database error: {0}")]
-    Db(#[from] rusqlite::Error),
+    #[error("database error in {context}: {source}")]
+    Db {
+        #[source]
+        source: rusqlite::Error,
+        context: String,
+    },
 
     #[error("not found: {0}")]
     NotFound(String),
@@ -20,6 +24,15 @@ pub enum AlayaError {
 
     #[error("actor dead: message channel closed")]
     ActorDead,
+}
+
+impl From<rusqlite::Error> for AlayaError {
+    fn from(e: rusqlite::Error) -> Self {
+        AlayaError::Db {
+            source: e,
+            context: String::new(),
+        }
+    }
 }
 
 pub type Result<T> = std::result::Result<T, AlayaError>;
@@ -50,7 +63,7 @@ mod tests {
     fn test_from_rusqlite_error() {
         let sqlite_err = rusqlite::Error::QueryReturnedNoRows;
         let e: AlayaError = sqlite_err.into();
-        assert!(matches!(e, AlayaError::Db(_)));
+        assert!(matches!(e, AlayaError::Db { .. }));
         assert!(e.to_string().contains("database error"));
     }
 
