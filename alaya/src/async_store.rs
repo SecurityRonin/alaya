@@ -541,6 +541,73 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_open_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("async_open.db");
+        let store = AsyncAlayaStore::open(&path).unwrap();
+        let status = store.status().await.unwrap();
+        assert_eq!(status.episode_count, 0);
+        store.close().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_async_reconcile_and_conflicts() {
+        let store = AsyncAlayaStore::open_in_memory().unwrap();
+        let report = store.reconcile().await.unwrap();
+        assert_eq!(report.conflicts_detected, 0);
+        let conflicts = store.conflicts().await.unwrap();
+        assert!(conflicts.is_empty());
+        store.close().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_async_resolve_conflict_and_set_strategy() {
+        let store = AsyncAlayaStore::open_in_memory().unwrap();
+
+        // Learn two conflicting facts with similar embeddings
+        store
+            .learn(vec![
+                NewSemanticNode {
+                    content: "user likes vim".to_string(),
+                    node_type: SemanticType::Fact,
+                    confidence: 0.9,
+                    source_episodes: vec![],
+                    embedding: Some(vec![0.9, 0.1, 0.0]),
+                },
+                NewSemanticNode {
+                    content: "user likes emacs".to_string(),
+                    node_type: SemanticType::Fact,
+                    confidence: 0.8,
+                    source_episodes: vec![],
+                    embedding: Some(vec![0.85, 0.15, 0.0]),
+                },
+            ])
+            .await
+            .unwrap();
+
+        // Set manual strategy so reconcile detects but doesn't resolve
+        store.set_conflict_strategy(ConflictStrategy::Manual);
+        // Small delay to let the strategy message be processed
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        store.reconcile().await.unwrap();
+        let conflicts = store.conflicts().await.unwrap();
+        assert_eq!(conflicts.len(), 1, "should detect one conflict");
+
+        // Resolve picking node_b
+        let winner = conflicts[0].node_b;
+        store
+            .resolve_conflict(conflicts[0].id, winner)
+            .await
+            .unwrap();
+
+        let remaining = store.conflicts().await.unwrap();
+        assert!(remaining.is_empty(), "conflict should be resolved");
+
+        store.close().await.unwrap();
+    }
+
+    #[tokio::test]
     async fn test_store_and_query() {
         let store = AsyncAlayaStore::open_in_memory().unwrap();
 

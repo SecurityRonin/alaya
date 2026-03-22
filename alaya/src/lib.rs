@@ -2278,4 +2278,56 @@ mod tests {
         let remaining = store.conflicts().unwrap();
         assert!(remaining.is_empty());
     }
+
+    #[test]
+    fn test_resolve_conflict_picks_node_b_winner() {
+        let mut store = AlayaStore::open_in_memory().unwrap();
+        store
+            .learn(vec![
+                NewSemanticNode {
+                    content: "user uses vim".to_string(),
+                    node_type: SemanticType::Fact,
+                    confidence: 0.9,
+                    source_episodes: vec![],
+                    embedding: Some(vec![0.9, 0.1, 0.0]),
+                },
+                NewSemanticNode {
+                    content: "user uses emacs".to_string(),
+                    node_type: SemanticType::Fact,
+                    confidence: 0.8,
+                    source_episodes: vec![],
+                    embedding: Some(vec![0.85, 0.15, 0.0]),
+                },
+            ])
+            .unwrap();
+
+        store.set_conflict_strategy(ConflictStrategy::Manual);
+        store.reconcile().unwrap();
+        let conflicts = store.conflicts().unwrap();
+        assert_eq!(conflicts.len(), 1);
+
+        // Pick node_b as winner (instead of node_a)
+        let winner = conflicts[0].node_b;
+        store.resolve_conflict(conflicts[0].id, winner).unwrap();
+
+        let remaining = store.conflicts().unwrap();
+        assert!(remaining.is_empty());
+    }
+
+    #[test]
+    fn test_node_content_db_error_propagates() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        // Drop the episodes table to cause a non-NotFound error
+        store
+            .raw_conn()
+            .execute_batch("DROP TABLE episodes")
+            .unwrap();
+        let result = store.node_content(NodeRef::Episode(EpisodeId(1)));
+        assert!(result.is_err(), "should propagate DB error, not NotFound");
+        // Verify it's not silently converted to None
+        assert!(
+            !matches!(result, Ok(None)),
+            "DB error should not become Ok(None)"
+        );
+    }
 }

@@ -193,6 +193,8 @@ impl LlmExtractionProviderBuilder {
     }
 }
 
+// Excluded from tarpaulin: requires a real LLM API endpoint to exercise.
+#[cfg(not(tarpaulin_include))]
 impl crate::ExtractionProvider for LlmExtractionProvider {
     fn extract(&self, episodes: &[Episode]) -> crate::Result<Vec<NewSemanticNode>> {
         if episodes.is_empty() {
@@ -429,5 +431,38 @@ mod tests {
             .unwrap();
         let result = provider.extract(&[]).unwrap();
         assert!(result.is_empty());
+    }
+
+    #[test]
+    fn builder_all_methods_and_defaults() {
+        // Exercise all three builder methods: api_url, api_key, model
+        let provider = LlmExtractionProvider::builder()
+            .api_url("https://example.com/v1/chat")
+            .api_key("test-key-123")
+            .model("gpt-4")
+            .build()
+            .unwrap();
+        assert_eq!(provider.api_url, "https://example.com/v1/chat");
+        assert_eq!(provider.api_key, "test-key-123");
+        assert_eq!(provider.model, "gpt-4");
+    }
+
+    #[test]
+    fn builder_uses_defaults_when_only_api_key_set() {
+        let provider = LlmExtractionProvider::builder()
+            .api_key("key-only")
+            .build()
+            .unwrap();
+        assert_eq!(
+            provider.api_url,
+            "https://api.openai.com/v1/chat/completions"
+        );
+        assert_eq!(provider.model, "gpt-4o-mini");
+    }
+
+    #[test]
+    fn builder_fails_without_api_key() {
+        let result = LlmExtractionProvider::builder().build();
+        assert!(result.is_err(), "build without api_key should fail");
     }
 }

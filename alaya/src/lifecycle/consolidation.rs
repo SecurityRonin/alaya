@@ -757,4 +757,61 @@ mod tests {
             "tied vote (1-1) should not assign any category"
         );
     }
+
+    #[test]
+    fn test_self_link_skipped_in_category_vote() {
+        // Covers line 141: continue when linked_node_id == node_id (self-link)
+        let conn = open_memory_db().unwrap();
+
+        // Create an episode
+        let ep1 = episodic::store_episode(
+            &conn,
+            &NewEpisode {
+                content: "self-link episode".to_string(),
+                role: Role::User,
+                session_id: "s1".to_string(),
+                timestamp: 1000,
+                context: EpisodeContext::default(),
+                embedding: None,
+            },
+        )
+        .unwrap();
+
+        // Find out what the NEXT semantic node ID will be
+        let next_id: i64 = conn
+            .query_row(
+                "SELECT COALESCE(MAX(id), 0) + 1 FROM semantic_nodes",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        // Pre-create a link from ep1 TO the soon-to-be-created semantic node
+        // This simulates a scenario where the episode already has a link to this node
+        links::create_link(
+            &conn,
+            NodeRef::Episode(ep1),
+            NodeRef::Semantic(NodeId(next_id)),
+            LinkType::Causal,
+            0.7,
+        )
+        .unwrap();
+
+        // Now learn a node referencing ep1 — try_assign_category will find the
+        // link from ep1 to this same node and should skip it (line 141)
+        let report = learn_direct(
+            &conn,
+            vec![NewSemanticNode {
+                content: "self-linked node".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.8,
+                source_episodes: vec![ep1],
+                embedding: None,
+            }],
+        )
+        .unwrap();
+        assert_eq!(report.nodes_created, 1);
+        // No category should be assigned (no other categorized neighbors)
+        assert_eq!(report.categories_assigned, 0);
+    }
 }

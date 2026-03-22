@@ -314,6 +314,51 @@ mod tests {
     }
 
     #[test]
+    fn conflicts_with_data() {
+        let store = AlayaStore::open_in_memory().unwrap();
+        // Insert two semantic nodes and a conflict row directly
+        store
+            .raw_conn()
+            .execute(
+                "INSERT INTO semantic_nodes (content, node_type, confidence, created_at, last_corroborated)
+                 VALUES ('fact A', 'fact', 0.9, 1000, 1000)",
+                [],
+            )
+            .unwrap();
+        store
+            .raw_conn()
+            .execute(
+                "INSERT INTO semantic_nodes (content, node_type, confidence, created_at, last_corroborated)
+                 VALUES ('fact B', 'fact', 0.8, 2000, 2000)",
+                [],
+            )
+            .unwrap();
+        store
+            .raw_conn()
+            .execute(
+                "INSERT INTO conflicts (node_a_id, node_b_id, similarity, status, detected_at)
+                 VALUES (1, 2, 0.92, 'detected', 1000)",
+                [],
+            )
+            .unwrap();
+
+        let srv = AlayaMcp::new(store);
+        let result = srv.list_conflicts();
+        assert!(
+            result.contains("Found 1 unresolved conflict"),
+            "Should show conflicts: {result}"
+        );
+        assert!(
+            result.contains("node 1 vs node 2"),
+            "Should show node IDs: {result}"
+        );
+        assert!(
+            result.contains("similarity: 0.92"),
+            "Should show similarity: {result}"
+        );
+    }
+
+    #[test]
     fn conflicts_db_error() {
         let store = AlayaStore::open_in_memory().unwrap();
         store

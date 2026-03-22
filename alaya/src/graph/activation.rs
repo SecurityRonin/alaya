@@ -235,6 +235,39 @@ mod tests {
     }
 
     #[test]
+    fn test_below_threshold_node_skipped_in_spread() {
+        // Covers line 32: continue when act < threshold during iteration
+        // Node c gets very low activation from hop 1, then on hop 2
+        // its activation is below threshold so it is skipped.
+        let conn = open_memory_db().unwrap();
+        let a = NodeRef::Episode(EpisodeId(1));
+        let b = NodeRef::Episode(EpisodeId(2));
+        let c = NodeRef::Episode(EpisodeId(3));
+        let d = NodeRef::Episode(EpisodeId(4));
+
+        // a -> b (strong), a -> c (very weak), c -> d (strong)
+        create_link(&conn, a, b, LinkType::Topical, 0.9).unwrap();
+        create_link(&conn, a, c, LinkType::Topical, 0.01).unwrap();
+        // Manually make the link extremely weak
+        conn.execute(
+            "UPDATE links SET forward_weight = 0.001 WHERE target_id = 3",
+            [],
+        )
+        .unwrap();
+        create_link(&conn, c, d, LinkType::Topical, 0.9).unwrap();
+
+        // With threshold 0.1 and 2 hops, c gets ~0.001*0.5 = 0.0005 activation.
+        // On hop 2, c's activation (0.0005) < threshold (0.1), so it skips spreading to d.
+        let result = spread_activation(&conn, &[a], 2, 0.1, 0.5).unwrap();
+
+        // d should NOT be reached because c was below threshold
+        assert!(
+            !result.contains_key(&d),
+            "d should not be reached through below-threshold node c"
+        );
+    }
+
+    #[test]
     fn test_spread_activation_zero_depth() {
         // max_depth=0 means no spreading at all — only seeds returned
         let conn = open_memory_db().unwrap();

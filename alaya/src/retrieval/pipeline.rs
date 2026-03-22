@@ -1189,4 +1189,71 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_category_node_filtered_out_of_results() {
+        // Covers line 119: _ => None for Category nodes in the filter_map
+        let conn = open_memory_db().unwrap();
+
+        // Create an episode that matches our query
+        let ep1 =
+            episodic::store_episode(&conn, &ep("Rust programming language", "s1", 1000)).unwrap();
+
+        // Create a semantic node for use as prototype (FK)
+        crate::store::semantic::store_semantic_node(
+            &conn,
+            &NewSemanticNode {
+                content: "prototype node".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.9,
+                source_episodes: vec![],
+                embedding: None,
+            },
+        )
+        .unwrap();
+
+        // Create a category with that prototype
+        let cat_id = crate::store::categories::store_category(
+            &conn,
+            "programming",
+            NodeId(1),
+            None,
+            None,
+        )
+        .unwrap();
+
+        // Create a strong link from the episode to the category
+        // This ensures spreading activation includes the Category node
+        crate::graph::links::create_link(
+            &conn,
+            NodeRef::Episode(ep1),
+            NodeRef::Category(cat_id),
+            LinkType::MemberOf,
+            1.0,
+        )
+        .unwrap();
+
+        let results = execute_query(
+            &conn,
+            &Query {
+                text: "Rust programming".to_string(),
+                embedding: None,
+                context: QueryContext {
+                    current_timestamp: Some(5000),
+                    ..Default::default()
+                },
+                max_results: 10,
+                boost_categories: None,
+            },
+        )
+        .unwrap();
+
+        // Category nodes should be filtered out — only episodes/semantic/preferences in results
+        for r in &results {
+            assert!(
+                !matches!(r.node, NodeRef::Category(_)),
+                "Category nodes should be filtered out of results"
+            );
+        }
+    }
 }
