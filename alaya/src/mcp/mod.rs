@@ -16,7 +16,6 @@
 //! The binary `src/bin/alaya-mcp.rs` is a thin wrapper that provides `main()`
 //! and transport setup.
 
-pub(crate) mod handler;
 mod import;
 mod lifecycle;
 mod memory;
@@ -31,12 +30,6 @@ use std::sync::Mutex;
 
 use crate::Alaya;
 use rmcp::{model::ServerInfo, schemars, tool, ServerHandler};
-
-/// Format an error as a plain-text MCP error response string.
-#[allow(dead_code)]
-pub(crate) fn error_response(msg: &str) -> String {
-    format!("Error: {msg}")
-}
 
 // ---------------------------------------------------------------------------
 // Parameter types (schemars::JsonSchema for MCP tool schemas)

@@ -266,10 +266,7 @@ pub(crate) fn record_tombstone(
     node_id: i64,
     reason: Option<&str>,
 ) -> Result<()> {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
+    let now = crate::db::now();
     conn.execute(
         "INSERT INTO tombstones (node_type, node_id, deleted_at, reason) VALUES (?1, ?2, ?3, ?4)",
         rusqlite::params![node_type, node_id, now, reason],
