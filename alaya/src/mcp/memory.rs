@@ -23,7 +23,7 @@ pub fn handle_remember(server: &super::AlayaMcp, params: RememberParams) -> Stri
         embedding: None,
     };
 
-    match server.with_store(|s| s.store_episode(&episode)) {
+    match server.with_store(|s| s.episodes().store(&episode)) {
         Ok(id) => {
             let ep_total = server.episode_count.fetch_add(1, Ordering::Relaxed) + 1;
             let uncons = server.unconsolidated_count.fetch_add(1, Ordering::Relaxed) + 1;
@@ -36,7 +36,7 @@ pub fn handle_remember(server: &super::AlayaMcp, params: RememberParams) -> Stri
             // Auto-consolidation at 10 unconsolidated episodes
             if uncons >= 10 {
                 // Try auto-consolidation first (if ExtractionProvider is set)
-                match server.with_store(|s| s.auto_consolidate()) {
+                match server.with_store(|s| s.lifecycle().auto_consolidate()) {
                     Ok(report) if report.nodes_created > 0 => {
                         server.unconsolidated_count.store(0, Ordering::Relaxed);
                         response.push_str(&format!(
@@ -47,7 +47,7 @@ pub fn handle_remember(server: &super::AlayaMcp, params: RememberParams) -> Stri
                     }
                     Ok(_) => {
                         // Provider returned zero nodes — fall back to prompt
-                        if let Ok(episodes) = server.with_store(|s| s.unconsolidated_episodes(20)) {
+                        if let Ok(episodes) = server.with_store(|s| s.episodes().unconsolidated(20)) {
                             response.push_str(&format!(
                                 "\n\n--- Consolidation suggested ---\n\
                                  You have {} unconsolidated episodes. \
@@ -69,7 +69,7 @@ pub fn handle_remember(server: &super::AlayaMcp, params: RememberParams) -> Stri
                         // Provider error or no provider — fall back to prompt with note
                         let err_msg = e.to_string();
                         let is_no_provider = err_msg.contains("extraction provider");
-                        if let Ok(episodes) = server.with_store(|s| s.unconsolidated_episodes(20)) {
+                        if let Ok(episodes) = server.with_store(|s| s.episodes().unconsolidated(20)) {
                             if !is_no_provider {
                                 response.push_str(&format!("\n\n(Auto-consolidation failed: {e})"));
                             }
@@ -95,8 +95,8 @@ pub fn handle_remember(server: &super::AlayaMcp, params: RememberParams) -> Stri
 
             // Auto-maintenance every 25 episodes
             if ep_total % 25 == 0 {
-                let tr = server.with_store(|s| s.transform());
-                let fr = server.with_store(|s| s.forget());
+                let tr = server.with_store(|s| s.lifecycle().transform());
+                let fr = server.with_store(|s| s.lifecycle().forget());
                 match (tr, fr) {
                     (Ok(tr), Ok(fr)) => {
                         response.push_str(&format!(
@@ -131,7 +131,7 @@ pub fn handle_recall(server: &super::AlayaMcp, params: RecallParams) -> String {
         boost_categories: params.boost_category.map(|c| vec![c.to_string()]),
     };
 
-    match server.with_store(|s| s.query(&query)) {
+    match server.with_store(|s| s.knowledge().query(&query)) {
         Ok(results) if results.is_empty() => "No memories found.".to_string(),
         Ok(results) => {
             let mut out = format!("Found {} memories:\n\n", results.len());
@@ -152,19 +152,18 @@ pub fn handle_recall(server: &super::AlayaMcp, params: RecallParams) -> String {
 }
 
 #[cfg(all(test, feature = "mcp"))]
-#[allow(deprecated)]
 mod tests {
-    use crate::{AlayaStore, MockExtractionProvider, NewSemanticNode, SemanticType};
+    use crate::{Alaya, MockExtractionProvider, NewSemanticNode, SemanticType};
 
     use super::super::{AlayaMcp, LearnFactEntry, LearnParams, RememberParams};
 
     fn make_server() -> AlayaMcp {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         AlayaMcp::new(store)
     }
 
     fn make_server_with_extraction() -> AlayaMcp {
-        let mut store = AlayaStore::open_in_memory().unwrap();
+        let mut store = Alaya::open_in_memory().unwrap();
         store.set_extraction_provider(Box::new(MockExtractionProvider::new(vec![
             NewSemanticNode {
                 content: "Auto-extracted fact".into(),
@@ -532,7 +531,7 @@ mod tests {
 
     #[test]
     fn remember_store_episode_db_error() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         store
             .raw_conn()
             .execute_batch("DROP TABLE episodes")
@@ -551,7 +550,7 @@ mod tests {
 
     #[test]
     fn recall_db_error() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         store
             .raw_conn()
             .execute_batch("DROP TABLE episodes")
@@ -572,7 +571,7 @@ mod tests {
     fn remember_auto_consolidation_error_with_message() {
         // When auto_consolidate returns a real error (not "extraction provider"),
         // the error message should appear in the response (line 74).
-        let mut store = AlayaStore::open_in_memory().unwrap();
+        let mut store = Alaya::open_in_memory().unwrap();
         store.set_extraction_provider(Box::new(MockExtractionProvider::new(vec![
             NewSemanticNode {
                 content: "test fact".into(),
@@ -643,7 +642,7 @@ mod tests {
     fn remember_consolidation_fallback_empty_provider() {
         // When extraction provider returns zero nodes, the Ok(_) path should
         // suggest consolidation with episode listing (covers lines 50-66).
-        let mut store = AlayaStore::open_in_memory().unwrap();
+        let mut store = Alaya::open_in_memory().unwrap();
         store.set_extraction_provider(Box::new(MockExtractionProvider::empty()));
         let srv = AlayaMcp::new(store);
 

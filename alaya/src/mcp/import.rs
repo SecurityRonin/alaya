@@ -226,7 +226,7 @@ pub fn handle_import_claude_mem(server: &super::AlayaMcp, params: ImportClaudeMe
     }
 
     let node_count = nodes.len();
-    match server.with_store(|s| s.learn(nodes)) {
+    match server.with_store(|s| s.knowledge().learn(nodes)) {
         Ok(report) => format!(
             "Imported {obs_count} observations \u{2192} {node_count} semantic nodes. {} categories assigned.",
             report.categories_assigned
@@ -248,7 +248,7 @@ pub fn handle_import_claude_code(
 
     let mut imported = 0u32;
     for episode in episodes {
-        match server.with_store(|s| s.store_episode(&episode)) {
+        match server.with_store(|s| s.episodes().store(&episode)) {
             Ok(_) => {
                 imported += 1;
                 server.episode_count.fetch_add(1, Ordering::Relaxed);
@@ -274,14 +274,13 @@ pub fn handle_import_claude_code(
 }
 
 #[cfg(all(test, feature = "mcp"))]
-#[allow(deprecated)]
 mod tests {
-    use crate::AlayaStore;
+    use crate::Alaya;
 
     use super::super::{AlayaMcp, ImportClaudeCodeParams, ImportClaudeMemParams};
 
     fn make_server() -> AlayaMcp {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         AlayaMcp::new(store)
     }
 
@@ -935,7 +934,7 @@ mod tests {
         .unwrap();
         std::fs::write(&file_path, format!("{good_line}\n")).unwrap();
 
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         store
             .raw_conn()
             .execute_batch("DROP TABLE episodes")
@@ -980,7 +979,7 @@ mod tests {
         drop(conn);
 
         // Create a server with corrupted semantic_nodes table
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         store
             .raw_conn()
             .execute_batch("DROP TABLE semantic_nodes")

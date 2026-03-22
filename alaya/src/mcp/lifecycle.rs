@@ -5,8 +5,8 @@ use crate::PurgeFilter;
 use super::PurgeParams;
 
 pub fn handle_maintain(server: &super::AlayaMcp) -> String {
-    let transform = server.with_store(|s| s.transform());
-    let forget = server.with_store(|s| s.forget());
+    let transform = server.with_store(|s| s.lifecycle().transform());
+    let forget = server.with_store(|s| s.lifecycle().forget());
 
     match (transform, forget) {
         (Ok(tr), Ok(fr)) => format!(
@@ -40,7 +40,7 @@ pub fn handle_purge(server: &super::AlayaMcp, params: PurgeParams) -> String {
         }
     };
 
-    match server.with_store(|s| s.purge(filter)) {
+    match server.with_store(|s| s.admin().purge(filter)) {
         Ok(report) => format!(
             "Purge complete: {} episodes deleted",
             report.episodes_deleted
@@ -50,7 +50,7 @@ pub fn handle_purge(server: &super::AlayaMcp, params: PurgeParams) -> String {
 }
 
 pub fn handle_reconcile(server: &super::AlayaMcp) -> String {
-    match server.with_store(|s| s.reconcile()) {
+    match server.with_store(|s| s.lifecycle().reconcile()) {
         Ok(report) => format!(
             "Reconciliation complete: detected: {}, resolved: {}, pending: {}, superseded: {}",
             report.conflicts_detected,
@@ -63,7 +63,7 @@ pub fn handle_reconcile(server: &super::AlayaMcp) -> String {
 }
 
 pub fn handle_conflicts(server: &super::AlayaMcp) -> String {
-    match server.with_store(|s| s.conflicts()) {
+    match server.with_store(|s| s.lifecycle().conflicts()) {
         Ok(conflicts) if conflicts.is_empty() => "No unresolved conflicts.".to_string(),
         Ok(conflicts) => {
             let mut out = format!("Found {} unresolved conflicts:\n\n", conflicts.len());
@@ -84,14 +84,13 @@ pub fn handle_conflicts(server: &super::AlayaMcp) -> String {
 }
 
 #[cfg(all(test, feature = "mcp"))]
-#[allow(deprecated)]
 mod tests {
-    use crate::AlayaStore;
+    use crate::Alaya;
 
     use super::super::{AlayaMcp, PurgeParams, RememberParams};
 
     fn make_server() -> AlayaMcp {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         AlayaMcp::new(store)
     }
 
@@ -223,7 +222,7 @@ mod tests {
 
     #[test]
     fn maintain_db_error() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         store
             .raw_conn()
             .execute_batch("DROP TABLE semantic_nodes")
@@ -238,7 +237,7 @@ mod tests {
 
     #[test]
     fn purge_db_error() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         store
             .raw_conn()
             .execute_batch("DROP TABLE episodes")
@@ -301,7 +300,7 @@ mod tests {
 
     #[test]
     fn reconcile_db_error() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         store
             .raw_conn()
             .execute_batch("DROP TABLE conflicts")
@@ -316,7 +315,7 @@ mod tests {
 
     #[test]
     fn conflicts_with_data() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         // Insert two semantic nodes and a conflict row directly
         store
             .raw_conn()
@@ -361,7 +360,7 @@ mod tests {
 
     #[test]
     fn conflicts_db_error() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         store
             .raw_conn()
             .execute_batch("DROP TABLE conflicts")

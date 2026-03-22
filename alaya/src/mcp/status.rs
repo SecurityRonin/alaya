@@ -3,7 +3,7 @@
 use std::sync::atomic::Ordering;
 
 pub fn handle_status(server: &super::AlayaMcp) -> String {
-    let st = match server.with_store(|s| s.status()) {
+    let st = match server.with_store(|s| s.admin().status()) {
         Ok(st) => st,
         Err(e) => return format!("Error: {e}"),
     };
@@ -11,7 +11,7 @@ pub fn handle_status(server: &super::AlayaMcp) -> String {
     let session_eps = server.episode_count.load(Ordering::Relaxed);
     let unconsolidated = server.unconsolidated_count.load(Ordering::Relaxed);
 
-    let knowledge_line = match server.with_store(|s| s.knowledge_breakdown()) {
+    let knowledge_line = match server.with_store(|s| s.knowledge().breakdown()) {
         Ok(breakdown) if !breakdown.is_empty() => {
             super::serialization::format_knowledge_breakdown(&breakdown)
         }
@@ -19,20 +19,22 @@ pub fn handle_status(server: &super::AlayaMcp) -> String {
         Err(_) => "error".to_string(),
     };
 
-    let cat_line = match server.with_store(|s| s.categories(None)) {
+    let cat_line = match server.with_store(|s| s.admin().categories(None)) {
         Ok(cats) if !cats.is_empty() => super::serialization::format_category_line(&cats),
         Ok(_) => "0".to_string(),
         Err(_) => "error".to_string(),
     };
 
     let strongest_desc = match server.with_store(|s| {
-        let link = s.strongest_link()?;
+        let link = s.graph().strongest_link()?;
         match link {
             Some((src, tgt, w)) => {
                 let src_label = s
+                    .admin()
                     .node_content(src)?
                     .unwrap_or_else(|| format!("{}#{}", src.type_str(), src.id()));
                 let tgt_label = s
+                    .admin()
                     .node_content(tgt)?
                     .unwrap_or_else(|| format!("{}#{}", tgt.type_str(), tgt.id()));
                 Ok(Some(format!(
@@ -70,14 +72,13 @@ pub fn handle_status(server: &super::AlayaMcp) -> String {
 }
 
 #[cfg(all(test, feature = "mcp"))]
-#[allow(deprecated)]
 mod tests {
-    use crate::AlayaStore;
+    use crate::Alaya;
 
     use super::super::{AlayaMcp, RememberParams};
 
     fn make_server() -> AlayaMcp {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         AlayaMcp::new(store)
     }
 
@@ -210,7 +211,7 @@ mod tests {
 
     #[test]
     fn status_db_error_episodes_table() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         store
             .raw_conn()
             .execute_batch("DROP TABLE episodes")
@@ -227,7 +228,7 @@ mod tests {
     fn status_db_error_knowledge_breakdown() {
         // Rename node_type column so knowledge_breakdown() fails (line 19)
         // but status() itself succeeds (only needs COUNT(*))
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         store
             .raw_conn()
             .execute_batch("ALTER TABLE semantic_nodes RENAME COLUMN node_type TO broken_col")
@@ -244,7 +245,7 @@ mod tests {
     fn status_db_error_categories() {
         // Rename a column so list_categories() fails (line 25)
         // but count_categories (COUNT(*)) still works for status()
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         store
             .raw_conn()
             .execute_batch("ALTER TABLE categories RENAME COLUMN stability TO broken_stab")

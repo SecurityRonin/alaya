@@ -12,8 +12,7 @@ pub fn handle_knowledge(server: &super::AlayaMcp, params: KnowledgeParams) -> St
         category: params.category,
     };
 
-    #[allow(deprecated)]
-    match server.with_store(|s| s.knowledge_nodes(Some(filter))) {
+    match server.with_store(|s| s.knowledge().filter(Some(filter))) {
         Ok(nodes) if nodes.is_empty() => "No knowledge found.".to_string(),
         Ok(nodes) => {
             let mut out = format!("Found {} knowledge nodes:\n\n", nodes.len());
@@ -32,7 +31,7 @@ pub fn handle_knowledge(server: &super::AlayaMcp, params: KnowledgeParams) -> St
 }
 
 pub fn handle_categories(server: &super::AlayaMcp, params: CategoriesParams) -> String {
-    match server.with_store(|s| s.categories(params.min_stability)) {
+    match server.with_store(|s| s.admin().categories(params.min_stability)) {
         Ok(cats) if cats.is_empty() => "No categories found.".to_string(),
         Ok(cats) => super::serialization::format_categories(&cats),
         Err(e) => format!("Error: {e}"),
@@ -54,7 +53,7 @@ pub fn handle_neighbors(server: &super::AlayaMcp, params: NeighborsParams) -> St
     };
     let depth = params.depth.unwrap_or(1);
 
-    match server.with_store(|s| s.neighbors(node_ref, depth)) {
+    match server.with_store(|s| s.graph().neighbors(node_ref, depth)) {
         Ok(neighbors) if neighbors.is_empty() => "No neighbors found.".to_string(),
         Ok(neighbors) => super::serialization::format_neighbors(&neighbors),
         Err(e) => format!("Error: {e}"),
@@ -62,7 +61,7 @@ pub fn handle_neighbors(server: &super::AlayaMcp, params: NeighborsParams) -> St
 }
 
 pub fn handle_node_category(server: &super::AlayaMcp, params: NodeCategoryParams) -> String {
-    match server.with_store(|s| s.node_category(NodeId(params.node_id))) {
+    match server.with_store(|s| s.admin().node_category(NodeId(params.node_id))) {
         Ok(Some(cat)) => super::serialization::format_node_category(params.node_id, &cat),
         Ok(None) => format!("Node {} is uncategorized.", params.node_id),
         Err(e) => format!("Error: {e}"),
@@ -70,10 +69,9 @@ pub fn handle_node_category(server: &super::AlayaMcp, params: NodeCategoryParams
 }
 
 #[cfg(all(test, feature = "mcp"))]
-#[allow(deprecated)]
 mod tests {
     use crate::{
-        AlayaStore, EpisodeContext, EpisodeId, NewEpisode, NewSemanticNode, Role, SemanticType,
+        Alaya, EpisodeContext, EpisodeId, NewEpisode, NewSemanticNode, Role, SemanticType,
     };
 
     use super::super::{
@@ -82,7 +80,7 @@ mod tests {
     };
 
     fn make_server() -> AlayaMcp {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         AlayaMcp::new(store)
     }
 
@@ -341,10 +339,11 @@ mod tests {
 
     /// Pre-populate a store with categorized semantic nodes for testing.
     fn make_server_with_categories() -> AlayaMcp {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         for i in 0..5 {
             store
-                .store_episode(&NewEpisode {
+                .episodes()
+                .store(&NewEpisode {
                     content: format!("cooking topic {i}"),
                     role: Role::User,
                     session_id: "s1".to_string(),
@@ -355,6 +354,7 @@ mod tests {
                 .unwrap();
         }
         store
+            .knowledge()
             .learn(vec![
                 NewSemanticNode {
                     content: "User cooks pasta regularly".to_string(),
@@ -379,7 +379,7 @@ mod tests {
                 },
             ])
             .unwrap();
-        store.transform().unwrap();
+        store.lifecycle().transform().unwrap();
         AlayaMcp::new(store)
     }
 
@@ -414,7 +414,7 @@ mod tests {
 
     #[test]
     fn knowledge_db_error() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         store
             .raw_conn()
             .execute_batch("DROP TABLE semantic_nodes")
@@ -434,7 +434,7 @@ mod tests {
 
     #[test]
     fn categories_db_error() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         store
             .raw_conn()
             .execute_batch("DROP TABLE categories")
@@ -451,7 +451,7 @@ mod tests {
 
     #[test]
     fn neighbors_db_error() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         store
             .raw_conn()
             .execute_batch("DROP TABLE links")
@@ -470,7 +470,7 @@ mod tests {
 
     #[test]
     fn node_category_db_error() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         store
             .raw_conn()
             .execute_batch("DROP TABLE semantic_nodes")

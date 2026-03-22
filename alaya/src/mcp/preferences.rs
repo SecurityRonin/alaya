@@ -9,7 +9,7 @@ use super::{LearnParams, PreferencesParams};
 pub fn handle_learn(server: &super::AlayaMcp, params: LearnParams) -> String {
     // Resolve session_id → source episode IDs
     let source_episodes = match &params.session_id {
-        Some(sid) => match server.with_store(|s| s.episodes_by_session(sid)) {
+        Some(sid) => match server.with_store(|s| s.episodes().by_session(sid)) {
             Ok(eps) => eps.iter().map(|e| e.id).collect::<Vec<_>>(),
             Err(e) => return format!("Error resolving session '{sid}': {e}"),
         },
@@ -34,7 +34,7 @@ pub fn handle_learn(server: &super::AlayaMcp, params: LearnParams) -> String {
         .collect();
 
     let count = nodes.len();
-    match server.with_store(|s| s.learn(nodes)) {
+    match server.with_store(|s| s.knowledge().learn(nodes)) {
         Ok(report) => {
             server.unconsolidated_count.store(0, Ordering::Relaxed);
             format!(
@@ -47,7 +47,7 @@ pub fn handle_learn(server: &super::AlayaMcp, params: LearnParams) -> String {
 }
 
 pub fn handle_preferences(server: &super::AlayaMcp, params: PreferencesParams) -> String {
-    match server.with_store(|s| s.preferences(params.domain.as_deref())) {
+    match server.with_store(|s| s.admin().preferences(params.domain.as_deref())) {
         Ok(prefs) if prefs.is_empty() => "No preferences found.".to_string(),
         Ok(prefs) => super::serialization::format_preferences(&prefs),
         Err(e) => format!("Error: {e}"),
@@ -55,16 +55,15 @@ pub fn handle_preferences(server: &super::AlayaMcp, params: PreferencesParams) -
 }
 
 #[cfg(all(test, feature = "mcp"))]
-#[allow(deprecated)]
 mod tests {
     use crate::provider::MockProvider;
     use crate::types::{EpisodeContext, Interaction, NewImpression, Role};
-    use crate::AlayaStore;
+    use crate::Alaya;
 
     use super::super::{AlayaMcp, LearnFactEntry, LearnParams, PreferencesParams, RememberParams};
 
     fn make_server() -> AlayaMcp {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         AlayaMcp::new(store)
     }
 
@@ -235,7 +234,7 @@ mod tests {
 
     #[test]
     fn learn_session_resolve_db_error() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         store
             .raw_conn()
             .execute_batch("DROP TABLE episodes")
@@ -257,7 +256,7 @@ mod tests {
 
     #[test]
     fn learn_db_error() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         store
             .raw_conn()
             .execute_batch("DROP TABLE semantic_nodes")
@@ -279,7 +278,7 @@ mod tests {
 
     #[test]
     fn preferences_db_error() {
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         store
             .raw_conn()
             .execute_batch("DROP TABLE preferences")
@@ -295,7 +294,7 @@ mod tests {
     #[test]
     fn preferences_with_crystallized_data() {
         // Pre-populate preferences via perfuming, then test the handler (covers line 52)
-        let store = AlayaStore::open_in_memory().unwrap();
+        let store = Alaya::open_in_memory().unwrap();
         let provider = MockProvider::with_impressions(vec![NewImpression {
             domain: "style".to_string(),
             observation: "prefers dark mode".to_string(),
@@ -311,7 +310,7 @@ mod tests {
                 timestamp: 1000 + i * 100,
                 context: EpisodeContext::default(),
             };
-            store.perfume(&interaction, &provider).unwrap();
+            store.lifecycle().perfume(&interaction, &provider).unwrap();
         }
 
         let srv = AlayaMcp::new(store);
