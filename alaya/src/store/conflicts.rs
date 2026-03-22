@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::error::Result;
 use crate::types::*;
 use rusqlite::{params, Connection, OptionalExtension};

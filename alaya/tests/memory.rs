@@ -1,5 +1,3 @@
-#![allow(deprecated)]
-
 use alaya::*;
 
 mod common;
@@ -30,7 +28,7 @@ fn store_n_episodes(
     (0..count)
         .map(|i| {
             store
-                .store_episode(&episode(
+                .episodes().store(&episode(
                     &format!("Episode {i} in session {session} about Rust programming"),
                     session,
                     base_ts + (i as i64) * 100,
@@ -53,28 +51,28 @@ fn test_persistence_across_open_close() {
     {
         let store = Alaya::open(&db_path).unwrap();
         store
-            .store_episode(&episode(
+            .episodes().store(&episode(
                 "Rust has zero-cost abstractions",
                 "persist-s1",
                 1000,
             ))
             .unwrap();
         store
-            .store_episode(&episode(
+            .episodes().store(&episode(
                 "Ownership prevents data races",
                 "persist-s1",
                 2000,
             ))
             .unwrap();
         store
-            .store_episode(&episode(
+            .episodes().store(&episode(
                 "The borrow checker catches bugs at compile time",
                 "persist-s1",
                 3000,
             ))
             .unwrap();
 
-        let status = store.status().unwrap();
+        let status = store.admin().status().unwrap();
         assert_eq!(status.episode_count, 3);
         // store is dropped here
     }
@@ -83,14 +81,14 @@ fn test_persistence_across_open_close() {
     {
         let store = Alaya::open(&db_path).unwrap();
 
-        let status = store.status().unwrap();
+        let status = store.admin().status().unwrap();
         assert_eq!(
             status.episode_count, 3,
             "episodes should persist across open/close"
         );
 
         // Query should still find results
-        let results = store.query(&Query::simple("Rust")).unwrap();
+        let results = store.knowledge().query(&Query::simple("Rust")).unwrap();
         assert!(
             !results.is_empty(),
             "query should return persisted episodes after reopen"
@@ -131,7 +129,7 @@ fn test_learn_creates_knowledge() {
         },
     ];
 
-    let report = store.learn(nodes).unwrap();
+    let report = store.knowledge().learn(nodes).unwrap();
     assert_eq!(report.nodes_created, 2, "should create 2 semantic nodes");
     assert_eq!(
         report.links_created, 5,
@@ -139,14 +137,14 @@ fn test_learn_creates_knowledge() {
     );
 
     // Verify knowledge() returns the learned facts
-    let knowledge = store.knowledge_nodes(None).unwrap();
+    let knowledge = store.knowledge().filter(None).unwrap();
     assert_eq!(knowledge.len(), 2, "should have 2 semantic nodes");
     let contents: Vec<&str> = knowledge.iter().map(|n| n.content.as_str()).collect();
     assert!(contents.contains(&"User programs in Rust"));
     assert!(contents.contains(&"User prefers functional style"));
 
     // Verify status counts increase
-    let status = store.status().unwrap();
+    let status = store.admin().status().unwrap();
     assert_eq!(status.semantic_node_count, 2);
     assert_eq!(status.episode_count, 5);
 }
@@ -169,17 +167,17 @@ fn test_learn_creates_causal_links() {
         embedding: None,
     }];
 
-    let report = store.learn(nodes).unwrap();
+    let report = store.knowledge().learn(nodes).unwrap();
     assert_eq!(report.nodes_created, 1);
     assert_eq!(report.links_created, 3);
 
     // Get the created semantic node
-    let knowledge = store.knowledge_nodes(None).unwrap();
+    let knowledge = store.knowledge().filter(None).unwrap();
     assert_eq!(knowledge.len(), 1);
     let node_id = knowledge[0].id;
 
     // Verify neighbors() finds Causal links to source episodes
-    let neighbors = store.neighbors(NodeRef::Semantic(node_id), 1).unwrap();
+    let neighbors = store.graph().neighbors(NodeRef::Semantic(node_id), 1).unwrap();
     assert!(
         !neighbors.is_empty(),
         "semantic node should have episode neighbors via Causal links"
@@ -209,7 +207,7 @@ fn test_learn_marks_episodes_consolidated() {
     let ep_ids = store_n_episodes(&store, "consol-s1", 5, 1_000);
 
     // All 5 should initially be unconsolidated
-    let uncons = store.unconsolidated_episodes(100).unwrap();
+    let uncons = store.episodes().unconsolidated(100).unwrap();
     assert_eq!(
         uncons.len(),
         5,
@@ -225,10 +223,10 @@ fn test_learn_marks_episodes_consolidated() {
         embedding: None,
     }];
 
-    store.learn(nodes).unwrap();
+    store.knowledge().learn(nodes).unwrap();
 
     // Episodes 0, 1, 2 should now be consolidated (linked to a semantic node)
-    let uncons = store.unconsolidated_episodes(100).unwrap();
+    let uncons = store.episodes().unconsolidated(100).unwrap();
     assert_eq!(
         uncons.len(),
         2,
@@ -249,7 +247,7 @@ fn test_learn_marks_episodes_consolidated() {
 fn test_learn_empty_vec() {
     let store = Alaya::open_in_memory().unwrap();
 
-    let report = store.learn(vec![]).unwrap();
+    let report = store.knowledge().learn(vec![]).unwrap();
     assert_eq!(report.nodes_created, 0);
     assert_eq!(report.links_created, 0);
     assert_eq!(report.categories_assigned, 0);

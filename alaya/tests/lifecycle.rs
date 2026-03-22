@@ -1,5 +1,3 @@
-#![allow(deprecated)]
-
 use alaya::*;
 
 mod common;
@@ -74,7 +72,7 @@ fn store_n_episodes(
     (0..count)
         .map(|i| {
             store
-                .store_episode(&episode(
+                .episodes().store(&episode(
                     &format!("Episode {i} in session {session} about Rust programming"),
                     session,
                     base_ts + (i as i64) * 100,
@@ -97,19 +95,19 @@ fn test_multi_session_lifecycle() {
     let _s2_ids = store_n_episodes(&store, "session-2", 4, 2_000);
     let _s3_ids = store_n_episodes(&store, "session-3", 4, 3_000);
 
-    let status = store.status().unwrap();
+    let status = store.admin().status().unwrap();
     assert_eq!(
         status.episode_count, 12,
         "should have 12 episodes across 3 sessions"
     );
 
     // Query -- BM25 should find episodes mentioning "Rust"
-    let results = store.query(&Query::simple("Rust programming")).unwrap();
+    let results = store.knowledge().query(&Query::simple("Rust programming")).unwrap();
     assert!(!results.is_empty(), "query should return matching episodes");
 
     // Consolidate with NoOpProvider -- won't create semantic nodes but should
     // process episodes (>= 3 unconsolidated) and report them.
-    let cr = store.consolidate(&NoOpProvider).unwrap();
+    let cr = store.lifecycle().consolidate(&NoOpProvider).unwrap();
     // NoOp returns empty knowledge, so no nodes created, but episodes_processed
     // should reflect the batch that was read.
     assert_eq!(
@@ -138,21 +136,21 @@ fn test_multi_session_lifecycle() {
         timestamp: 5000,
         context: EpisodeContext::default(),
     };
-    let pr = store.perfume(&interaction, &perfume_provider).unwrap();
+    let pr = store.lifecycle().perfume(&interaction, &perfume_provider).unwrap();
     assert_eq!(
         pr.impressions_stored, 1,
         "perfume should store 1 impression"
     );
 
     // Transform -- dedup/prune/decay pass (no duplicates expected)
-    let tr = store.transform().unwrap();
+    let tr = store.lifecycle().transform().unwrap();
     // With only episodes and no semantic nodes or preferences, everything
     // should be zero (no duplicates to merge, no links to prune, etc.)
     assert_eq!(tr.duplicates_merged, 0);
 
     // After storing 12 episodes, each has an initialized strength record.
     // Forget decays retrieval strength on all strength records.
-    let fr = store.forget().unwrap();
+    let fr = store.lifecycle().forget().unwrap();
     assert!(
         fr.nodes_decayed > 0,
         "forget should decay the 12 episode strength records (got {})",
@@ -161,7 +159,7 @@ fn test_multi_session_lifecycle() {
 
     // Status should still reflect 12 episodes (forget only archives nodes
     // with very low strength, and a single decay pass won't drop them that far).
-    let final_status = store.status().unwrap();
+    let final_status = store.admin().status().unwrap();
     assert_eq!(
         final_status.episode_count, 12,
         "episodes should survive a single forget pass"
@@ -181,25 +179,25 @@ fn test_multi_session_purge_isolation() {
     let _beta_ids = store_n_episodes(&store, "beta", 3, 2_000);
     let _gamma_ids = store_n_episodes(&store, "gamma", 3, 3_000);
 
-    assert_eq!(store.status().unwrap().episode_count, 9);
+    assert_eq!(store.admin().status().unwrap().episode_count, 9);
 
     // Purge session "beta"
     let purge_report = store
-        .purge(PurgeFilter::Session("beta".to_string()))
+        .admin().purge(PurgeFilter::Session("beta".to_string()))
         .unwrap();
     assert_eq!(
         purge_report.episodes_deleted, 3,
         "purging 'beta' should delete its 3 episodes"
     );
 
-    let status = store.status().unwrap();
+    let status = store.admin().status().unwrap();
     assert_eq!(
         status.episode_count, 6,
         "6 episodes should remain after purging 'beta'"
     );
 
     // Verify "alpha" episodes survive by querying
-    let alpha_results = store.query(&Query::simple("session alpha")).unwrap();
+    let alpha_results = store.knowledge().query(&Query::simple("session alpha")).unwrap();
     assert!(
         !alpha_results.is_empty(),
         "'alpha' episodes should survive the purge of 'beta'"
@@ -207,20 +205,20 @@ fn test_multi_session_purge_isolation() {
 
     // Purge with OlderThan: alpha timestamps are 1000-1200, gamma are 3000-3200.
     // Use a cutoff of 2500 to remove alpha but keep gamma.
-    let purge_report2 = store.purge(PurgeFilter::OlderThan(2500)).unwrap();
+    let purge_report2 = store.admin().purge(PurgeFilter::OlderThan(2500)).unwrap();
     assert_eq!(
         purge_report2.episodes_deleted, 3,
         "OlderThan(2500) should remove the 3 'alpha' episodes"
     );
 
-    let final_status = store.status().unwrap();
+    let final_status = store.admin().status().unwrap();
     assert_eq!(
         final_status.episode_count, 3,
         "only 'gamma' episodes should remain"
     );
 
     // Verify the remaining episodes are from gamma
-    let gamma_results = store.query(&Query::simple("session gamma")).unwrap();
+    let gamma_results = store.knowledge().query(&Query::simple("session gamma")).unwrap();
     assert!(
         !gamma_results.is_empty(),
         "'gamma' episodes should still be queryable"
@@ -238,15 +236,15 @@ fn test_lifecycle_idempotence() {
     let store = Alaya::open_in_memory().unwrap();
 
     for pass in 0..2 {
-        let cr = store.consolidate(&NoOpProvider).unwrap();
+        let cr = store.lifecycle().consolidate(&NoOpProvider).unwrap();
         assert_eq!(cr.episodes_processed, 0, "empty consolidate pass {pass}");
         assert_eq!(cr.nodes_created, 0, "empty consolidate pass {pass}");
 
-        let tr = store.transform().unwrap();
+        let tr = store.lifecycle().transform().unwrap();
         assert_eq!(tr.duplicates_merged, 0, "empty transform pass {pass}");
         assert_eq!(tr.links_pruned, 0, "empty transform pass {pass}");
 
-        let fr = store.forget().unwrap();
+        let fr = store.lifecycle().forget().unwrap();
         assert_eq!(fr.nodes_decayed, 0, "empty forget pass {pass}");
         assert_eq!(fr.nodes_archived, 0, "empty forget pass {pass}");
     }
@@ -255,13 +253,13 @@ fn test_lifecycle_idempotence() {
     // should not panic and should produce a consistent state.
     let _ids = store_n_episodes(&store, "idempotence", 6, 1_000);
 
-    let status_before = store.status().unwrap();
+    let status_before = store.admin().status().unwrap();
     assert_eq!(status_before.episode_count, 6);
 
     // First lifecycle pass
-    let cr1 = store.consolidate(&NoOpProvider).unwrap();
-    let _tr1 = store.transform().unwrap();
-    let fr1 = store.forget().unwrap();
+    let cr1 = store.lifecycle().consolidate(&NoOpProvider).unwrap();
+    let _tr1 = store.lifecycle().transform().unwrap();
+    let fr1 = store.lifecycle().forget().unwrap();
 
     // Consolidation should process the batch (>= 3 episodes)
     assert!(
@@ -272,9 +270,9 @@ fn test_lifecycle_idempotence() {
     assert!(fr1.nodes_decayed > 0, "first forget should decay nodes");
 
     // Second lifecycle pass -- should not panic
-    let cr2 = store.consolidate(&NoOpProvider).unwrap();
-    let _tr2 = store.transform().unwrap();
-    let fr2 = store.forget().unwrap();
+    let cr2 = store.lifecycle().consolidate(&NoOpProvider).unwrap();
+    let _tr2 = store.lifecycle().transform().unwrap();
+    let fr2 = store.lifecycle().forget().unwrap();
 
     // NoOp never creates semantic links, so episodes remain "unconsolidated"
     // and the second consolidation pass should still process them.
@@ -291,15 +289,15 @@ fn test_lifecycle_idempotence() {
 
     // Status should be consistent -- episodes should still exist (strength
     // hasn't dropped below archive thresholds after only 2 decay passes).
-    let status_after = store.status().unwrap();
+    let status_after = store.admin().status().unwrap();
     assert_eq!(
         status_after.episode_count, 6,
         "episodes should survive two lifecycle passes"
     );
 
     // Sanity: transform twice in a row is also fine
-    let tr_a = store.transform().unwrap();
-    let tr_b = store.transform().unwrap();
+    let tr_a = store.lifecycle().transform().unwrap();
+    let tr_b = store.lifecycle().transform().unwrap();
     assert_eq!(tr_a.duplicates_merged, tr_b.duplicates_merged);
 }
 
@@ -327,7 +325,7 @@ fn test_preference_crystallization_e2e() {
             timestamp: 1000 + i * 100,
             context: EpisodeContext::default(),
         };
-        let report = store.perfume(&interaction, &provider).unwrap();
+        let report = store.lifecycle().perfume(&interaction, &provider).unwrap();
         assert_eq!(
             report.preferences_crystallized, 0,
             "pass {i}: should not crystallize below threshold"
@@ -335,7 +333,7 @@ fn test_preference_crystallization_e2e() {
     }
 
     // No preferences yet
-    let prefs = store.preferences(Some("code_style")).unwrap();
+    let prefs = store.admin().preferences(Some("code_style")).unwrap();
     assert!(
         prefs.is_empty(),
         "no preference should exist before threshold"
@@ -349,23 +347,23 @@ fn test_preference_crystallization_e2e() {
         timestamp: 1400,
         context: EpisodeContext::default(),
     };
-    let report = store.perfume(&interaction, &provider).unwrap();
+    let report = store.lifecycle().perfume(&interaction, &provider).unwrap();
     assert_eq!(
         report.preferences_crystallized, 1,
         "5th impression should trigger crystallization"
     );
 
     // Verify the crystallized preference
-    let prefs = store.preferences(Some("code_style")).unwrap();
+    let prefs = store.admin().preferences(Some("code_style")).unwrap();
     assert_eq!(prefs.len(), 1);
     assert_eq!(prefs[0].domain, "code_style");
 
     // Unrelated domain should be empty
-    let other = store.preferences(Some("other_domain")).unwrap();
+    let other = store.admin().preferences(Some("other_domain")).unwrap();
     assert!(other.is_empty());
 
     // All preferences (no filter) should include the one we created
-    let all = store.preferences(None).unwrap();
+    let all = store.admin().preferences(None).unwrap();
     assert!(!all.is_empty());
 
     // 6th perfume should reinforce the existing preference, not create a new one
@@ -376,7 +374,7 @@ fn test_preference_crystallization_e2e() {
         timestamp: 1500,
         context: EpisodeContext::default(),
     };
-    let report = store.perfume(&interaction, &provider).unwrap();
+    let report = store.lifecycle().perfume(&interaction, &provider).unwrap();
     assert_eq!(
         report.preferences_crystallized, 0,
         "should reinforce, not re-crystallize"
@@ -387,7 +385,7 @@ fn test_preference_crystallization_e2e() {
     );
 
     // Still exactly one preference
-    let prefs = store.preferences(Some("code_style")).unwrap();
+    let prefs = store.admin().preferences(Some("code_style")).unwrap();
     assert_eq!(prefs.len(), 1);
 }
 
@@ -401,26 +399,26 @@ fn test_memory_decay_and_revival() {
 
     // Store episodes that will be our "memories"
     store
-        .store_episode(&episode("Rust async runtime uses tokio", "decay-s1", 1000))
+        .episodes().store(&episode("Rust async runtime uses tokio", "decay-s1", 1000))
         .unwrap();
     store
-        .store_episode(&episode(
+        .episodes().store(&episode(
             "Tokio has a multi-threaded scheduler",
             "decay-s1",
             2000,
         ))
         .unwrap();
     store
-        .store_episode(&episode("Async functions return futures", "decay-s1", 3000))
+        .episodes().store(&episode("Async functions return futures", "decay-s1", 3000))
         .unwrap();
 
-    let status = store.status().unwrap();
+    let status = store.admin().status().unwrap();
     assert_eq!(status.episode_count, 3);
 
     // Run forget 10 times to decay retrieval strength significantly.
     // Each pass multiplies retrieval by 0.95. After 10 passes: 1.0 * 0.95^10 ≈ 0.60
     for _ in 0..10 {
-        let report = store.forget().unwrap();
+        let report = store.lifecycle().forget().unwrap();
         assert!(
             report.nodes_decayed > 0,
             "should decay strength records each pass"
@@ -430,14 +428,14 @@ fn test_memory_decay_and_revival() {
     // Episodes should still exist (storage strength stays at 0.5, well above
     // the archive threshold of 0.1, so no archival happens)
     assert_eq!(
-        store.status().unwrap().episode_count,
+        store.admin().status().unwrap().episode_count,
         3,
         "episodes should survive 10 decay passes"
     );
 
     // Now REVIVE the memory by querying it. The retrieval pipeline calls
     // on_access() for each returned result, which resets retrieval_strength to 1.0.
-    let results = store.query(&Query::simple("Rust async tokio")).unwrap();
+    let results = store.knowledge().query(&Query::simple("Rust async tokio")).unwrap();
     assert!(
         !results.is_empty(),
         "decayed memories should still be retrievable (they're latent, not gone)"
@@ -446,19 +444,19 @@ fn test_memory_decay_and_revival() {
     // After querying, run more forget passes. The revived memories should
     // have retrieval_strength reset to 1.0, so they survive more decay.
     for _ in 0..5 {
-        store.forget().unwrap();
+        store.lifecycle().forget().unwrap();
     }
 
     // Still alive after 15 total decay passes (10 before revival + 5 after)
     // because the query revived retrieval strength to 1.0 midway
     assert_eq!(
-        store.status().unwrap().episode_count,
+        store.admin().status().unwrap().episode_count,
         3,
         "revived memories should survive additional decay passes"
     );
 
     // The memories should still be queryable after all this
-    let results = store.query(&Query::simple("tokio")).unwrap();
+    let results = store.knowledge().query(&Query::simple("tokio")).unwrap();
     assert!(
         !results.is_empty(),
         "revived memories should still be queryable after further decay"
@@ -481,7 +479,7 @@ fn test_emergent_category_lifecycle() {
     // Phase 1: Store episodes about cooking
     for i in 0..5 {
         store
-            .store_episode(&NewEpisode {
+            .episodes().store(&NewEpisode {
                 content: format!(
                     "I made {} for dinner",
                     ["pasta", "risotto", "gnocchi", "lasagna", "ravioli"][i]
@@ -530,23 +528,23 @@ fn test_emergent_category_lifecycle() {
             embedding: Some(vec![0.3, 0.6, 0.7]),
         },
     ]);
-    let cr = store.consolidate(&provider).unwrap();
+    let cr = store.lifecycle().consolidate(&provider).unwrap();
     assert_eq!(cr.nodes_created, 4);
     // No categories exist yet -- consolidation doesn't create them
     assert_eq!(cr.categories_assigned, 0);
     assert!(
-        store.categories(None).unwrap().is_empty(),
+        store.admin().categories(None).unwrap().is_empty(),
         "no categories should exist before transform"
     );
 
     // Phase 3: Transform discovers categories from clustered semantic nodes
-    let tr = store.transform().unwrap();
+    let tr = store.lifecycle().transform().unwrap();
     assert!(
         tr.categories_discovered >= 1,
         "transform should discover at least 1 category from 4 similar nodes"
     );
 
-    let cats = store.categories(None).unwrap();
+    let cats = store.admin().categories(None).unwrap();
     assert!(!cats.is_empty(), "should have categories after transform");
     let cat = &cats[0];
     assert!(
@@ -558,7 +556,7 @@ fn test_emergent_category_lifecycle() {
     // Store more episodes for the second batch
     for i in 5..10 {
         store
-            .store_episode(&NewEpisode {
+            .episodes().store(&NewEpisode {
                 content: format!("cooking episode {i}"),
                 role: Role::User,
                 session_id: "s2".to_string(),
@@ -576,7 +574,7 @@ fn test_emergent_category_lifecycle() {
         source_episodes: vec![EpisodeId(6), EpisodeId(7)],
         embedding: Some(vec![0.55, 0.55, 0.35]), // similar to cooking cluster centroid
     }]);
-    let cr2 = store.consolidate(&provider2).unwrap();
+    let cr2 = store.lifecycle().consolidate(&provider2).unwrap();
     assert_eq!(cr2.nodes_created, 1);
     assert_eq!(
         cr2.categories_assigned, 1,
@@ -584,12 +582,12 @@ fn test_emergent_category_lifecycle() {
     );
 
     // Verify the node was actually assigned
-    let knowledge = store.knowledge_nodes(None).unwrap();
+    let knowledge = store.knowledge().filter(None).unwrap();
     let new_node = knowledge
         .iter()
         .find(|n| n.content == "User experiments with Italian recipes")
         .unwrap();
-    let node_cat = store.node_category(new_node.id).unwrap();
+    let node_cat = store.admin().node_category(new_node.id).unwrap();
     assert!(node_cat.is_some(), "new node should have a category");
 }
 
@@ -604,7 +602,7 @@ fn test_category_survives_transform_cycles() {
     // Create a batch of episodes and consolidate
     for i in 0..5 {
         store
-            .store_episode(&NewEpisode {
+            .episodes().store(&NewEpisode {
                 content: format!("Rust memory management topic {i}"),
                 role: Role::User,
                 session_id: "s1".to_string(),
@@ -639,17 +637,17 @@ fn test_category_survives_transform_cycles() {
             embedding: Some(vec![0.4, 0.6, 0.5]),
         },
     ]);
-    store.consolidate(&provider).unwrap();
+    store.lifecycle().consolidate(&provider).unwrap();
 
     // First transform: discovers category
-    store.transform().unwrap();
-    let cats = store.categories(None).unwrap();
+    store.lifecycle().transform().unwrap();
+    let cats = store.admin().categories(None).unwrap();
     assert!(!cats.is_empty());
     let initial_stability = cats[0].stability;
 
     // Second transform: should increment stability
-    store.transform().unwrap();
-    let cats = store.categories(None).unwrap();
+    store.lifecycle().transform().unwrap();
+    let cats = store.admin().categories(None).unwrap();
     assert!(!cats.is_empty());
     assert!(
         cats[0].stability > initial_stability,

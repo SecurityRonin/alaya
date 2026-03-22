@@ -16,7 +16,7 @@
 //! Run: `cargo run --example demo`
 
 use alaya::{
-    AlayaStore, ConsolidationProvider, Episode, EpisodeContext, EpisodeId, Interaction,
+    Alaya, ConsolidationProvider, Episode, EpisodeContext, EpisodeId, Interaction,
     MockEmbeddingProvider, NewEpisode, NewImpression, NewSemanticNode, NodeRef, PurgeFilter, Query,
     QueryContext, Role, SemanticNode, SemanticType,
 };
@@ -166,8 +166,8 @@ fn print_chapter(n: u32, title: &str, subtitle: &str) {
     println!();
 }
 
-fn print_status(store: &AlayaStore) {
-    let s = store.status().expect("failed to get memory status");
+fn print_status(store: &Alaya) {
+    let s = store.admin().status().expect("failed to get memory status");
     println!("  MemoryStatus:");
     println!("    episodes:       {}", s.episode_count);
     println!("    semantic_nodes: {}", s.semantic_node_count);
@@ -175,7 +175,7 @@ fn print_status(store: &AlayaStore) {
     println!("    impressions:    {}", s.impression_count);
     println!("    links:          {}", s.link_count);
     println!("    embeddings:     {}", s.embedding_count);
-    let cats = store.categories(None).unwrap_or_default();
+    let cats = store.admin().categories(None).unwrap_or_default();
     println!("    categories:     {}", cats.len());
     println!();
 }
@@ -261,7 +261,7 @@ fn perfuming_interactions() -> Vec<&'static str> {
 // Chapters
 // ============================================================================
 
-fn chapter_1_episodic(store: &AlayaStore) -> Vec<EpisodeId> {
+fn chapter_1_episodic(store: &Alaya) -> Vec<EpisodeId> {
     print_chapter(1, "Episodic Memory", "Store + Query");
 
     println!("  Storing 8 conversation episodes across 2 sessions...");
@@ -285,7 +285,7 @@ fn chapter_1_episodic(store: &AlayaStore) -> Vec<EpisodeId> {
         };
 
         let id = store
-            .store_episode(&NewEpisode {
+            .episodes().store(&NewEpisode {
                 content: content.to_string(),
                 role: Role::User,
                 session_id: session.to_string(),
@@ -315,7 +315,7 @@ fn chapter_1_episodic(store: &AlayaStore) -> Vec<EpisodeId> {
     // Query
     println!("  Querying: \"Rust async programming\"");
     let results = store
-        .query(&Query::simple("Rust async programming"))
+        .knowledge().query(&Query::simple("Rust async programming"))
         .expect("failed to query episodes");
     println!("  Found {} results:", results.len());
     for (i, mem) in results.iter().enumerate() {
@@ -337,10 +337,10 @@ fn chapter_1_episodic(store: &AlayaStore) -> Vec<EpisodeId> {
     ids
 }
 
-fn chapter_2_hebbian(store: &AlayaStore, episode_ids: &[EpisodeId]) {
+fn chapter_2_hebbian(store: &Alaya, episode_ids: &[EpisodeId]) {
     print_chapter(2, "Hebbian Graph", "Co-Retrieval + Spreading Activation");
 
-    let status = store.status().expect("failed to get memory status");
+    let status = store.admin().status().expect("failed to get memory status");
     println!(
         "  Links created during episode storage: {}",
         status.link_count
@@ -351,16 +351,16 @@ fn chapter_2_hebbian(store: &AlayaStore, episode_ids: &[EpisodeId]) {
     // Run overlapping queries to trigger co-retrieval links
     println!("  Running overlapping queries to trigger Hebbian learning...");
     let _ = store
-        .query(&Query::simple("Rust borrow checker"))
+        .knowledge().query(&Query::simple("Rust borrow checker"))
         .expect("query failed");
     let _ = store
-        .query(&Query::simple("Rust type system"))
+        .knowledge().query(&Query::simple("Rust type system"))
         .expect("query failed");
     let _ = store
-        .query(&Query::simple("SQLite embedded database"))
+        .knowledge().query(&Query::simple("SQLite embedded database"))
         .expect("query failed");
 
-    let status2 = store.status().expect("failed to get memory status");
+    let status2 = store.admin().status().expect("failed to get memory status");
     let new_links = status2.link_count - status.link_count;
     println!("  Co-retrieval links created: {new_links}");
     println!("  (Memories retrieved together strengthen their connection)");
@@ -370,7 +370,7 @@ fn chapter_2_hebbian(store: &AlayaStore, episode_ids: &[EpisodeId]) {
     if let Some(&seed) = episode_ids.first() {
         println!("  Spreading activation from episode #{}:", seed.0);
         let neighbors = store
-            .neighbors(NodeRef::Episode(seed), 2)
+            .graph().neighbors(NodeRef::Episode(seed), 2)
             .expect("failed to get neighbors");
         if neighbors.is_empty() {
             println!("    (No neighbors yet -- graph needs more co-retrieval events)");
@@ -395,13 +395,13 @@ fn chapter_2_hebbian(store: &AlayaStore, episode_ids: &[EpisodeId]) {
     );
 }
 
-fn chapter_3_consolidation(store: &AlayaStore) {
+fn chapter_3_consolidation(store: &Alaya) {
     print_chapter(3, "Consolidation", "Episodic -> Semantic (CLS Replay)");
 
     let provider = KeywordProvider;
 
     println!("  Running CLS replay on unconsolidated episodes...");
-    let report = store.consolidate(&provider).expect("consolidation failed");
+    let report = store.lifecycle().consolidate(&provider).expect("consolidation failed");
     println!();
     println!("  ConsolidationReport:");
     println!("    episodes_processed: {}", report.episodes_processed);
@@ -410,7 +410,7 @@ fn chapter_3_consolidation(store: &AlayaStore) {
     println!();
 
     // Show extracted knowledge
-    let knowledge = store.knowledge(None).expect("failed to get knowledge");
+    let knowledge = store.knowledge().filter(None).expect("failed to get knowledge");
     if !knowledge.is_empty() {
         println!("  Extracted Knowledge:");
         for node in &knowledge {
@@ -434,7 +434,7 @@ fn chapter_3_consolidation(store: &AlayaStore) {
     );
 }
 
-fn chapter_4_perfuming(store: &AlayaStore) {
+fn chapter_4_perfuming(store: &Alaya) {
     print_chapter(4, "Perfuming", "Vasana -> Preference Crystallization");
 
     let provider = KeywordProvider;
@@ -456,7 +456,7 @@ fn chapter_4_perfuming(store: &AlayaStore) {
         };
 
         let report = store
-            .perfume(&interaction, &provider)
+            .lifecycle().perfume(&interaction, &provider)
             .expect("perfuming failed");
         let marker = if report.preferences_crystallized > 0 {
             " << CRYSTALLIZED!"
@@ -477,7 +477,7 @@ fn chapter_4_perfuming(store: &AlayaStore) {
     println!();
 
     // Show crystallized preferences
-    let prefs = store.preferences(None).expect("failed to get preferences");
+    let prefs = store.admin().preferences(None).expect("failed to get preferences");
     if !prefs.is_empty() {
         println!("  Crystallized Preferences:");
         for pref in &prefs {
@@ -501,7 +501,7 @@ fn chapter_4_perfuming(store: &AlayaStore) {
     );
 }
 
-fn chapter_5_transformation(store: &AlayaStore) {
+fn chapter_5_transformation(store: &Alaya) {
     print_chapter(
         5,
         "Transformation + LTD",
@@ -511,7 +511,7 @@ fn chapter_5_transformation(store: &AlayaStore) {
     println!("  Status before transformation:");
     print_status(store);
 
-    let report = store.transform().expect("transformation failed");
+    let report = store.lifecycle().transform().expect("transformation failed");
 
     println!("  TransformationReport:");
     println!("    duplicates_merged:      {}", report.duplicates_merged);
@@ -559,10 +559,10 @@ fn chapter_5_transformation(store: &AlayaStore) {
     );
 }
 
-fn chapter_6_emergent_ontology(store: &AlayaStore) {
+fn chapter_6_emergent_ontology(store: &Alaya) {
     print_chapter(6, "Emergent Ontology", "Categories from Clustering");
 
-    let categories = store.categories(None).expect("failed to get categories");
+    let categories = store.admin().categories(None).expect("failed to get categories");
 
     if categories.is_empty() {
         println!("  (No categories formed yet -- need 3+ semantic nodes with");
@@ -580,9 +580,9 @@ fn chapter_6_emergent_ontology(store: &AlayaStore) {
             );
 
             // Show which nodes belong to this category
-            let knowledge = store.knowledge(None).expect("failed to get knowledge");
+            let knowledge = store.knowledge().filter(None).expect("failed to get knowledge");
             for node in &knowledge {
-                if let Ok(Some(node_cat)) = store.node_category(node.id) {
+                if let Ok(Some(node_cat)) = store.admin().node_category(node.id) {
                     if node_cat.id == cat.id {
                         println!("      -> \"{}\"", truncate(&node.content, 50));
                     }
@@ -593,9 +593,9 @@ fn chapter_6_emergent_ontology(store: &AlayaStore) {
     println!();
 
     // Show node_category API
-    let knowledge = store.knowledge(None).expect("failed to get knowledge");
+    let knowledge = store.knowledge().filter(None).expect("failed to get knowledge");
     if let Some(node) = knowledge.first() {
-        match store.node_category(node.id) {
+        match store.admin().node_category(node.id) {
             Ok(Some(cat)) => {
                 println!(
                     "  node_category(node#{}): belongs to \"{}\"",
@@ -621,12 +621,12 @@ fn chapter_6_emergent_ontology(store: &AlayaStore) {
     );
 }
 
-fn chapter_7_enriched_retrieval(store: &AlayaStore) {
+fn chapter_7_enriched_retrieval(store: &Alaya) {
     print_chapter(7, "Enriched Retrieval", "Semantic Nodes in Query Results");
 
     println!("  Standard BM25 query returns only episodes:");
     let bm25_results = store
-        .query(&Query::simple("Rust programming tools"))
+        .knowledge().query(&Query::simple("Rust programming tools"))
         .expect("query failed");
     for (i, mem) in bm25_results.iter().enumerate() {
         println!(
@@ -650,7 +650,7 @@ fn chapter_7_enriched_retrieval(store: &AlayaStore) {
         max_results: 10,
         boost_categories: None,
     };
-    let enriched_results = store.query(&enriched_query).expect("enriched query failed");
+    let enriched_results = store.knowledge().query(&enriched_query).expect("enriched query failed");
     for (i, mem) in enriched_results.iter().enumerate() {
         let tag = match mem.node {
             NodeRef::Episode(_) => "episode   ",
@@ -688,7 +688,7 @@ fn chapter_7_enriched_retrieval(store: &AlayaStore) {
     );
 }
 
-fn chapter_8_rif(store: &AlayaStore) {
+fn chapter_8_rif(store: &Alaya) {
     print_chapter(
         8,
         "Retrieval-Induced Forgetting",
@@ -702,7 +702,7 @@ fn chapter_8_rif(store: &AlayaStore) {
     // Query specifically for borrow checker content
     println!("  Query 1: \"Rust borrow checker\" (retrieves specific day-1 memories)");
     let results = store
-        .query(&Query::simple("Rust borrow checker"))
+        .knowledge().query(&Query::simple("Rust borrow checker"))
         .expect("query failed");
     let retrieved: Vec<String> = results.iter().map(|r| truncate(&r.content, 50)).collect();
     for (i, content) in retrieved.iter().enumerate() {
@@ -716,7 +716,7 @@ fn chapter_8_rif(store: &AlayaStore) {
     // Query for something that was suppressed
     println!("  Query 2: \"SQLite database\" (may show suppression effect)");
     let results2 = store
-        .query(&Query::simple("SQLite embedded database"))
+        .knowledge().query(&Query::simple("SQLite embedded database"))
         .expect("query failed");
     for (i, mem) in results2.iter().enumerate() {
         println!(
@@ -737,14 +737,14 @@ fn chapter_8_rif(store: &AlayaStore) {
     );
 }
 
-fn chapter_9_forgetting(store: &AlayaStore) {
+fn chapter_9_forgetting(store: &Alaya) {
     print_chapter(9, "Forgetting", "Bjork Dual-Strength Model");
 
     println!("  Running 5 forgetting cycles (retrieval strength decays 0.95x each)...");
     println!();
 
     for cycle in 1..=5 {
-        let report = store.forget().expect("forgetting failed");
+        let report = store.lifecycle().forget().expect("forgetting failed");
         println!(
             "    Cycle {}: nodes_decayed={}, nodes_archived={}",
             cycle, report.nodes_decayed, report.nodes_archived
@@ -755,7 +755,7 @@ fn chapter_9_forgetting(store: &AlayaStore) {
     // Demonstrate memory revival through retrieval
     println!("  Now querying 'Rust borrow checker' to revive fading memories...");
     let results = store
-        .query(&Query::simple("Rust borrow checker"))
+        .knowledge().query(&Query::simple("Rust borrow checker"))
         .expect("failed to query after forgetting");
     println!(
         "  Found {} results (retrieval boosts strength on access)",
@@ -776,7 +776,7 @@ fn chapter_9_forgetting(store: &AlayaStore) {
     );
 }
 
-fn chapter_10_purge(store: &AlayaStore) {
+fn chapter_10_purge(store: &Alaya) {
     print_chapter(10, "Purge", "Cascade Deletion with Tombstone Tracking");
 
     println!("  Status before purge:");
@@ -785,7 +785,7 @@ fn chapter_10_purge(store: &AlayaStore) {
     // Purge a specific session
     println!("  Purging session 'day-1' (cascade deletes episodes + tombstones)...");
     let report = store
-        .purge(PurgeFilter::Session("day-1".into()))
+        .admin().purge(PurgeFilter::Session("day-1".into()))
         .expect("purge failed");
 
     println!();
@@ -801,7 +801,7 @@ fn chapter_10_purge(store: &AlayaStore) {
 
     println!("  Remaining episodes (day-2 preserved):");
     let remaining = store
-        .query(&Query::simple("building memory engine"))
+        .knowledge().query(&Query::simple("building memory engine"))
         .expect("query failed");
     for (i, mem) in remaining.iter().enumerate() {
         println!(
@@ -822,7 +822,7 @@ fn chapter_10_purge(store: &AlayaStore) {
     );
 }
 
-fn chapter_11_v020_features(store: &AlayaStore) {
+fn chapter_11_v020_features(store: &Alaya) {
     print_chapter(11, "v0.2.0 Features", "Hierarchy + EmbeddingProvider");
 
     // Demonstrate EmbeddingProvider
@@ -831,7 +831,7 @@ fn chapter_11_v020_features(store: &AlayaStore) {
     println!();
 
     // Show category hierarchy (if categories exist)
-    let cats = store.categories(None).expect("failed to get categories");
+    let cats = store.admin().categories(None).expect("failed to get categories");
     if !cats.is_empty() {
         println!("  Category Hierarchy:");
         for cat in &cats {
@@ -853,7 +853,7 @@ fn chapter_11_v020_features(store: &AlayaStore) {
     // Show subcategories using the public API
     let root_cats: Vec<_> = cats.iter().filter(|c| c.parent_id.is_none()).collect();
     for root in &root_cats {
-        let subs = store.subcategories(root.id).unwrap_or_default();
+        let subs = store.admin().subcategories(root.id).unwrap_or_default();
         if !subs.is_empty() {
             println!("  Subcategories of \"{}\": {}", root.label, subs.len());
             for sub in &subs {
@@ -899,7 +899,7 @@ fn main() {
     println!("  +---------------------------------------------------+");
     println!();
 
-    let mut store = AlayaStore::open_in_memory().expect("failed to open in-memory database");
+    let mut store = Alaya::open_in_memory().expect("failed to open in-memory database");
     store.set_embedding_provider(Box::new(MockEmbeddingProvider::new(4)));
 
     let episode_ids = chapter_1_episodic(&store);

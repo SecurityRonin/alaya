@@ -1,7 +1,5 @@
 //! Targeted tests to achieve 100% coverage on remaining gaps.
 
-#![allow(deprecated)]
-
 use alaya::*;
 
 mod common;
@@ -58,20 +56,20 @@ fn test_episodes_by_session() {
     let store = Alaya::open_in_memory().unwrap();
 
     store
-        .store_episode(&episode("hello world", "s1", 1000))
+        .episodes().store(&episode("hello world", "s1", 1000))
         .unwrap();
     store
-        .store_episode(&episode("goodbye world", "s1", 2000))
+        .episodes().store(&episode("goodbye world", "s1", 2000))
         .unwrap();
     store
-        .store_episode(&episode("other session", "s2", 3000))
+        .episodes().store(&episode("other session", "s2", 3000))
         .unwrap();
 
-    let eps = store.episodes_by_session("s1").unwrap();
+    let eps = store.episodes().by_session("s1").unwrap();
     assert_eq!(eps.len(), 2);
     assert_eq!(eps[0].content, "hello world");
 
-    let eps = store.episodes_by_session("nonexistent").unwrap();
+    let eps = store.episodes().by_session("nonexistent").unwrap();
     assert!(eps.is_empty());
 }
 
@@ -83,11 +81,11 @@ fn test_episodes_by_session() {
 fn test_knowledge_breakdown() {
     let store = Alaya::open_in_memory().unwrap();
 
-    let bd = store.knowledge_breakdown().unwrap();
+    let bd = store.knowledge().breakdown().unwrap();
     assert!(bd.is_empty());
 
     store
-        .learn(vec![
+        .knowledge().learn(vec![
             NewSemanticNode {
                 content: "fact 1".to_string(),
                 node_type: SemanticType::Fact,
@@ -112,7 +110,7 @@ fn test_knowledge_breakdown() {
         ])
         .unwrap();
 
-    let bd = store.knowledge_breakdown().unwrap();
+    let bd = store.knowledge().breakdown().unwrap();
     assert_eq!(bd.get(&SemanticType::Fact), Some(&2));
     assert_eq!(bd.get(&SemanticType::Concept), Some(&1));
 }
@@ -125,14 +123,14 @@ fn test_knowledge_breakdown() {
 fn test_strongest_link() {
     let store = Alaya::open_in_memory().unwrap();
 
-    assert!(store.strongest_link().unwrap().is_none());
+    assert!(store.graph().strongest_link().unwrap().is_none());
 
     let ep1 = store
-        .store_episode(&episode("ep1", "s1", 1000))
+        .episodes().store(&episode("ep1", "s1", 1000))
         .unwrap();
 
     store
-        .learn(vec![NewSemanticNode {
+        .knowledge().learn(vec![NewSemanticNode {
             content: "test knowledge".to_string(),
             node_type: SemanticType::Fact,
             confidence: 0.9,
@@ -141,7 +139,7 @@ fn test_strongest_link() {
         }])
         .unwrap();
 
-    let link = store.strongest_link().unwrap();
+    let link = store.graph().strongest_link().unwrap();
     assert!(link.is_some(), "learn should have created Causal links");
 }
 
@@ -155,14 +153,14 @@ fn test_node_content_all_variants() {
 
     // Episode content
     let ep_id = store
-        .store_episode(&episode("episode content here", "s1", 1000))
+        .episodes().store(&episode("episode content here", "s1", 1000))
         .unwrap();
-    let content = store.node_content(NodeRef::Episode(ep_id)).unwrap();
+    let content = store.admin().node_content(NodeRef::Episode(ep_id)).unwrap();
     assert!(content.is_some());
 
     // Semantic content
     store
-        .learn(vec![NewSemanticNode {
+        .knowledge().learn(vec![NewSemanticNode {
             content: "semantic node content here".to_string(),
             node_type: SemanticType::Fact,
             confidence: 0.9,
@@ -170,15 +168,15 @@ fn test_node_content_all_variants() {
             embedding: Some(vec![0.8, 0.3, 0.1]),
         }])
         .unwrap();
-    let knowledge = store.knowledge_nodes(None).unwrap();
+    let knowledge = store.knowledge().filter(None).unwrap();
     let node_id = knowledge[0].id;
-    let content = store.node_content(NodeRef::Semantic(node_id)).unwrap();
+    let content = store.admin().node_content(NodeRef::Semantic(node_id)).unwrap();
     assert!(content.is_some());
 
     // Category content — create via consolidation + transform
     for i in 0..5 {
         store
-            .store_episode(&NewEpisode {
+            .episodes().store(&NewEpisode {
                 content: format!("cooking topic {i}"),
                 role: Role::User,
                 session_id: "s2".to_string(),
@@ -212,32 +210,32 @@ fn test_node_content_all_variants() {
             embedding: Some(vec![0.6, 0.5, 0.5]),
         },
     ]);
-    store.consolidate(&provider).unwrap();
-    store.transform().unwrap();
+    store.lifecycle().consolidate(&provider).unwrap();
+    store.lifecycle().transform().unwrap();
 
-    let cats = store.categories(None).unwrap();
+    let cats = store.admin().categories(None).unwrap();
     if !cats.is_empty() {
-        let cat_content = store.node_content(NodeRef::Category(cats[0].id)).unwrap();
+        let cat_content = store.admin().node_content(NodeRef::Category(cats[0].id)).unwrap();
         assert!(cat_content.is_some());
     }
 
     // Missing nodes return None
     assert!(store
-        .node_content(NodeRef::Episode(EpisodeId(999)))
+        .admin().node_content(NodeRef::Episode(EpisodeId(999)))
         .unwrap()
         .is_none());
     assert!(store
-        .node_content(NodeRef::Semantic(NodeId(999)))
+        .admin().node_content(NodeRef::Semantic(NodeId(999)))
         .unwrap()
         .is_none());
     assert!(store
-        .node_content(NodeRef::Category(CategoryId(999)))
+        .admin().node_content(NodeRef::Category(CategoryId(999)))
         .unwrap()
         .is_none());
 
     // Preference variant returns formatted string
     let pref_content = store
-        .node_content(NodeRef::Preference(PreferenceId(1)))
+        .admin().node_content(NodeRef::Preference(PreferenceId(1)))
         .unwrap();
     assert!(pref_content.is_some());
 }
@@ -275,7 +273,7 @@ fn test_dedup_skip_already_deleted_node() {
 
     for i in 0..4 {
         store
-            .store_episode(&episode(&format!("ep {i}"), "s1", 1000 + i))
+            .episodes().store(&episode(&format!("ep {i}"), "s1", 1000 + i))
             .unwrap();
     }
 
@@ -314,15 +312,15 @@ fn test_dedup_skip_already_deleted_node() {
             embedding: Some(vec![0.99, 0.01, 0.0]),
         },
     ]);
-    store.consolidate(&provider).unwrap();
+    store.lifecycle().consolidate(&provider).unwrap();
 
-    let tr = store.transform().unwrap();
+    let tr = store.lifecycle().transform().unwrap();
     assert!(
         tr.duplicates_merged >= 1,
         "should dedup alpha and its duplicate"
     );
 
-    let knowledge = store.knowledge_nodes(None).unwrap();
+    let knowledge = store.knowledge().filter(None).unwrap();
     assert_eq!(knowledge.len(), 3, "should have 3 nodes after dedup");
 }
 
@@ -339,7 +337,7 @@ fn test_category_voting_during_consolidation() {
     // Phase 1: Create episodes and consolidate to get categorized semantic nodes
     for i in 0..5 {
         store
-            .store_episode(&NewEpisode {
+            .episodes().store(&NewEpisode {
                 content: format!("cooking topic {i}"),
                 role: Role::User,
                 session_id: "s1".to_string(),
@@ -373,12 +371,12 @@ fn test_category_voting_during_consolidation() {
             embedding: Some(vec![0.6, 0.5, 0.5]),
         },
     ]);
-    store.consolidate(&provider1).unwrap();
+    store.lifecycle().consolidate(&provider1).unwrap();
 
     // Phase 2: Transform to discover and assign categories
-    store.transform().unwrap();
+    store.lifecycle().transform().unwrap();
 
-    let cats = store.categories(None).unwrap();
+    let cats = store.admin().categories(None).unwrap();
     assert!(
         !cats.is_empty(),
         "should have categories after first transform"
@@ -389,7 +387,7 @@ fn test_category_voting_during_consolidation() {
     // This triggers the category voting path (consolidation.rs:141).
     for i in 5..10 {
         store
-            .store_episode(&NewEpisode {
+            .episodes().store(&NewEpisode {
                 content: format!("more cooking {i}"),
                 role: Role::User,
                 session_id: "s2".to_string(),
@@ -409,7 +407,7 @@ fn test_category_voting_during_consolidation() {
         source_episodes: vec![EpisodeId(1), EpisodeId(6)],
         embedding: Some(vec![0.55, 0.55, 0.35]),
     }]);
-    let cr2 = store.consolidate(&provider2).unwrap();
+    let cr2 = store.lifecycle().consolidate(&provider2).unwrap();
     assert_eq!(cr2.nodes_created, 1);
     assert_eq!(
         cr2.categories_assigned, 1,
@@ -429,10 +427,10 @@ fn test_activation_below_threshold_skip() {
     // Create a chain of episodes with temporal links.
     // Spreading activation from ep1 at low depth should not reach far nodes.
     let id1 = store
-        .store_episode(&episode("deep chain start", "s1", 1000))
+        .episodes().store(&episode("deep chain start", "s1", 1000))
         .unwrap();
     let id2 = store
-        .store_episode(&NewEpisode {
+        .episodes().store(&NewEpisode {
             content: "chain link 2".to_string(),
             role: Role::User,
             session_id: "s1".to_string(),
@@ -445,7 +443,7 @@ fn test_activation_below_threshold_skip() {
         })
         .unwrap();
     let _id3 = store
-        .store_episode(&NewEpisode {
+        .episodes().store(&NewEpisode {
             content: "chain link 3".to_string(),
             role: Role::User,
             session_id: "s1".to_string(),
@@ -460,14 +458,14 @@ fn test_activation_below_threshold_skip() {
 
     // With depth=1, only direct neighbors should be reached.
     // The threshold check filters out low-activation nodes from spreading further.
-    let neighbors = store.neighbors(NodeRef::Episode(id1), 1).unwrap();
+    let neighbors = store.graph().neighbors(NodeRef::Episode(id1), 1).unwrap();
     assert!(
         !neighbors.is_empty(),
         "should find at least the direct neighbor"
     );
 
     // At depth=3 with a long chain, some nodes will be below threshold
-    let deep_neighbors = store.neighbors(NodeRef::Episode(id1), 3).unwrap();
+    let deep_neighbors = store.graph().neighbors(NodeRef::Episode(id1), 3).unwrap();
     // Should still work without panic — the threshold skip handles low activation
     let _ = deep_neighbors;
 }
@@ -481,14 +479,14 @@ fn test_dream_operation() {
     let store = Alaya::open_in_memory().unwrap();
 
     // Dream on empty store should succeed
-    let report = store.dream(&NoOpProvider, None).unwrap();
+    let report = store.lifecycle().dream(&NoOpProvider, None).unwrap();
     assert_eq!(report.consolidation.episodes_processed, 0);
     assert_eq!(report.consolidation.nodes_created, 0);
 
     // Store episodes and dream
     for i in 0..5 {
         store
-            .store_episode(&episode(
+            .episodes().store(&episode(
                 &format!("Dream test episode {i} about machine learning"),
                 "dream-s1",
                 1000 + i * 100,
@@ -496,7 +494,7 @@ fn test_dream_operation() {
             .unwrap();
     }
 
-    let report = store.dream(&NoOpProvider, None).unwrap();
+    let report = store.lifecycle().dream(&NoOpProvider, None).unwrap();
     // NoOpProvider creates nothing, but dream runs consolidation + transformation
     assert!(
         report.consolidation.episodes_processed > 0,
@@ -536,7 +534,7 @@ fn test_node_category_missing_node() {
     let store = Alaya::open_in_memory().unwrap();
 
     // Non-existent node should return Ok(None)
-    let cat = store.node_category(NodeId(999)).unwrap();
+    let cat = store.admin().node_category(NodeId(999)).unwrap();
     assert!(cat.is_none());
 }
 
@@ -572,22 +570,22 @@ fn test_unconsolidated_episodes() {
     let store = Alaya::open_in_memory().unwrap();
 
     // Initially empty
-    let uncons = store.unconsolidated_episodes(10).unwrap();
+    let uncons = store.episodes().unconsolidated(10).unwrap();
     assert!(uncons.is_empty());
 
     // Store episodes
     store
-        .store_episode(&episode("ep1", "s1", 1000))
+        .episodes().store(&episode("ep1", "s1", 1000))
         .unwrap();
     store
-        .store_episode(&episode("ep2", "s1", 2000))
+        .episodes().store(&episode("ep2", "s1", 2000))
         .unwrap();
 
-    let uncons = store.unconsolidated_episodes(10).unwrap();
+    let uncons = store.episodes().unconsolidated(10).unwrap();
     assert_eq!(uncons.len(), 2);
 
     // With limit
-    let uncons = store.unconsolidated_episodes(1).unwrap();
+    let uncons = store.episodes().unconsolidated(1).unwrap();
     assert_eq!(uncons.len(), 1);
 }
 
@@ -598,36 +596,36 @@ fn test_unconsolidated_episodes() {
 #[test]
 fn test_purge_by_session() {
     let store = Alaya::open_in_memory().unwrap();
-    store.store_episode(&episode("s1-ep1", "s1", 1000)).unwrap();
-    store.store_episode(&episode("s1-ep2", "s1", 2000)).unwrap();
-    store.store_episode(&episode("s2-ep1", "s2", 3000)).unwrap();
+    store.episodes().store(&episode("s1-ep1", "s1", 1000)).unwrap();
+    store.episodes().store(&episode("s1-ep2", "s1", 2000)).unwrap();
+    store.episodes().store(&episode("s2-ep1", "s2", 3000)).unwrap();
 
-    let report = store.purge(PurgeFilter::Session("s1".to_string())).unwrap();
+    let report = store.admin().purge(PurgeFilter::Session("s1".to_string())).unwrap();
     assert_eq!(report.episodes_deleted, 2);
-    assert_eq!(store.status().unwrap().episode_count, 1);
+    assert_eq!(store.admin().status().unwrap().episode_count, 1);
 }
 
 #[test]
 fn test_purge_older_than() {
     let store = Alaya::open_in_memory().unwrap();
-    store.store_episode(&episode("old", "s1", 1000)).unwrap();
-    store.store_episode(&episode("new", "s1", 9000)).unwrap();
+    store.episodes().store(&episode("old", "s1", 1000)).unwrap();
+    store.episodes().store(&episode("new", "s1", 9000)).unwrap();
 
-    let report = store.purge(PurgeFilter::OlderThan(5000)).unwrap();
+    let report = store.admin().purge(PurgeFilter::OlderThan(5000)).unwrap();
     assert_eq!(report.episodes_deleted, 1);
-    assert_eq!(store.status().unwrap().episode_count, 1);
+    assert_eq!(store.admin().status().unwrap().episode_count, 1);
 }
 
 #[test]
 fn test_purge_all() {
     let store = Alaya::open_in_memory().unwrap();
-    store.store_episode(&episode("ep1", "s1", 1000)).unwrap();
-    store.store_episode(&episode("ep2", "s1", 2000)).unwrap();
-    assert_eq!(store.status().unwrap().episode_count, 2);
+    store.episodes().store(&episode("ep1", "s1", 1000)).unwrap();
+    store.episodes().store(&episode("ep2", "s1", 2000)).unwrap();
+    assert_eq!(store.admin().status().unwrap().episode_count, 2);
 
     // PurgeFilter::All uses execute_batch and doesn't report individual counts
-    let _report = store.purge(PurgeFilter::All).unwrap();
-    assert_eq!(store.status().unwrap().episode_count, 0);
+    let _report = store.admin().purge(PurgeFilter::All).unwrap();
+    assert_eq!(store.admin().status().unwrap().episode_count, 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -639,7 +637,7 @@ fn test_perfume_with_impressions() {
     let store = Alaya::open_in_memory().unwrap();
 
     store
-        .store_episode(&episode("I like dark mode", "s1", 1000))
+        .episodes().store(&episode("I like dark mode", "s1", 1000))
         .unwrap();
 
     let interaction = Interaction {
@@ -651,7 +649,7 @@ fn test_perfume_with_impressions() {
     };
 
     // NoOpProvider returns empty impressions, but perfume should still succeed
-    let report = store.perfume(&interaction, &NoOpProvider);
+    let report = store.lifecycle().perfume(&interaction, &NoOpProvider);
     assert!(report.is_ok());
 }
 
@@ -666,12 +664,12 @@ fn test_status_with_data() {
     // Store episodes and learn knowledge
     for i in 0..5 {
         store
-            .store_episode(&episode(&format!("topic {i}"), "s1", 1000 + i))
+            .episodes().store(&episode(&format!("topic {i}"), "s1", 1000 + i))
             .unwrap();
     }
 
     store
-        .learn(vec![
+        .knowledge().learn(vec![
             NewSemanticNode {
                 content: "fact one".to_string(),
                 node_type: SemanticType::Fact,
@@ -689,9 +687,9 @@ fn test_status_with_data() {
         ])
         .unwrap();
 
-    store.transform().unwrap();
+    store.lifecycle().transform().unwrap();
 
-    let status = store.status().unwrap();
+    let status = store.admin().status().unwrap();
     assert_eq!(status.episode_count, 5);
     assert_eq!(status.semantic_node_count, 2);
 }

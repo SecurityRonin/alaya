@@ -1,5 +1,7 @@
 //! Shared MCP handler helpers — parameter extraction and error formatting.
 
+#![allow(dead_code, unused_macros, unused_imports)]
+
 use serde_json::Value;
 
 pub(crate) fn require_str<'a>(params: &'a Value, key: &str) -> std::result::Result<&'a str, String> {

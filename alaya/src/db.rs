@@ -32,6 +32,7 @@ pub(crate) fn to_json<T: serde::Serialize>(value: &T) -> Result<String> {
 
 /// Deserialize JSON, returning `T::default()` on parse failure.
 /// Logs a warning via tracing when the tracing feature is enabled.
+#[allow(clippy::manual_unwrap_or_default)] // intentional: logs warning on parse failure
 pub(crate) fn from_json_or_default<T: serde::de::DeserializeOwned + Default>(s: &str) -> T {
     match serde_json::from_str(s) {
         Ok(v) => v,

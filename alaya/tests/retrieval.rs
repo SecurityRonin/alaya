@@ -1,5 +1,3 @@
-#![allow(deprecated)]
-
 use alaya::*;
 
 mod common;
@@ -90,10 +88,10 @@ fn test_full_retrieval_pipeline_with_temporal_links() {
 
     // Store 5 episodes chained via preceding_episode to create temporal links.
     let id1 = store
-        .store_episode(&episode("Rust memory safety guarantees", "chain-s1", 1000))
+        .episodes().store(&episode("Rust memory safety guarantees", "chain-s1", 1000))
         .unwrap();
     let id2 = store
-        .store_episode(&chained_episode(
+        .episodes().store(&chained_episode(
             "The borrow checker enforces ownership rules",
             "chain-s1",
             2000,
@@ -101,7 +99,7 @@ fn test_full_retrieval_pipeline_with_temporal_links() {
         ))
         .unwrap();
     let id3 = store
-        .store_episode(&chained_episode(
+        .episodes().store(&chained_episode(
             "Lifetimes prevent dangling references",
             "chain-s1",
             3000,
@@ -109,7 +107,7 @@ fn test_full_retrieval_pipeline_with_temporal_links() {
         ))
         .unwrap();
     let id4 = store
-        .store_episode(&chained_episode(
+        .episodes().store(&chained_episode(
             "Smart pointers like Box and Rc manage heap allocation",
             "chain-s1",
             4000,
@@ -117,7 +115,7 @@ fn test_full_retrieval_pipeline_with_temporal_links() {
         ))
         .unwrap();
     let _id5 = store
-        .store_episode(&chained_episode(
+        .episodes().store(&chained_episode(
             "Unsafe blocks opt out of the borrow checker",
             "chain-s1",
             5000,
@@ -126,7 +124,7 @@ fn test_full_retrieval_pipeline_with_temporal_links() {
         .unwrap();
 
     // Verify links were created (4 temporal links for the chain of 5)
-    let status = store.status().unwrap();
+    let status = store.admin().status().unwrap();
     assert_eq!(status.episode_count, 5);
     assert_eq!(
         status.link_count, 4,
@@ -135,14 +133,14 @@ fn test_full_retrieval_pipeline_with_temporal_links() {
 
     // Verify Hebbian co-retrieval: querying creates co-retrieval links between
     // results. Count links before and after the FIRST query that returns multiple results.
-    let links_before = store.status().unwrap().link_count;
-    let results = store.query(&Query::simple("borrow checker")).unwrap();
+    let links_before = store.admin().status().unwrap().link_count;
+    let results = store.knowledge().query(&Query::simple("borrow checker")).unwrap();
     assert!(
         !results.is_empty(),
         "query should return episodes about 'borrow checker'"
     );
     if results.len() >= 2 {
-        let links_after = store.status().unwrap().link_count;
+        let links_after = store.admin().status().unwrap().link_count;
         assert!(
             links_after > links_before,
             "co-retrieval should create Hebbian links between co-retrieved episodes ({links_before} -> {links_after})",
@@ -150,7 +148,7 @@ fn test_full_retrieval_pipeline_with_temporal_links() {
     }
 
     // Spreading activation from the first episode should find temporal neighbors
-    let neighbors = store.neighbors(NodeRef::Episode(id1), 2).unwrap();
+    let neighbors = store.graph().neighbors(NodeRef::Episode(id1), 2).unwrap();
     assert!(
         !neighbors.is_empty(),
         "spreading activation from episode 1 should find temporal neighbors"
@@ -175,7 +173,7 @@ fn test_cross_domain_bridging_via_categories() {
     // Store episodes about two related subtopics
     for i in 0..5 {
         store
-            .store_episode(&NewEpisode {
+            .episodes().store(&NewEpisode {
                 content: format!("Rust async programming with tokio topic {i}"),
                 role: Role::User,
                 session_id: "s1".to_string(),
@@ -212,25 +210,25 @@ fn test_cross_domain_bridging_via_categories() {
         },
     ]);
 
-    let cr = store.consolidate(&provider).unwrap();
+    let cr = store.lifecycle().consolidate(&provider).unwrap();
     assert_eq!(cr.nodes_created, 3, "should create 3 semantic nodes");
 
     // Transform: discovers categories and creates MemberOf links
-    let tr = store.transform().unwrap();
+    let tr = store.lifecycle().transform().unwrap();
     assert!(
         tr.categories_discovered >= 1,
         "should discover at least 1 category from 3 similar nodes"
     );
 
     // Verify MemberOf links exist in the graph
-    let status = store.status().unwrap();
+    let status = store.admin().status().unwrap();
     assert!(
         status.link_count > 0,
         "should have links including MemberOf links"
     );
 
     // Verify categories were created with members
-    let cats = store.categories(None).unwrap();
+    let cats = store.admin().categories(None).unwrap();
     assert!(!cats.is_empty(), "should have categories");
     assert!(
         cats[0].member_count >= 3,
@@ -239,17 +237,17 @@ fn test_cross_domain_bridging_via_categories() {
 
     // Query for one subtopic — spreading activation should follow:
     // Semantic node → (MemberOf) → Category → (MemberOf) → other Semantic nodes
-    let results = store.query(&Query::simple("tokio async")).unwrap();
+    let results = store.knowledge().query(&Query::simple("tokio async")).unwrap();
     assert!(!results.is_empty(), "query should return results");
 
     // Verify neighbors() can traverse through category
     // Get the first semantic node
-    let knowledge = store.knowledge_nodes(None).unwrap();
+    let knowledge = store.knowledge().filter(None).unwrap();
     assert!(knowledge.len() >= 3);
 
     // Use neighbors() from one semantic node — should find others through category
     let node_ref = NodeRef::Semantic(knowledge[0].id);
-    let neighbors = store.neighbors(node_ref, 2).unwrap();
+    let neighbors = store.graph().neighbors(node_ref, 2).unwrap();
     assert!(
         !neighbors.is_empty(),
         "semantic node should have neighbors (at least Category via MemberOf)"

@@ -33,6 +33,7 @@ use crate::Alaya;
 use rmcp::{model::ServerInfo, schemars, tool, ServerHandler};
 
 /// Format an error as a plain-text MCP error response string.
+#[allow(dead_code)]
 pub(crate) fn error_response(msg: &str) -> String {
     format!("Error: {msg}")
 }

@@ -50,7 +50,7 @@ pub trait EmbeddingProvider: Send + Sync {
 /// Trait for automatic knowledge extraction from episodes.
 ///
 /// Implement this with your preferred LLM (Haiku, GPT-4o-mini, local Ollama)
-/// to enable auto-consolidation. When set on AlayaStore, the MCP server
+/// to enable auto-consolidation. When set on Alaya, the MCP server
 /// will automatically extract facts instead of prompting the agent.
 pub trait ExtractionProvider: Send + Sync {
     /// Extract semantic knowledge from a batch of episodes.

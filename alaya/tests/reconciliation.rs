@@ -1,5 +1,3 @@
-#![allow(deprecated)]
-
 use alaya::*;
 
 #[test]
@@ -8,7 +6,7 @@ fn full_lifecycle_learn_reconcile_superseded_excluded() {
 
     // Learn contradictory facts
     store
-        .learn(vec![
+        .knowledge().learn(vec![
             NewSemanticNode {
                 content: "user prefers dark mode".to_string(),
                 node_type: SemanticType::Fact,
@@ -27,17 +25,17 @@ fn full_lifecycle_learn_reconcile_superseded_excluded() {
         .unwrap();
 
     // Verify both visible before reconcile
-    let before = store.knowledge_nodes(None).unwrap();
+    let before = store.knowledge().filter(None).unwrap();
     assert_eq!(before.len(), 2);
 
     // Reconcile with default (Recency) strategy
-    let report = store.reconcile().unwrap();
+    let report = store.lifecycle().reconcile().unwrap();
     assert_eq!(report.conflicts_detected, 1);
     assert_eq!(report.conflicts_resolved, 1);
     assert_eq!(report.nodes_superseded, 1);
 
     // Only 1 node visible after reconcile
-    let after = store.knowledge_nodes(None).unwrap();
+    let after = store.knowledge().filter(None).unwrap();
     assert_eq!(after.len(), 1);
 }
 
@@ -47,7 +45,7 @@ fn manual_strategy_reconcile_then_resolve() {
     store.set_conflict_strategy(ConflictStrategy::Manual);
 
     store
-        .learn(vec![
+        .knowledge().learn(vec![
             NewSemanticNode {
                 content: "prefers tabs".to_string(),
                 node_type: SemanticType::Fact,
@@ -65,24 +63,24 @@ fn manual_strategy_reconcile_then_resolve() {
         ])
         .unwrap();
 
-    store.reconcile().unwrap();
+    store.lifecycle().reconcile().unwrap();
 
-    let conflicts = store.conflicts().unwrap();
+    let conflicts = store.lifecycle().conflicts().unwrap();
     assert_eq!(conflicts.len(), 1);
 
     // Manually resolve
     let winner = conflicts[0].node_a;
-    store.resolve_conflict(conflicts[0].id, winner).unwrap();
+    store.lifecycle().resolve_conflict(conflicts[0].id, winner).unwrap();
 
-    assert!(store.conflicts().unwrap().is_empty());
-    assert_eq!(store.knowledge_nodes(None).unwrap().len(), 1);
+    assert!(store.lifecycle().conflicts().unwrap().is_empty());
+    assert_eq!(store.knowledge().filter(None).unwrap().len(), 1);
 }
 
 #[test]
 fn idempotent_reconcile() {
     let store = Alaya::open_in_memory().unwrap();
     store
-        .learn(vec![
+        .knowledge().learn(vec![
             NewSemanticNode {
                 content: "fact A".to_string(),
                 node_type: SemanticType::Fact,
@@ -100,10 +98,10 @@ fn idempotent_reconcile() {
         ])
         .unwrap();
 
-    let r1 = store.reconcile().unwrap();
+    let r1 = store.lifecycle().reconcile().unwrap();
     assert_eq!(r1.conflicts_detected, 1);
 
-    let r2 = store.reconcile().unwrap();
+    let r2 = store.lifecycle().reconcile().unwrap();
     assert_eq!(r2.conflicts_detected, 0);
     assert_eq!(r2.conflicts_resolved, 0);
 }
@@ -115,7 +113,7 @@ fn reconcile_after_transform_preserves_categories() {
     // Store enough episodes and facts for transform to assign categories
     for i in 0..5 {
         store
-            .store_episode(&NewEpisode {
+            .episodes().store(&NewEpisode {
                 content: format!("cooking topic {i}"),
                 role: Role::User,
                 session_id: "s1".to_string(),
@@ -127,7 +125,7 @@ fn reconcile_after_transform_preserves_categories() {
     }
 
     store
-        .learn(vec![
+        .knowledge().learn(vec![
             NewSemanticNode {
                 content: "likes Italian food".to_string(),
                 node_type: SemanticType::Fact,
@@ -145,8 +143,8 @@ fn reconcile_after_transform_preserves_categories() {
         ])
         .unwrap();
 
-    store.transform().unwrap();
-    let report = store.reconcile().unwrap();
+    store.lifecycle().transform().unwrap();
+    let report = store.lifecycle().reconcile().unwrap();
     assert!(report.conflicts_detected >= 1 || report.conflicts_detected == 0);
     // Main assertion: no panics, categories preserved
 }
