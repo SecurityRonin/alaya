@@ -52,7 +52,7 @@ pub fn get_episodes_by_session(conn: &Connection, session_id: &str) -> Result<Ve
             role: Role::from_str(&row.get::<_, String>(2)?).unwrap_or(Role::User),
             session_id: row.get(3)?,
             timestamp: row.get(4)?,
-            context: serde_json::from_str(&ctx_str).unwrap_or_default(),
+            context: crate::db::from_json_or_default(&ctx_str),
         })
     })?;
     Ok(rows.filter_map(|r| r.ok()).collect())
@@ -72,7 +72,7 @@ pub fn get_recent_episodes(conn: &Connection, limit: u32) -> Result<Vec<Episode>
             role: Role::from_str(&row.get::<_, String>(2)?).unwrap_or(Role::User),
             session_id: row.get(3)?,
             timestamp: row.get(4)?,
-            context: serde_json::from_str(&ctx_str).unwrap_or_default(),
+            context: crate::db::from_json_or_default(&ctx_str),
         })
     })?;
     Ok(rows.filter_map(|r| r.ok()).collect())
@@ -106,7 +106,7 @@ pub fn get_unconsolidated_episodes(conn: &Connection, limit: u32) -> Result<Vec<
             role: Role::from_str(&row.get::<_, String>(2)?).unwrap_or(Role::User),
             session_id: row.get(3)?,
             timestamp: row.get(4)?,
-            context: serde_json::from_str(&ctx_str).unwrap_or_default(),
+            context: crate::db::from_json_or_default(&ctx_str),
         })
     })?;
     Ok(rows.filter_map(|r| r.ok()).collect())

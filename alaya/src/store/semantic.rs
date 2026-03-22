@@ -78,7 +78,7 @@ pub fn find_by_type(
             node_type: SemanticType::from_str(&row.get::<_, String>(2)?)
                 .unwrap_or(SemanticType::Fact),
             confidence: row.get(3)?,
-            source_episodes: serde_json::from_str(&sources_str).unwrap_or_default(),
+            source_episodes: crate::db::from_json_or_default(&sources_str),
             created_at: row.get(5)?,
             last_corroborated: row.get(6)?,
             corroboration_count: row.get(7)?,
