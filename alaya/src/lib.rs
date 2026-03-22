@@ -49,6 +49,9 @@ pub mod extraction;
 #[cfg(feature = "async")]
 pub mod async_store;
 
+#[cfg(test)]
+pub(crate) mod testutil;
+
 use rusqlite::Connection;
 use std::path::Path;
 
