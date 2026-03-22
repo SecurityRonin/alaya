@@ -511,12 +511,12 @@ fn test_dream_operation() {
 #[cfg(feature = "async")]
 #[tokio::test]
 async fn test_async_store_open_file() {
-    use alaya::async_store::AsyncAlayaStore;
+    use alaya::async_store::AsyncAlaya;
 
     let dir = tempfile::tempdir().unwrap();
     let db_path = dir.path().join("async_test.db");
 
-    let store = AsyncAlayaStore::open(&db_path).unwrap();
+    let store = AsyncAlaya::open(&db_path).unwrap();
 
     // Verify basic operations work
     let status = store.status().await.unwrap();

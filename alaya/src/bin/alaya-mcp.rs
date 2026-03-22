@@ -13,8 +13,7 @@
 use std::path::PathBuf;
 
 use alaya::mcp::AlayaMcp;
-#[allow(deprecated)]
-use alaya::AlayaStore;
+use alaya::Alaya;
 use rmcp::ServiceExt;
 use tokio::io::{stdin, stdout};
 
@@ -33,7 +32,7 @@ fn resolve_db_path() -> PathBuf {
 /// Returns silently if ALAYA_LLM_API_KEY is not set (auto-consolidation disabled).
 #[cfg(feature = "llm")]
 #[cfg(not(tarpaulin_include))]
-fn configure_extraction(store: &mut AlayaStore) {
+fn configure_extraction(store: &mut Alaya) {
     let api_key = match std::env::var("ALAYA_LLM_API_KEY") {
         Ok(key) if !key.is_empty() => key,
         _ => return, // No key = no auto-consolidation, silent
@@ -79,7 +78,8 @@ async fn main() -> anyhow::Result<()> {
     let db_path = resolve_db_path();
     eprintln!("alaya-mcp: opening database at {}", db_path.display());
 
-    let mut store = AlayaStore::open(&db_path)?;
+    #[allow(unused_mut)]
+    let mut store = Alaya::open(&db_path)?;
 
     #[cfg(feature = "llm")]
     configure_extraction(&mut store);

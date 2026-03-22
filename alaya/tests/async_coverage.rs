@@ -1,9 +1,9 @@
-//! Comprehensive tests for AsyncAlayaStore to cover all async method bodies
+//! Comprehensive tests for AsyncAlaya to cover all async method bodies
 //! and actor match arms.
 
 #![cfg(feature = "async")]
 
-use alaya::async_store::AsyncAlayaStore;
+use alaya::async_store::AsyncAlaya;
 use alaya::*;
 
 // ---------------------------------------------------------------------------
@@ -27,7 +27,7 @@ fn new_episode(content: &str, session: &str, ts: i64) -> NewEpisode {
 
 #[tokio::test]
 async fn test_async_read_methods() {
-    let store = AsyncAlayaStore::open_in_memory().unwrap();
+    let store = AsyncAlaya::open_in_memory().unwrap();
 
     // Store some episodes
     let ep1 = store.store_episode(new_episode("hello world", "s1", 1000)).await.unwrap();
@@ -130,7 +130,7 @@ async fn test_async_read_methods() {
 
 #[tokio::test]
 async fn test_async_lifecycle_methods() {
-    let store = AsyncAlayaStore::open_in_memory().unwrap();
+    let store = AsyncAlaya::open_in_memory().unwrap();
 
     // Store episodes for lifecycle operations
     let ep1 = store.store_episode(new_episode("I love Rust programming", "s1", 1000)).await.unwrap();
@@ -218,7 +218,7 @@ async fn test_async_lifecycle_methods() {
 
 #[tokio::test]
 async fn test_async_set_providers() {
-    let store = AsyncAlayaStore::open_in_memory().unwrap();
+    let store = AsyncAlaya::open_in_memory().unwrap();
 
     // set_consolidation_provider
     store
@@ -252,7 +252,7 @@ async fn test_async_set_providers() {
 
 #[tokio::test]
 async fn test_async_knowledge_and_categories() {
-    let store = AsyncAlayaStore::open_in_memory().unwrap();
+    let store = AsyncAlaya::open_in_memory().unwrap();
 
     // Store episodes and learn knowledge
     for i in 0..5 {

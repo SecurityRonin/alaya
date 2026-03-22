@@ -1,8 +1,7 @@
 use crate::error::{AlayaError, Result};
 use crate::provider::{ConsolidationProvider, EmbeddingProvider, ExtractionProvider, NoOpProvider};
 use crate::types::*;
-#[allow(deprecated)]
-use crate::AlayaStore;
+use crate::Alaya;
 use std::path::Path;
 use std::thread::JoinHandle;
 use tokio::sync::{mpsc, oneshot};
@@ -135,7 +134,7 @@ enum Request {
 // Actor loop
 // ---------------------------------------------------------------------------
 
-fn run_actor(mut store: AlayaStore, rx: mpsc::Receiver<Request>) {
+fn run_actor(mut store: Alaya, rx: mpsc::Receiver<Request>) {
     let mut consolidation_provider: Box<dyn ConsolidationProvider + Send> = Box::new(NoOpProvider);
 
     // blocking_recv() is correct here: actor runs on a std::thread, not in a
@@ -143,77 +142,100 @@ fn run_actor(mut store: AlayaStore, rx: mpsc::Receiver<Request>) {
     let mut rx = rx;
     while let Some(req) = rx.blocking_recv() {
         match req {
+            // --- Episodes ---
             Request::StoreEpisode { episode, reply } => {
-                let _ = reply.send(store.store_episode(&episode));
+                let _ = reply.send(store.episodes().store(&episode));
             }
+            Request::EpisodesBySession { session_id, reply } => {
+                let _ = reply.send(store.episodes().by_session(&session_id));
+            }
+            Request::UnconsolidatedEpisodes { limit, reply } => {
+                let _ = reply.send(store.episodes().unconsolidated(limit));
+            }
+
+            // --- Knowledge ---
             Request::Query { query, reply } => {
-                let _ = reply.send(store.query(&query));
-            }
-            Request::Status { reply } => {
-                let _ = reply.send(store.status());
-            }
-            Request::Consolidate { reply } => {
-                let _ = reply.send(store.consolidate(consolidation_provider.as_ref()));
+                let _ = reply.send(store.knowledge().query(&query));
             }
             Request::Learn { nodes, reply } => {
-                let _ = reply.send(store.learn(nodes));
+                let _ = reply.send(store.knowledge().learn(nodes));
+            }
+            Request::Knowledge { filter, reply } => {
+                let _ = reply.send(store.knowledge().filter(filter));
+            }
+            Request::KnowledgeBreakdown { reply } => {
+                let _ = reply.send(store.knowledge().breakdown());
+            }
+
+            // --- Lifecycle ---
+            Request::Consolidate { reply } => {
+                let _ = reply.send(store.lifecycle().consolidate(consolidation_provider.as_ref()));
             }
             Request::AutoConsolidate { reply } => {
-                let _ = reply.send(store.auto_consolidate());
+                let _ = reply.send(store.lifecycle().auto_consolidate());
             }
             Request::Perfume { interaction, reply } => {
-                let _ = reply.send(store.perfume(&interaction, consolidation_provider.as_ref()));
+                let _ = reply.send(store.lifecycle().perfume(&interaction, consolidation_provider.as_ref()));
             }
             Request::Transform { reply } => {
-                let _ = reply.send(store.transform());
+                let _ = reply.send(store.lifecycle().transform());
             }
             Request::Forget { reply } => {
-                let _ = reply.send(store.forget());
+                let _ = reply.send(store.lifecycle().forget());
             }
             Request::Dream { interaction, reply } => {
                 let inter_ref = interaction.as_ref();
-                let _ = reply.send(store.dream(consolidation_provider.as_ref(), inter_ref));
+                let _ = reply.send(store.lifecycle().dream(consolidation_provider.as_ref(), inter_ref));
+            }
+            Request::Reconcile { reply } => {
+                let _ = reply.send(store.lifecycle().reconcile());
+            }
+            Request::Conflicts { reply } => {
+                let _ = reply.send(store.lifecycle().conflicts());
+            }
+            Request::ResolveConflict {
+                conflict_id,
+                winner_id,
+                reply,
+            } => {
+                let _ = reply.send(store.lifecycle().resolve_conflict(conflict_id, winner_id));
+            }
+
+            // --- Graph ---
+            Request::Neighbors { node, depth, reply } => {
+                let _ = reply.send(store.graph().neighbors(node, depth));
+            }
+            Request::StrongestLink { reply } => {
+                let _ = reply.send(store.graph().strongest_link());
+            }
+
+            // --- Admin ---
+            Request::Status { reply } => {
+                let _ = reply.send(store.admin().status());
+            }
+            Request::Purge { filter, reply } => {
+                let _ = reply.send(store.admin().purge(filter));
             }
             Request::Preferences { domain, reply } => {
-                let _ = reply.send(store.preferences(domain.as_deref()));
-            }
-            Request::Knowledge { filter, reply } => {
-                #[allow(deprecated)]
-                let _ = reply.send(store.knowledge_nodes(filter));
+                let _ = reply.send(store.admin().preferences(domain.as_deref()));
             }
             Request::Categories {
                 min_stability,
                 reply,
             } => {
-                let _ = reply.send(store.categories(min_stability));
+                let _ = reply.send(store.admin().categories(min_stability));
             }
             Request::Subcategories { parent_id, reply } => {
-                let _ = reply.send(store.subcategories(parent_id));
+                let _ = reply.send(store.admin().subcategories(parent_id));
             }
             Request::NodeCategory { node_id, reply } => {
-                let _ = reply.send(store.node_category(node_id));
-            }
-            Request::Neighbors { node, depth, reply } => {
-                let _ = reply.send(store.neighbors(node, depth));
-            }
-            Request::StrongestLink { reply } => {
-                let _ = reply.send(store.strongest_link());
+                let _ = reply.send(store.admin().node_category(node_id));
             }
             Request::NodeContent { node, reply } => {
-                let _ = reply.send(store.node_content(node));
+                let _ = reply.send(store.admin().node_content(node));
             }
-            Request::KnowledgeBreakdown { reply } => {
-                let _ = reply.send(store.knowledge_breakdown());
-            }
-            Request::EpisodesBySession { session_id, reply } => {
-                let _ = reply.send(store.episodes_by_session(&session_id));
-            }
-            Request::UnconsolidatedEpisodes { limit, reply } => {
-                let _ = reply.send(store.unconsolidated_episodes(limit));
-            }
-            Request::Purge { filter, reply } => {
-                let _ = reply.send(store.purge(filter));
-            }
+
+            // --- Configuration ---
             Request::SetConsolidationProvider { provider } => {
                 consolidation_provider = provider;
             }
@@ -222,19 +244,6 @@ fn run_actor(mut store: AlayaStore, rx: mpsc::Receiver<Request>) {
             }
             Request::SetExtractionProvider { provider } => {
                 store.set_extraction_provider(provider);
-            }
-            Request::Reconcile { reply } => {
-                let _ = reply.send(store.reconcile());
-            }
-            Request::Conflicts { reply } => {
-                let _ = reply.send(store.conflicts());
-            }
-            Request::ResolveConflict {
-                conflict_id,
-                winner_id,
-                reply,
-            } => {
-                let _ = reply.send(store.resolve_conflict(conflict_id, winner_id));
             }
             Request::SetConflictStrategy { strategy } => {
                 store.set_conflict_strategy(strategy);
@@ -249,35 +258,35 @@ fn run_actor(mut store: AlayaStore, rx: mpsc::Receiver<Request>) {
 }
 
 // ---------------------------------------------------------------------------
-// AsyncAlayaStore
+// AsyncAlaya
 // ---------------------------------------------------------------------------
 
-/// Async wrapper around [`AlayaStore`] using the actor pattern.
+/// Async wrapper around [`Alaya`] using the actor pattern.
 ///
-/// A dedicated `std::thread` owns the [`AlayaStore`] and its SQLite
+/// A dedicated `std::thread` owns the [`Alaya`] instance and its SQLite
 /// connection. All public methods send a [`Request`] over a
 /// `tokio::sync::mpsc` channel and await a `oneshot` reply.
 ///
-/// The struct is `Send + Sync` and can be shared via `Arc<AsyncAlayaStore>`.
-pub struct AsyncAlayaStore {
+/// The struct is `Send + Sync` and can be shared via `Arc<AsyncAlaya>`.
+pub struct AsyncAlaya {
     tx: mpsc::Sender<Request>,
     handle: std::sync::Mutex<Option<JoinHandle<()>>>,
 }
 
-impl AsyncAlayaStore {
+impl AsyncAlaya {
     // -----------------------------------------------------------------------
     // Constructors
     // -----------------------------------------------------------------------
 
     /// Open (or create) a persistent database at `path`.
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
-        let store = AlayaStore::open(path)?;
+        let store = Alaya::open(path)?;
         Ok(Self::spawn(store))
     }
 
     /// Open an in-memory database (useful for tests).
     pub fn open_in_memory() -> Result<Self> {
-        let store = AlayaStore::open_in_memory()?;
+        let store = Alaya::open_in_memory()?;
         Ok(Self::spawn(store))
     }
 
@@ -285,14 +294,14 @@ impl AsyncAlayaStore {
     #[cfg(feature = "sqlcipher")]
     #[cfg(not(tarpaulin_include))]
     pub fn open_encrypted(path: impl AsRef<Path>, key: &str) -> Result<Self> {
-        let store = AlayaStore::open_encrypted(path, key)?;
+        let store = Alaya::open_encrypted(path, key)?;
         Ok(Self::spawn(store))
     }
 
-    fn spawn(store: AlayaStore) -> Self {
+    fn spawn(store: Alaya) -> Self {
         let (tx, rx) = mpsc::channel(64);
         let handle = std::thread::spawn(move || run_actor(store, rx));
-        AsyncAlayaStore {
+        AsyncAlaya {
             tx,
             handle: std::sync::Mutex::new(Some(handle)),
         }
@@ -522,7 +531,7 @@ impl AsyncAlayaStore {
 // Drop: best-effort shutdown (no blocking, no panic)
 // ---------------------------------------------------------------------------
 
-impl Drop for AsyncAlayaStore {
+impl Drop for AsyncAlaya {
     fn drop(&mut self) {
         let _ = self.tx.try_send(Request::Shutdown);
     }
@@ -538,7 +547,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_open_in_memory_and_close() {
-        let store = AsyncAlayaStore::open_in_memory().unwrap();
+        let store = AsyncAlaya::open_in_memory().unwrap();
         store.close().await.unwrap();
     }
 
@@ -546,7 +555,7 @@ mod tests {
     async fn test_open_path() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("async_open.db");
-        let store = AsyncAlayaStore::open(&path).unwrap();
+        let store = AsyncAlaya::open(&path).unwrap();
         let status = store.status().await.unwrap();
         assert_eq!(status.episode_count, 0);
         store.close().await.unwrap();
@@ -554,7 +563,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_async_reconcile_and_conflicts() {
-        let store = AsyncAlayaStore::open_in_memory().unwrap();
+        let store = AsyncAlaya::open_in_memory().unwrap();
         let report = store.reconcile().await.unwrap();
         assert_eq!(report.conflicts_detected, 0);
         let conflicts = store.conflicts().await.unwrap();
@@ -564,7 +573,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_async_resolve_conflict_and_set_strategy() {
-        let store = AsyncAlayaStore::open_in_memory().unwrap();
+        let store = AsyncAlaya::open_in_memory().unwrap();
 
         // Learn two conflicting facts with similar embeddings
         store
@@ -611,7 +620,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_store_and_query() {
-        let store = AsyncAlayaStore::open_in_memory().unwrap();
+        let store = AsyncAlaya::open_in_memory().unwrap();
 
         let episode = NewEpisode {
             content: "Rust has zero-cost abstractions.".to_string(),
@@ -631,7 +640,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_status() {
-        let store = AsyncAlayaStore::open_in_memory().unwrap();
+        let store = AsyncAlaya::open_in_memory().unwrap();
         let status = store.status().await.unwrap();
         assert_eq!(status.episode_count, 0);
         store.close().await.unwrap();
@@ -639,7 +648,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_dream_without_interaction() {
-        let store = AsyncAlayaStore::open_in_memory().unwrap();
+        let store = AsyncAlaya::open_in_memory().unwrap();
         let report = store.dream(None).await.unwrap();
         assert!(report.perfuming.is_none());
         store.close().await.unwrap();
@@ -647,7 +656,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_concurrent_stores() {
-        let store = std::sync::Arc::new(AsyncAlayaStore::open_in_memory().unwrap());
+        let store = std::sync::Arc::new(AsyncAlaya::open_in_memory().unwrap());
         let mut handles = vec![];
         for i in 0..10 {
             let s = store.clone();
@@ -673,14 +682,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_drop_without_close() {
-        let store = AsyncAlayaStore::open_in_memory().unwrap();
+        let store = AsyncAlaya::open_in_memory().unwrap();
         drop(store);
         // If we reach here, Drop worked without blocking or panicking
     }
 
     #[tokio::test]
     async fn test_lifecycle_via_async() {
-        let store = AsyncAlayaStore::open_in_memory().unwrap();
+        let store = AsyncAlaya::open_in_memory().unwrap();
         let tr = store.transform().await.unwrap();
         assert_eq!(tr.duplicates_merged, 0);
         let fr = store.forget().await.unwrap();
@@ -692,7 +701,7 @@ mod tests {
     async fn test_actor_dead_after_close() {
         // Open a store, send Shutdown without consuming self, then verify
         // that subsequent calls return ActorDead once the actor exits.
-        let store = AsyncAlayaStore::open_in_memory().unwrap();
+        let store = AsyncAlaya::open_in_memory().unwrap();
 
         // Tell the actor to shut down; this leaves `store` alive so we can
         // call methods on it afterwards.
@@ -722,7 +731,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("async_enc.db");
 
-        let store = AsyncAlayaStore::open_encrypted(&path, "async-key").unwrap();
+        let store = AsyncAlaya::open_encrypted(&path, "async-key").unwrap();
         store
             .store_episode(NewEpisode {
                 content: "async secret".into(),
@@ -736,7 +745,7 @@ mod tests {
             .unwrap();
         store.close().await.unwrap();
 
-        let store2 = AsyncAlayaStore::open_encrypted(&path, "async-key").unwrap();
+        let store2 = AsyncAlaya::open_encrypted(&path, "async-key").unwrap();
         let status = store2.status().await.unwrap();
         assert_eq!(status.episode_count, 1);
         store2.close().await.unwrap();
@@ -748,7 +757,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("async_rekey.db");
 
-        let store = AsyncAlayaStore::open_encrypted(&path, "old-key").unwrap();
+        let store = AsyncAlaya::open_encrypted(&path, "old-key").unwrap();
         store
             .store_episode(NewEpisode {
                 content: "rekey data".into(),
@@ -764,7 +773,7 @@ mod tests {
         store.close().await.unwrap();
 
         // New key should work
-        let store2 = AsyncAlayaStore::open_encrypted(&path, "new-key").unwrap();
+        let store2 = AsyncAlaya::open_encrypted(&path, "new-key").unwrap();
         assert_eq!(store2.status().await.unwrap().episode_count, 1);
         store2.close().await.unwrap();
     }
