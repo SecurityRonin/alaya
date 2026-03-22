@@ -3,7 +3,7 @@ use crate::types::*;
 use rusqlite::{params, Connection, OptionalExtension};
 
 pub fn store_episode(conn: &Connection, ep: &NewEpisode) -> Result<EpisodeId> {
-    let ctx_json = serde_json::to_string(&ep.context)?;
+    let ctx_json = crate::db::to_json(&ep.context)?;
     conn.execute(
         "INSERT INTO episodes (content, role, session_id, timestamp, context_json)
          VALUES (?1, ?2, ?3, ?4, ?5)",
@@ -31,7 +31,7 @@ pub fn get_episode(conn: &Connection, id: EpisodeId) -> Result<Episode> {
                 role: Role::from_str(&row.get::<_, String>(2)?).unwrap_or(Role::User),
                 session_id: row.get(3)?,
                 timestamp: row.get(4)?,
-                context: serde_json::from_str(&ctx_str).unwrap_or_default(),
+                context: crate::db::from_json_or_default(&ctx_str),
             })
         },
     )

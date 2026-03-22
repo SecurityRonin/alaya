@@ -4,7 +4,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 
 pub fn store_semantic_node(conn: &Connection, node: &NewSemanticNode) -> Result<NodeId> {
     let now = crate::db::now();
-    let sources_json = serde_json::to_string(&node.source_episodes)?;
+    let sources_json = crate::db::to_json(&node.source_episodes)?;
     conn.execute(
         "INSERT INTO semantic_nodes (content, node_type, confidence, source_episodes_json, created_at, last_corroborated, corroboration_count)
          VALUES (?1, ?2, ?3, ?4, ?5, ?5, 1)",
@@ -34,7 +34,7 @@ pub fn get_semantic_node(conn: &Connection, id: NodeId) -> Result<SemanticNode> 
                 node_type: SemanticType::from_str(&row.get::<_, String>(2)?)
                     .unwrap_or(SemanticType::Fact),
                 confidence: row.get(3)?,
-                source_episodes: serde_json::from_str(&sources_str).unwrap_or_default(),
+                source_episodes: crate::db::from_json_or_default(&sources_str),
                 created_at: row.get(5)?,
                 last_corroborated: row.get(6)?,
                 corroboration_count: row.get(7)?,
