@@ -22,6 +22,9 @@ pub struct LinkId(pub i64);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CategoryId(pub i64);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ConflictId(pub i64);
+
 // ---------------------------------------------------------------------------
 // Node reference — polymorphic pointer into any store
 // ---------------------------------------------------------------------------
@@ -140,6 +143,7 @@ pub enum LinkType {
     Causal,
     CoRetrieval,
     MemberOf,
+    Supersedes,
 }
 
 impl LinkType {
@@ -151,6 +155,7 @@ impl LinkType {
             LinkType::Causal => "causal",
             LinkType::CoRetrieval => "co_retrieval",
             LinkType::MemberOf => "member_of",
+            LinkType::Supersedes => "supersedes",
         }
     }
 
@@ -163,9 +168,49 @@ impl LinkType {
             "causal" => Some(LinkType::Causal),
             "co_retrieval" => Some(LinkType::CoRetrieval),
             "member_of" => Some(LinkType::MemberOf),
+            "supersedes" => Some(LinkType::Supersedes),
             _ => None,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ConflictStatus {
+    Detected,
+    Verified,
+    Resolved,
+    Dismissed,
+}
+
+impl ConflictStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ConflictStatus::Detected => "detected",
+            ConflictStatus::Verified => "verified",
+            ConflictStatus::Resolved => "resolved",
+            ConflictStatus::Dismissed => "dismissed",
+        }
+    }
+
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "detected" => Some(ConflictStatus::Detected),
+            "verified" => Some(ConflictStatus::Verified),
+            "resolved" => Some(ConflictStatus::Resolved),
+            "dismissed" => Some(ConflictStatus::Dismissed),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ConflictStrategy {
+    #[default]
+    Recency,
+    Confidence,
+    Manual,
 }
 
 // ---------------------------------------------------------------------------
@@ -229,6 +274,16 @@ pub struct SemanticNode {
     pub created_at: i64,
     pub last_corroborated: i64,
     pub corroboration_count: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Conflict {
+    pub id: ConflictId,
+    pub node_a: NodeId,
+    pub node_b: NodeId,
+    pub similarity: f32,
+    pub status: ConflictStatus,
+    pub detected_at: i64,
 }
 
 // ---------------------------------------------------------------------------
@@ -418,6 +473,14 @@ pub struct TransformationReport {
 pub struct ForgettingReport {
     pub nodes_decayed: u32,
     pub nodes_archived: u32,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ReconcileReport {
+    pub conflicts_detected: u32,
+    pub conflicts_resolved: u32,
+    pub conflicts_pending: u32,
+    pub nodes_superseded: u32,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -878,5 +941,62 @@ mod tests {
         assert_eq!(sm.content, "some content");
         assert!((sm.score - 0.75).abs() < 1e-6);
         assert_eq!(sm.role, Some(Role::Assistant));
+    }
+
+    #[test]
+    fn test_conflict_id_newtype() {
+        let id = ConflictId(42);
+        assert_eq!(id.0, 42);
+        let id2 = ConflictId(42);
+        assert_eq!(id, id2);
+    }
+
+    #[test]
+    fn test_conflict_status_roundtrip() {
+        for (status, s) in [
+            (ConflictStatus::Detected, "detected"),
+            (ConflictStatus::Verified, "verified"),
+            (ConflictStatus::Resolved, "resolved"),
+            (ConflictStatus::Dismissed, "dismissed"),
+        ] {
+            assert_eq!(status.as_str(), s);
+            assert_eq!(ConflictStatus::from_str(s), Some(status));
+        }
+        assert_eq!(ConflictStatus::from_str("bogus"), None);
+    }
+
+    #[test]
+    fn test_conflict_strategy_default() {
+        let strategy = ConflictStrategy::default();
+        assert_eq!(strategy, ConflictStrategy::Recency);
+    }
+
+    #[test]
+    fn test_conflict_fields() {
+        let c = Conflict {
+            id: ConflictId(1),
+            node_a: NodeId(10),
+            node_b: NodeId(20),
+            similarity: 0.92,
+            status: ConflictStatus::Detected,
+            detected_at: 1000,
+        };
+        assert_eq!(c.id.0, 1);
+        assert!((c.similarity - 0.92).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_reconcile_report_default() {
+        let r = ReconcileReport::default();
+        assert_eq!(r.conflicts_detected, 0);
+        assert_eq!(r.conflicts_resolved, 0);
+        assert_eq!(r.conflicts_pending, 0);
+        assert_eq!(r.nodes_superseded, 0);
+    }
+
+    #[test]
+    fn test_link_type_supersedes_roundtrip() {
+        assert_eq!(LinkType::Supersedes.as_str(), "supersedes");
+        assert_eq!(LinkType::from_str("supersedes"), Some(LinkType::Supersedes));
     }
 }
