@@ -34,6 +34,7 @@ pub(crate) mod decay;
 pub(crate) mod error;
 pub(crate) mod graph;
 pub(crate) mod lifecycle;
+pub mod managers;
 pub(crate) mod provider;
 pub(crate) mod retrieval;
 pub(crate) mod schema;
