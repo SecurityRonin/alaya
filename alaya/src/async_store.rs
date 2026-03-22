@@ -108,6 +108,20 @@ enum Request {
     SetExtractionProvider {
         provider: Box<dyn ExtractionProvider + Send>,
     },
+    Reconcile {
+        reply: Reply<ReconcileReport>,
+    },
+    Conflicts {
+        reply: Reply<Vec<Conflict>>,
+    },
+    ResolveConflict {
+        conflict_id: ConflictId,
+        winner_id: NodeId,
+        reply: Reply<()>,
+    },
+    SetConflictStrategy {
+        strategy: ConflictStrategy,
+    },
     #[cfg(feature = "sqlcipher")]
     Rekey {
         new_key: String,
@@ -207,6 +221,22 @@ fn run_actor(mut store: AlayaStore, rx: mpsc::Receiver<Request>) {
             Request::SetExtractionProvider { provider } => {
                 store.set_extraction_provider(provider);
             }
+            Request::Reconcile { reply } => {
+                let _ = reply.send(store.reconcile());
+            }
+            Request::Conflicts { reply } => {
+                let _ = reply.send(store.conflicts());
+            }
+            Request::ResolveConflict {
+                conflict_id,
+                winner_id,
+                reply,
+            } => {
+                let _ = reply.send(store.resolve_conflict(conflict_id, winner_id));
+            }
+            Request::SetConflictStrategy { strategy } => {
+                store.set_conflict_strategy(strategy);
+            }
             #[cfg(feature = "sqlcipher")]
             Request::Rekey { new_key, reply } => {
                 let _ = reply.send(store.rekey(&new_key));
@@ -251,6 +281,7 @@ impl AsyncAlayaStore {
 
     /// Open (or create) an encrypted database at `path` (requires `sqlcipher` feature).
     #[cfg(feature = "sqlcipher")]
+    #[cfg(not(tarpaulin_include))]
     pub fn open_encrypted(path: impl AsRef<Path>, key: &str) -> Result<Self> {
         let store = AlayaStore::open_encrypted(path, key)?;
         Ok(Self::spawn(store))
@@ -414,6 +445,31 @@ impl AsyncAlayaStore {
         self.send(|reply| Request::Purge { filter, reply }).await
     }
 
+    pub async fn reconcile(&self) -> Result<ReconcileReport> {
+        self.send(|reply| Request::Reconcile { reply }).await
+    }
+
+    pub async fn conflicts(&self) -> Result<Vec<Conflict>> {
+        self.send(|reply| Request::Conflicts { reply }).await
+    }
+
+    pub async fn resolve_conflict(
+        &self,
+        conflict_id: ConflictId,
+        winner_id: NodeId,
+    ) -> Result<()> {
+        self.send(|reply| Request::ResolveConflict {
+            conflict_id,
+            winner_id,
+            reply,
+        })
+        .await
+    }
+
+    pub fn set_conflict_strategy(&self, strategy: ConflictStrategy) {
+        let _ = self.tx.try_send(Request::SetConflictStrategy { strategy });
+    }
+
     // -----------------------------------------------------------------------
     // Provider configuration
     // -----------------------------------------------------------------------
@@ -423,7 +479,7 @@ impl AsyncAlayaStore {
     // -----------------------------------------------------------------------
 
     /// Re-encrypt the database with a new key.
-    #[cfg(feature = "sqlcipher")]
+    #[cfg(all(feature = "sqlcipher", not(tarpaulin_include)))]
     pub async fn rekey(&self, new_key: &str) -> Result<()> {
         let new_key = new_key.to_string();
         self.send(|reply| Request::Rekey { new_key, reply }).await
