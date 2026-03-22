@@ -1,6 +1,101 @@
 use super::Episodes;
-use crate::error::Result;
+use crate::db;
+use crate::error::{AlayaError, Result};
+use crate::types::*;
+use crate::{graph, store};
 
 impl Episodes<'_> {
-    // Methods will be moved here from lib.rs in Task 6
+    /// Store a conversation episode with full context.
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
+    pub fn store(&self, episode: &NewEpisode) -> Result<EpisodeId> {
+        if episode.content.trim().is_empty() {
+            return Err(AlayaError::InvalidInput(
+                "episode content must not be empty".into(),
+            ));
+        }
+        if episode.session_id.trim().is_empty() {
+            return Err(AlayaError::InvalidInput(
+                "session_id must not be empty".into(),
+            ));
+        }
+
+        db::transact(self.conn, |tx| {
+            let id = store::episodic::store_episode(tx, episode)?;
+
+            let effective_embedding = match &episode.embedding {
+                Some(emb) => Some(emb.clone()),
+                None => self
+                    .embedding_provider
+                    .and_then(|p| p.embed(&episode.content).ok()),
+            };
+            if let Some(ref emb) = effective_embedding {
+                store::embeddings::store_embedding(tx, "episode", id.0, emb, "")?;
+            }
+
+            store::strengths::init_strength(tx, NodeRef::Episode(id))?;
+
+            if let Some(prev) = episode.context.preceding_episode {
+                graph::links::create_link(
+                    tx,
+                    NodeRef::Episode(prev),
+                    NodeRef::Episode(id),
+                    LinkType::Temporal,
+                    0.5,
+                )?;
+            }
+
+            Ok(id)
+        })
+    }
+
+    /// Return all episodes belonging to the given session.
+    pub fn by_session(&self, session_id: &str) -> Result<Vec<Episode>> {
+        store::episodic::get_episodes_by_session(self.conn, session_id)
+    }
+
+    /// Return unconsolidated episodes (not yet linked to any semantic node).
+    pub fn unconsolidated(&self, limit: u32) -> Result<Vec<Episode>> {
+        store::episodic::get_unconsolidated_episodes(self.conn, limit)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::testutil::fixtures::*;
+    use crate::Alaya;
+
+    #[test]
+    fn store_and_retrieve_episode() {
+        let alaya = Alaya::open_in_memory().unwrap();
+        let id = alaya.episodes().store(&episode("test content")).unwrap();
+        assert!(id.0 > 0);
+
+        let eps = alaya.episodes().by_session("test-session").unwrap();
+        assert_eq!(eps.len(), 1);
+        assert_eq!(eps[0].content, "test content");
+    }
+
+    #[test]
+    fn store_rejects_empty_content() {
+        let alaya = Alaya::open_in_memory().unwrap();
+        let result = alaya.episodes().store(&episode(""));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn store_rejects_empty_session_id() {
+        let alaya = Alaya::open_in_memory().unwrap();
+        let mut ep = episode("content");
+        ep.session_id = "".to_string();
+        assert!(alaya.episodes().store(&ep).is_err());
+    }
+
+    #[test]
+    fn unconsolidated_returns_new_episodes() {
+        let alaya = Alaya::open_in_memory().unwrap();
+        alaya.episodes().store(&episode("msg 1")).unwrap();
+        alaya.episodes().store(&episode("msg 2")).unwrap();
+        let uncons = alaya.episodes().unconsolidated(100).unwrap();
+        assert_eq!(uncons.len(), 2);
+    }
 }

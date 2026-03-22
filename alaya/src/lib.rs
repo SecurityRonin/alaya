@@ -892,6 +892,117 @@ impl AlayaStore {
     }
 }
 
+/// The main entry point. Owns a SQLite connection and exposes the full
+/// store / query / lifecycle API via focused sub-managers.
+pub struct Alaya {
+    conn: Connection,
+    embedding_provider: Option<Box<dyn EmbeddingProvider>>,
+    extraction_provider: Option<Box<dyn ExtractionProvider>>,
+    conflict_strategy: ConflictStrategy,
+}
+
+impl Alaya {
+    /// Open (or create) a persistent database at `path`.
+    pub fn open(path: impl AsRef<Path>) -> Result<Self> {
+        let conn = schema::open_db(path.as_ref().to_str().unwrap_or("alaya.db"))?;
+        Ok(Self {
+            conn,
+            embedding_provider: None,
+            extraction_provider: None,
+            conflict_strategy: ConflictStrategy::default(),
+        })
+    }
+
+    /// Open an ephemeral in-memory database (useful for tests).
+    pub fn open_in_memory() -> Result<Self> {
+        let conn = schema::open_memory_db()?;
+        Ok(Self {
+            conn,
+            embedding_provider: None,
+            extraction_provider: None,
+            conflict_strategy: ConflictStrategy::default(),
+        })
+    }
+
+    #[cfg(feature = "sqlcipher")]
+    #[cfg(not(tarpaulin_include))]
+    pub fn open_encrypted(path: impl AsRef<Path>, key: &str) -> Result<Self> {
+        let conn = Connection::open(path)?;
+        conn.pragma_update(None, "key", key)?;
+        conn.execute_batch("SELECT count(*) FROM sqlite_master")
+            .map_err(|_| {
+                AlayaError::InvalidInput("wrong encryption key or not an encrypted database".into())
+            })?;
+        schema::initialize(&conn)?;
+        Ok(Self {
+            conn,
+            embedding_provider: None,
+            extraction_provider: None,
+            conflict_strategy: ConflictStrategy::default(),
+        })
+    }
+
+    /// Set an embedding provider for automatic embedding generation.
+    pub fn set_embedding_provider(&mut self, provider: Box<dyn EmbeddingProvider>) {
+        self.embedding_provider = Some(provider);
+    }
+
+    /// Set an extraction provider for automatic knowledge extraction.
+    pub fn set_extraction_provider(&mut self, provider: Box<dyn ExtractionProvider>) {
+        self.extraction_provider = Some(provider);
+    }
+
+    /// Configure the conflict resolution strategy.
+    pub fn set_conflict_strategy(&mut self, strategy: ConflictStrategy) {
+        self.conflict_strategy = strategy;
+    }
+
+    #[cfg(feature = "sqlcipher")]
+    #[cfg(not(tarpaulin_include))]
+    pub fn rekey(&self, new_key: &str) -> Result<()> {
+        self.conn.pragma_update(None, "rekey", new_key)?;
+        Ok(())
+    }
+
+    /// Expose the raw SQLite connection for test-only DB corruption scenarios.
+    #[cfg(test)]
+    pub(crate) fn raw_conn(&self) -> &Connection {
+        &self.conn
+    }
+
+    // --- Sub-manager accessors ---
+
+    pub fn episodes(&self) -> managers::Episodes<'_> {
+        managers::Episodes {
+            conn: &self.conn,
+            embedding_provider: self.embedding_provider.as_deref(),
+        }
+    }
+
+    pub fn knowledge(&self) -> managers::Knowledge<'_> {
+        managers::Knowledge {
+            conn: &self.conn,
+            embedding_provider: self.embedding_provider.as_deref(),
+        }
+    }
+
+    pub fn lifecycle(&self) -> managers::Lifecycle<'_> {
+        managers::Lifecycle {
+            conn: &self.conn,
+            extraction_provider: self.extraction_provider.as_deref(),
+            conflict_strategy: self.conflict_strategy,
+        }
+    }
+
+    pub fn graph(&self) -> managers::Graph<'_> {
+        managers::Graph { conn: &self.conn }
+    }
+
+    pub fn admin(&self) -> managers::Admin<'_> {
+        managers::Admin { conn: &self.conn }
+    }
+}
+
 /// Truncate a string to at most `max_chars` characters, appending "..." if truncated.
 fn truncate_label(s: &str, max_chars: usize) -> String {
     if s.chars().count() <= max_chars {
