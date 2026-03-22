@@ -29,6 +29,7 @@
 //! assert!(!results.is_empty());
 //! ```
 
+pub(crate) mod db;
 pub(crate) mod decay;
 pub(crate) mod error;
 pub(crate) mod graph;
