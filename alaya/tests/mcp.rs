@@ -7,7 +7,7 @@
 #![allow(deprecated)]
 
 // We can't directly import AlayaMcp from the binary,
-// so we test the underlying AlayaStore operations that the MCP tools wrap.
+// so we test the underlying Alaya operations that the MCP tools wrap.
 // This validates the data flow that the MCP tools rely on.
 
 mod common;
@@ -15,7 +15,7 @@ mod common;
 use std::collections::HashSet;
 
 use alaya::{
-    AlayaStore, EpisodeContext, EpisodeId, KnowledgeFilter, NewEpisode, NewSemanticNode, NodeRef,
+    Alaya, EpisodeContext, EpisodeId, KnowledgeFilter, NewEpisode, NewSemanticNode, NodeRef,
     PurgeFilter, Query, Role, SemanticType,
 };
 
@@ -32,7 +32,7 @@ fn make_episode(content: &str, role: Role, session: &str, ts: i64) -> NewEpisode
 
 #[test]
 fn test_mcp_remember_and_recall_flow() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Simulate MCP "remember" tool
     let id = store
@@ -77,7 +77,7 @@ fn test_mcp_remember_and_recall_flow() {
 
 #[test]
 fn test_mcp_status_flow() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Empty status
     let status = store.status().unwrap();
@@ -103,7 +103,7 @@ fn test_mcp_status_flow() {
 
 #[test]
 fn test_mcp_preferences_flow() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // No preferences initially
     let prefs = store.preferences(None).unwrap();
@@ -116,7 +116,7 @@ fn test_mcp_preferences_flow() {
 
 #[test]
 fn test_mcp_knowledge_flow() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // No knowledge initially
     let nodes = store.knowledge_nodes(None).unwrap();
@@ -134,7 +134,7 @@ fn test_mcp_knowledge_flow() {
 
 #[test]
 fn test_mcp_purge_session_flow() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Store in two sessions
     store
@@ -154,7 +154,7 @@ fn test_mcp_purge_session_flow() {
 
 #[test]
 fn test_mcp_purge_all_flow() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     store
         .store_episode(&make_episode("msg1", Role::User, "s1", 1000))
@@ -169,7 +169,7 @@ fn test_mcp_purge_all_flow() {
 
 #[test]
 fn test_mcp_maintain_flow() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // transform + forget on empty store should succeed
     let tr = store.transform().unwrap();
@@ -181,7 +181,7 @@ fn test_mcp_maintain_flow() {
 
 #[test]
 fn test_mcp_recall_max_results() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     for i in 0..10 {
         store
@@ -208,7 +208,7 @@ fn test_mcp_recall_max_results() {
 
 #[test]
 fn test_mcp_role_parsing() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // All three roles should work
     for (role, role_str) in [
@@ -225,7 +225,7 @@ fn test_mcp_role_parsing() {
 
 #[test]
 fn test_mcp_learn_creates_knowledge() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Store 3 facts via learn()
     let nodes = vec![
@@ -260,7 +260,7 @@ fn test_mcp_learn_creates_knowledge() {
 
 #[test]
 fn test_mcp_learn_with_session_links() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Store episodes first
     let ep1 = store
@@ -289,7 +289,7 @@ fn test_mcp_learn_with_session_links() {
 
 #[test]
 fn test_mcp_episodes_by_session() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Store episodes in two sessions
     store
@@ -319,7 +319,7 @@ fn test_mcp_episodes_by_session() {
 
 #[test]
 fn test_unconsolidated_episodes_count() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
     // Store 10 episodes
     for i in 0..10 {
         store
@@ -353,7 +353,7 @@ fn test_unconsolidated_episodes_count() {
 #[test]
 fn test_transform_and_forget_on_empty() {
     // Verify transform+forget work without panicking (used by auto-maintenance)
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
     let tr = store.transform().unwrap();
     let fr = store.forget().unwrap();
     assert_eq!(tr.duplicates_merged, 0);
@@ -362,7 +362,7 @@ fn test_transform_and_forget_on_empty() {
 
 #[test]
 fn test_mcp_rich_status_fields() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Empty breakdown
     let breakdown = store.knowledge_breakdown().unwrap();
@@ -512,7 +512,7 @@ fn test_import_claude_mem_data_flow() {
 
     assert_eq!(nodes.len(), 6); // 3 facts + 3 concepts
 
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
     let report = store.learn(nodes).unwrap();
     assert_eq!(report.nodes_created, 6);
 
@@ -546,7 +546,7 @@ fn test_import_claude_code_data_flow() {
 
     // Simulate the import data flow
     let file_content = std::fs::read_to_string(&jsonl_path).unwrap();
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     let mut imported = 0u32;
     let mut sessions = HashSet::new();

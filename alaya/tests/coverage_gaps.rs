@@ -55,7 +55,7 @@ fn episode(content: &str, session: &str, ts: i64) -> NewEpisode {
 
 #[test]
 fn test_episodes_by_session() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     store
         .store_episode(&episode("hello world", "s1", 1000))
@@ -81,7 +81,7 @@ fn test_episodes_by_session() {
 
 #[test]
 fn test_knowledge_breakdown() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     let bd = store.knowledge_breakdown().unwrap();
     assert!(bd.is_empty());
@@ -123,7 +123,7 @@ fn test_knowledge_breakdown() {
 
 #[test]
 fn test_strongest_link() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     assert!(store.strongest_link().unwrap().is_none());
 
@@ -151,7 +151,7 @@ fn test_strongest_link() {
 
 #[test]
 fn test_node_content_all_variants() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Episode content
     let ep_id = store
@@ -271,7 +271,7 @@ fn test_llm_extraction_provider_builder() {
 
 #[test]
 fn test_dedup_skip_already_deleted_node() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     for i in 0..4 {
         store
@@ -334,7 +334,7 @@ fn test_dedup_skip_already_deleted_node() {
 
 #[test]
 fn test_category_voting_during_consolidation() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Phase 1: Create episodes and consolidate to get categorized semantic nodes
     for i in 0..5 {
@@ -424,7 +424,7 @@ fn test_category_voting_during_consolidation() {
 
 #[test]
 fn test_activation_below_threshold_skip() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Create a chain of episodes with temporal links.
     // Spreading activation from ep1 at low depth should not reach far nodes.
@@ -478,7 +478,7 @@ fn test_activation_below_threshold_skip() {
 
 #[test]
 fn test_dream_operation() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Dream on empty store should succeed
     let report = store.dream(&NoOpProvider, None).unwrap();
@@ -533,7 +533,7 @@ async fn test_async_store_open_file() {
 
 #[test]
 fn test_node_category_missing_node() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Non-existent node should return Ok(None)
     let cat = store.node_category(NodeId(999)).unwrap();
@@ -569,7 +569,7 @@ fn test_llm_extraction_provider_debug() {
 
 #[test]
 fn test_unconsolidated_episodes() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Initially empty
     let uncons = store.unconsolidated_episodes(10).unwrap();
@@ -597,7 +597,7 @@ fn test_unconsolidated_episodes() {
 
 #[test]
 fn test_purge_by_session() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
     store.store_episode(&episode("s1-ep1", "s1", 1000)).unwrap();
     store.store_episode(&episode("s1-ep2", "s1", 2000)).unwrap();
     store.store_episode(&episode("s2-ep1", "s2", 3000)).unwrap();
@@ -609,7 +609,7 @@ fn test_purge_by_session() {
 
 #[test]
 fn test_purge_older_than() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
     store.store_episode(&episode("old", "s1", 1000)).unwrap();
     store.store_episode(&episode("new", "s1", 9000)).unwrap();
 
@@ -620,7 +620,7 @@ fn test_purge_older_than() {
 
 #[test]
 fn test_purge_all() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
     store.store_episode(&episode("ep1", "s1", 1000)).unwrap();
     store.store_episode(&episode("ep2", "s1", 2000)).unwrap();
     assert_eq!(store.status().unwrap().episode_count, 2);
@@ -636,7 +636,7 @@ fn test_purge_all() {
 
 #[test]
 fn test_perfume_with_impressions() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     store
         .store_episode(&episode("I like dark mode", "s1", 1000))
@@ -661,7 +661,7 @@ fn test_perfume_with_impressions() {
 
 #[test]
 fn test_status_with_data() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Store episodes and learn knowledge
     for i in 0..5 {

@@ -66,7 +66,7 @@ fn episode(content: &str, session: &str, ts: i64) -> NewEpisode {
 
 /// Store `count` episodes in a session, returning all created IDs.
 fn store_n_episodes(
-    store: &AlayaStore,
+    store: &Alaya,
     session: &str,
     count: usize,
     base_ts: i64,
@@ -90,7 +90,7 @@ fn store_n_episodes(
 
 #[test]
 fn test_multi_session_lifecycle() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Store episodes across 3 sessions (4 each = 12 total)
     let _s1_ids = store_n_episodes(&store, "session-1", 4, 1_000);
@@ -174,7 +174,7 @@ fn test_multi_session_lifecycle() {
 
 #[test]
 fn test_multi_session_purge_isolation() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Store episodes in three sessions
     let _alpha_ids = store_n_episodes(&store, "alpha", 3, 1_000);
@@ -235,7 +235,7 @@ fn test_multi_session_purge_isolation() {
 fn test_lifecycle_idempotence() {
     // Part A: Run lifecycle operations twice on an empty DB -- should produce
     // consistent zero reports and no errors.
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     for pass in 0..2 {
         let cr = store.consolidate(&NoOpProvider).unwrap();
@@ -309,7 +309,7 @@ fn test_lifecycle_idempotence() {
 
 #[test]
 fn test_preference_crystallization_e2e() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // TestProvider returns one impression in "code_style" domain per perfume call
     let provider = TestProvider::with_impressions(vec![NewImpression {
@@ -397,7 +397,7 @@ fn test_preference_crystallization_e2e() {
 
 #[test]
 fn test_memory_decay_and_revival() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Store episodes that will be our "memories"
     store
@@ -476,7 +476,7 @@ fn test_memory_decay_and_revival() {
 /// 4. Second consolidation -> assigns new nodes to existing categories
 #[test]
 fn test_emergent_category_lifecycle() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Phase 1: Store episodes about cooking
     for i in 0..5 {
@@ -599,7 +599,7 @@ fn test_emergent_category_lifecycle() {
 
 #[test]
 fn test_category_survives_transform_cycles() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Create a batch of episodes and consolidate
     for i in 0..5 {

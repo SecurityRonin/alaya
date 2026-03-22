@@ -1,14 +1,13 @@
-#[allow(deprecated)]
-use alaya::{AlayaStore, EpisodeContext, NewEpisode, NewSemanticNode, Role, SemanticType};
+use alaya::{Alaya, EpisodeContext, NewEpisode, NewSemanticNode, Role, SemanticType};
 
 /// Create an empty in-memory store for testing.
-pub fn empty_store() -> AlayaStore {
-    AlayaStore::open_in_memory().unwrap()
+pub fn empty_store() -> Alaya {
+    Alaya::open_in_memory().unwrap()
 }
 
 /// Create a store populated with sample episodes.
-#[allow(dead_code)]
-pub fn populated_store() -> AlayaStore {
+#[allow(dead_code, deprecated)]
+pub fn populated_store() -> Alaya {
     let store = empty_store();
     for i in 0..5 {
         store
@@ -24,8 +23,8 @@ pub fn populated_store() -> AlayaStore {
 }
 
 /// Create a store with a specific number of episodes.
-#[allow(dead_code)]
-pub fn store_with_episodes(n: i64) -> AlayaStore {
+#[allow(dead_code, deprecated)]
+pub fn store_with_episodes(n: i64) -> Alaya {
     let store = empty_store();
     for i in 0..n {
         store

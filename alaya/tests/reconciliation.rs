@@ -4,7 +4,7 @@ use alaya::*;
 
 #[test]
 fn full_lifecycle_learn_reconcile_superseded_excluded() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Learn contradictory facts
     store
@@ -43,7 +43,7 @@ fn full_lifecycle_learn_reconcile_superseded_excluded() {
 
 #[test]
 fn manual_strategy_reconcile_then_resolve() {
-    let mut store = AlayaStore::open_in_memory().unwrap();
+    let mut store = Alaya::open_in_memory().unwrap();
     store.set_conflict_strategy(ConflictStrategy::Manual);
 
     store
@@ -80,7 +80,7 @@ fn manual_strategy_reconcile_then_resolve() {
 
 #[test]
 fn idempotent_reconcile() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
     store
         .learn(vec![
             NewSemanticNode {
@@ -110,7 +110,7 @@ fn idempotent_reconcile() {
 
 #[test]
 fn reconcile_after_transform_preserves_categories() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Store enough episodes and facts for transform to assign categories
     for i in 0..5 {

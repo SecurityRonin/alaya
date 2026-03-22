@@ -86,7 +86,7 @@ fn chained_episode(content: &str, session: &str, ts: i64, preceding: EpisodeId) 
 
 #[test]
 fn test_full_retrieval_pipeline_with_temporal_links() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Store 5 episodes chained via preceding_episode to create temporal links.
     let id1 = store
@@ -170,7 +170,7 @@ fn test_full_retrieval_pipeline_with_temporal_links() {
 
 #[test]
 fn test_cross_domain_bridging_via_categories() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Store episodes about two related subtopics
     for i in 0..5 {

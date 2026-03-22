@@ -22,7 +22,7 @@ fn episode(content: &str, session: &str, ts: i64) -> NewEpisode {
 
 /// Store `count` episodes in a session, returning all created IDs.
 fn store_n_episodes(
-    store: &AlayaStore,
+    store: &Alaya,
     session: &str,
     count: usize,
     base_ts: i64,
@@ -51,7 +51,7 @@ fn test_persistence_across_open_close() {
 
     // First session: open, store episodes, drop
     {
-        let store = AlayaStore::open(&db_path).unwrap();
+        let store = Alaya::open(&db_path).unwrap();
         store
             .store_episode(&episode(
                 "Rust has zero-cost abstractions",
@@ -81,7 +81,7 @@ fn test_persistence_across_open_close() {
 
     // Second session: reopen the same file and verify data survived
     {
-        let store = AlayaStore::open(&db_path).unwrap();
+        let store = Alaya::open(&db_path).unwrap();
 
         let status = store.status().unwrap();
         assert_eq!(
@@ -108,7 +108,7 @@ fn test_persistence_across_open_close() {
 
 #[test]
 fn test_learn_creates_knowledge() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Store 5 episodes to serve as source references
     let ep_ids = store_n_episodes(&store, "learn-s1", 5, 1_000);
@@ -157,7 +157,7 @@ fn test_learn_creates_knowledge() {
 
 #[test]
 fn test_learn_creates_causal_links() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     let ep_ids = store_n_episodes(&store, "causal-s1", 3, 1_000);
 
@@ -203,7 +203,7 @@ fn test_learn_creates_causal_links() {
 
 #[test]
 fn test_learn_marks_episodes_consolidated() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     // Store 5 episodes
     let ep_ids = store_n_episodes(&store, "consol-s1", 5, 1_000);
@@ -247,7 +247,7 @@ fn test_learn_marks_episodes_consolidated() {
 
 #[test]
 fn test_learn_empty_vec() {
-    let store = AlayaStore::open_in_memory().unwrap();
+    let store = Alaya::open_in_memory().unwrap();
 
     let report = store.learn(vec![]).unwrap();
     assert_eq!(report.nodes_created, 0);
