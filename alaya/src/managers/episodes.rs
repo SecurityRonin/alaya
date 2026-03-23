@@ -6,6 +6,21 @@ use crate::{graph, store};
 
 impl Episodes<'_> {
     /// Store a conversation episode with full context.
+    ///
+    /// ```
+    /// use alaya::{Alaya, NewEpisode, Role, EpisodeContext};
+    ///
+    /// let alaya = Alaya::open_in_memory().unwrap();
+    /// let id = alaya.episodes().store(&NewEpisode {
+    ///     content: "Rust has zero-cost abstractions.".to_string(),
+    ///     role: Role::User,
+    ///     session_id: "session-1".to_string(),
+    ///     timestamp: 1700000000,
+    ///     context: EpisodeContext::default(),
+    ///     embedding: None,
+    /// }).unwrap();
+    /// assert!(id.0 > 0);
+    /// ```
     #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn store(&self, episode: &NewEpisode) -> Result<EpisodeId> {
         if episode.content.trim().is_empty() {

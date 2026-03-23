@@ -7,6 +7,14 @@ use crate::{graph, lifecycle, store};
 
 impl Lifecycle<'_> {
     /// Run consolidation: episodic -> semantic (CLS replay).
+    ///
+    /// ```
+    /// use alaya::{Alaya, NoOpProvider};
+    ///
+    /// let alaya = Alaya::open_in_memory().unwrap();
+    /// let report = alaya.lifecycle().consolidate(&NoOpProvider).unwrap();
+    /// assert_eq!(report.nodes_created, 0); // no episodes to consolidate
+    /// ```
     #[cfg_attr(feature = "tracing", tracing::instrument(skip(self, provider)))]
     pub fn consolidate(
         &self,

@@ -8,6 +8,23 @@ use crate::{lifecycle, retrieval, store};
 
 impl Knowledge<'_> {
     /// Hybrid retrieval: BM25 + vector + graph activation -> RRF -> rerank.
+    ///
+    /// ```
+    /// use alaya::{Alaya, NewEpisode, Role, EpisodeContext, Query};
+    ///
+    /// let alaya = Alaya::open_in_memory().unwrap();
+    /// alaya.episodes().store(&NewEpisode {
+    ///     content: "Rust has zero-cost abstractions.".to_string(),
+    ///     role: Role::User,
+    ///     session_id: "s1".to_string(),
+    ///     timestamp: 1700000000,
+    ///     context: EpisodeContext::default(),
+    ///     embedding: None,
+    /// }).unwrap();
+    ///
+    /// let results = alaya.knowledge().query(&Query::simple("Rust")).unwrap();
+    /// assert!(!results.is_empty());
+    /// ```
     #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn query(&self, q: &Query) -> Result<Vec<ScoredMemory>> {
         if q.text.trim().is_empty() {

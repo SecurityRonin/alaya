@@ -15,7 +15,15 @@ fn truncate_label(s: &str, max_chars: usize) -> String {
 }
 
 impl Admin<'_> {
-    /// Counts across all stores.
+    /// Get a summary of memory system state.
+    ///
+    /// ```
+    /// use alaya::Alaya;
+    ///
+    /// let alaya = Alaya::open_in_memory().unwrap();
+    /// let status = alaya.admin().status().unwrap();
+    /// assert_eq!(status.episode_count, 0);
+    /// ```
     #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn status(&self) -> Result<MemoryStatus> {
         Ok(MemoryStatus {
