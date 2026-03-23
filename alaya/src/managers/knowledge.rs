@@ -21,6 +21,14 @@ impl Knowledge<'_> {
             ));
         }
 
+        const MAX_TEXT_BYTES: usize = 100 * 1024;
+        if q.text.len() > MAX_TEXT_BYTES {
+            return Err(AlayaError::InvalidInput(format!(
+                "query text exceeds 100KB limit ({} bytes)",
+                q.text.len()
+            )));
+        }
+
         // Auto-embed query text if no embedding provided and provider is set
         if q.embedding.is_none() {
             if let Some(provider) = self.embedding_provider {
@@ -35,6 +43,16 @@ impl Knowledge<'_> {
     /// Provider-less consolidation: store pre-extracted semantic knowledge.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn learn(&self, nodes: Vec<NewSemanticNode>) -> Result<ConsolidationReport> {
+        const MAX_CONTENT_BYTES: usize = 100 * 1024;
+        for node in &nodes {
+            if node.content.len() > MAX_CONTENT_BYTES {
+                return Err(AlayaError::InvalidInput(format!(
+                    "semantic node content exceeds 100KB limit ({} bytes)",
+                    node.content.len()
+                )));
+            }
+        }
+
         db::transact(self.conn, |tx| {
             lifecycle::consolidation::learn_direct(tx, nodes)
         })
@@ -153,6 +171,35 @@ mod tests {
         let nodes = alaya.knowledge().filter(None).unwrap();
         assert_eq!(nodes.len(), 1);
         assert_eq!(nodes[0].content, "test fact");
+    }
+
+    #[test]
+    fn learn_rejects_oversized_content() {
+        let alaya = Alaya::open_in_memory().unwrap();
+        let node = crate::NewSemanticNode {
+            content: "x".repeat(100 * 1024 + 1),
+            node_type: crate::SemanticType::Fact,
+            confidence: 0.9,
+            source_episodes: vec![],
+            embedding: None,
+        };
+        let result = alaya.knowledge().learn(vec![node]);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("100KB"), "error should mention limit: {err}");
+    }
+
+    #[test]
+    fn query_rejects_oversized_text() {
+        let alaya = Alaya::open_in_memory().unwrap();
+        let q = crate::Query {
+            text: "x".repeat(100 * 1024 + 1),
+            ..crate::Query::simple("x")
+        };
+        let result = alaya.knowledge().query(&q);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("100KB"), "error should mention limit: {err}");
     }
 
     #[test]
