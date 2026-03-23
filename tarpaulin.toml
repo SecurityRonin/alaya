@@ -1,0 +1,5 @@
+[default]
+packages = ["alaya"]
+features = "async,mcp,tracing"
+skip-clean = true
+out = ["json"]

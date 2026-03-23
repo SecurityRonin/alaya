@@ -131,7 +131,11 @@ impl Alaya {
     /// Get categories with optional minimum stability threshold.
     #[pyo3(signature = (min_stability=None))]
     fn categories(&self, min_stability: Option<f32>) -> PyResult<Vec<PyCategory>> {
-        let cats = self.store.admin().categories(min_stability).map_err(map_err)?;
+        let cats = self
+            .store
+            .admin()
+            .categories(min_stability)
+            .map_err(map_err)?;
         Ok(cats.into_iter().map(PyCategory::from).collect())
     }
 
