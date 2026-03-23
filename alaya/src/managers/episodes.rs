@@ -19,6 +19,21 @@ impl Episodes<'_> {
             ));
         }
 
+        const MAX_CONTENT_BYTES: usize = 100 * 1024; // 100KB
+        if episode.content.len() > MAX_CONTENT_BYTES {
+            return Err(AlayaError::InvalidInput(format!(
+                "episode content exceeds 100KB limit ({} bytes)",
+                episode.content.len()
+            )));
+        }
+        if let Some(ref emb) = episode.embedding {
+            if emb.iter().any(|v| !v.is_finite()) {
+                return Err(AlayaError::InvalidInput(
+                    "embedding contains NaN or infinity values".into(),
+                ));
+            }
+        }
+
         db::transact(self.conn, |tx| {
             let id = store::episodic::store_episode(tx, episode)?;
 
@@ -88,6 +103,44 @@ mod tests {
         let mut ep = episode("content");
         ep.session_id = "".to_string();
         assert!(alaya.episodes().store(&ep).is_err());
+    }
+
+    #[test]
+    fn store_rejects_oversized_content() {
+        let alaya = Alaya::open_in_memory().unwrap();
+        let mut ep = episode("x");
+        ep.content = "x".repeat(100 * 1024 + 1);
+        let result = alaya.episodes().store(&ep);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("100KB"), "error should mention limit: {err}");
+    }
+
+    #[test]
+    fn store_rejects_nan_embedding() {
+        let alaya = Alaya::open_in_memory().unwrap();
+        let mut ep = episode("valid content");
+        ep.embedding = Some(vec![1.0, f32::NAN, 3.0]);
+        let result = alaya.episodes().store(&ep);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn store_rejects_infinity_embedding() {
+        let alaya = Alaya::open_in_memory().unwrap();
+        let mut ep = episode("valid content");
+        ep.embedding = Some(vec![1.0, f32::INFINITY, 3.0]);
+        let result = alaya.episodes().store(&ep);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn store_accepts_valid_embedding() {
+        let alaya = Alaya::open_in_memory().unwrap();
+        let mut ep = episode("valid content");
+        ep.embedding = Some(vec![0.1, 0.2, 0.3]);
+        let result = alaya.episodes().store(&ep);
+        assert!(result.is_ok());
     }
 
     #[test]
