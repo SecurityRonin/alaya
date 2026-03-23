@@ -24,14 +24,14 @@ stores conversations, retrieves what matters, and lets the rest fade. The
 graph reshapes through use, like biological memory.
 
 ```rust
-let store = AlayaStore::open("memory.db")?;
-store.store_episode(&episode)?;           // store
-let results = store.query(&query)?;       // retrieve
-store.consolidate(&provider)?;            // distill knowledge
-store.transform()?;                       // dedup, LTD, discover categories
-store.forget()?;                          // decay what's stale
-let cats = store.categories(None)?;       // emergent ontology
-store.purge(PurgeFilter::Session("s1"))?; // cascade delete + tombstones
+let alaya = Alaya::open("memory.db")?;
+alaya.episodes().store(&episode)?;           // store
+let results = alaya.knowledge().query(&query)?; // retrieve
+alaya.lifecycle().consolidate(&provider)?;   // distill knowledge
+alaya.lifecycle().transform()?;              // dedup, LTD, discover categories
+alaya.lifecycle().forget()?;                 // decay what's stale
+let cats = alaya.admin().categories(None)?;  // emergent ontology
+alaya.admin().purge(PurgeFilter::Session("s1"))?; // cascade delete + tombstones
 ```
 
 ## The Problem
@@ -203,13 +203,13 @@ alaya = "0.2.2"
 ### Quick Start (Rust)
 
 ```rust
-use alaya::{AlayaStore, NewEpisode, Role, EpisodeContext, Query, NoOpProvider};
+use alaya::{Alaya, NewEpisode, Role, EpisodeContext, Query, NoOpProvider};
 
 // Open a persistent database (or use open_in_memory() for tests)
-let store = AlayaStore::open("memory.db")?;
+let alaya = Alaya::open("memory.db")?;
 
 // Store a conversation episode
-store.store_episode(&NewEpisode {
+alaya.episodes().store(&NewEpisode {
     content: "I've been learning Rust for about six months now".into(),
     role: Role::User,
     session_id: "session-1".into(),
@@ -219,18 +219,18 @@ store.store_episode(&NewEpisode {
 })?;
 
 // Query with hybrid retrieval (BM25 + vector + graph + RRF)
-let results = store.query(&Query::simple("Rust experience"))?;
+let results = alaya.knowledge().query(&Query::simple("Rust experience"))?;
 for mem in &results {
     println!("[{:.2}] {}", mem.score, mem.content);
 }
 
 // Get crystallized preferences
-let prefs = store.preferences(Some("communication_style"))?;
+let prefs = alaya.admin().preferences(Some("communication_style"))?;
 
 // Run lifecycle (NoOpProvider works without an LLM)
-store.consolidate(&NoOpProvider)?;
-store.transform()?;
-store.forget()?;
+alaya.lifecycle().consolidate(&NoOpProvider)?;
+alaya.lifecycle().transform()?;
+alaya.lifecycle().forget()?;
 ```
 
 ### Run the Demo
@@ -268,24 +268,24 @@ Via MCP (stdio):                    alaya-mcp binary
   import_claude_mem(path?)            ──▶ import from claude-mem.db
   import_claude_code(path)            ──▶ import from Claude Code JSONL
 
-Via Rust library:                   AlayaStore struct
-  store_episode()                     ──▶ episodic store + graph links
-  query()                            ──▶ BM25 + vector + graph → RRF → rerank
-  preferences()                      ──▶ crystallized behavioral patterns
-  knowledge()                        ──▶ consolidated semantic nodes
-  categories()                       ──▶ emergent ontology with hierarchy
-  subcategories()                    ──▶ children of a parent category
-  neighbors()                        ──▶ graph spreading activation
-  node_category()                    ──▶ category assignment lookup
-  set_embedding_provider()           ──▶ auto-embed in store + query
-  set_extraction_provider()          ──▶ enable auto-consolidation
-  consolidate(provider)              ──▶ episodes → semantic knowledge
-  learn(nodes)                       ──▶ provider-less knowledge injection
-  auto_consolidate()                 ──▶ extract + learn (needs ExtractionProvider)
-  perfume(interaction, provider)     ──▶ impressions → preferences
-  transform()                        ──▶ dedup, LTD, prune, split categories
-  forget()                           ──▶ Bjork strength decay + archival
-  purge(scope)                       ──▶ cascade deletion + tombstones
+Via Rust library:                   Alaya coordinator
+  alaya.episodes().store(ep)           ──▶ episodic store + graph links
+  alaya.knowledge().query(q)           ──▶ BM25 + vector + graph → RRF → rerank
+  alaya.admin().preferences(domain?)   ──▶ crystallized behavioral patterns
+  alaya.knowledge().filter(f?)         ──▶ consolidated semantic nodes
+  alaya.admin().categories(min?)       ──▶ emergent ontology with hierarchy
+  alaya.admin().subcategories(id)      ──▶ children of a parent category
+  alaya.graph().neighbors(node, d)     ──▶ graph spreading activation
+  alaya.admin().node_category(id)      ──▶ category assignment lookup
+  alaya.set_embedding_provider(p)      ──▶ auto-embed in store + query
+  alaya.set_extraction_provider(p)     ──▶ enable auto-consolidation
+  alaya.lifecycle().consolidate(p)     ──▶ episodes → semantic knowledge
+  alaya.knowledge().learn(nodes)       ──▶ provider-less knowledge injection
+  alaya.lifecycle().auto_consolidate() ──▶ extract + learn (needs ExtractionProvider)
+  alaya.lifecycle().perfume(i, p)      ──▶ impressions → preferences
+  alaya.lifecycle().transform()        ──▶ dedup, LTD, prune, split categories
+  alaya.lifecycle().forget()           ──▶ Bjork strength decay + archival
+  alaya.admin().purge(scope)           ──▶ cascade deletion + tombstones
 ```
 
 ### Three Stores
@@ -376,11 +376,11 @@ impl ExtractionProvider for MyExtractor {
     }
 }
 
-let mut store = AlayaStore::open("memory.db")?;
-store.set_extraction_provider(Box::new(MyExtractor { /* ... */ }));
+let mut alaya = Alaya::open("memory.db")?;
+alaya.set_extraction_provider(Box::new(MyExtractor { /* ... */ }));
 
 // Now auto_consolidate() works without a ConsolidationProvider
-let report = store.auto_consolidate()?;
+let report = alaya.lifecycle().auto_consolidate()?;
 ```
 
 The `llm` feature flag provides a ready-to-use `LlmExtractionProvider` that
@@ -408,38 +408,51 @@ let provider = LlmExtractionProvider::builder()
 ## API Reference
 
 ```rust
-impl AlayaStore {
+impl Alaya {
     // Open / create
     pub fn open(path: impl AsRef<Path>) -> Result<Self>;
     pub fn open_in_memory() -> Result<Self>;
 
-    // Write
-    pub fn store_episode(&self, episode: &NewEpisode) -> Result<EpisodeId>;
-
-    // Providers
+    // Providers (on coordinator)
     pub fn set_embedding_provider(&mut self, provider: Box<dyn EmbeddingProvider>);
     pub fn set_extraction_provider(&mut self, provider: Box<dyn ExtractionProvider>);
 
-    // Read
+    // Sub-manager accessors
+    pub fn episodes(&self) -> Episodes<'_>;
+    pub fn knowledge(&self) -> Knowledge<'_>;
+    pub fn lifecycle(&self) -> Lifecycle<'_>;
+    pub fn graph(&self) -> Graph<'_>;
+    pub fn admin(&self) -> Admin<'_>;
+}
+
+impl Episodes<'_> {
+    pub fn store(&self, episode: &NewEpisode) -> Result<EpisodeId>;
+    pub fn by_session(&self, session_id: &str) -> Result<Vec<Episode>>;
+    pub fn unconsolidated(&self, limit: u32) -> Result<Vec<Episode>>;
+}
+
+impl Knowledge<'_> {
     pub fn query(&self, q: &Query) -> Result<Vec<ScoredMemory>>;
+    pub fn learn(&self, nodes: Vec<NewSemanticNode>) -> Result<ConsolidationReport>;
+    pub fn filter(&self, filter: Option<KnowledgeFilter>) -> Result<Vec<SemanticNode>>;
+}
+
+impl Lifecycle<'_> {
+    pub fn consolidate(&self, provider: &dyn ConsolidationProvider) -> Result<ConsolidationReport>;
+    pub fn auto_consolidate(&self) -> Result<ConsolidationReport>;
+    pub fn transform(&self) -> Result<TransformationReport>;
+    pub fn forget(&self) -> Result<ForgettingReport>;
+    pub fn perfume(&self, interaction: &Interaction, provider: &dyn ConsolidationProvider) -> Result<PerfumingReport>;
+    pub fn dream(&self, provider: &dyn ConsolidationProvider, interaction: Option<&Interaction>) -> Result<DreamReport>;
+}
+
+impl Admin<'_> {
+    pub fn status(&self) -> Result<MemoryStatus>;
+    pub fn purge(&self, filter: PurgeFilter) -> Result<PurgeReport>;
     pub fn preferences(&self, domain: Option<&str>) -> Result<Vec<Preference>>;
-    pub fn knowledge(&self, filter: Option<KnowledgeFilter>) -> Result<Vec<SemanticNode>>;
-    pub fn neighbors(&self, node: NodeRef, depth: u32) -> Result<Vec<(NodeRef, f32)>>;
     pub fn categories(&self, min_stability: Option<f32>) -> Result<Vec<Category>>;
     pub fn subcategories(&self, parent_id: CategoryId) -> Result<Vec<Category>>;
     pub fn node_category(&self, node_id: NodeId) -> Result<Option<Category>>;
-
-    // Lifecycle
-    pub fn consolidate(&self, provider: &dyn ConsolidationProvider) -> Result<ConsolidationReport>;
-    pub fn learn(&self, nodes: Vec<NewSemanticNode>) -> Result<ConsolidationReport>;
-    pub fn auto_consolidate(&self) -> Result<ConsolidationReport>;
-    pub fn perfume(&self, interaction: &Interaction, provider: &dyn ConsolidationProvider) -> Result<PerfumingReport>;
-    pub fn transform(&self) -> Result<TransformationReport>;
-    pub fn forget(&self) -> Result<ForgettingReport>;
-
-    // Admin
-    pub fn status(&self) -> Result<MemoryStatus>;
-    pub fn purge(&self, filter: PurgeFilter) -> Result<PurgeReport>;
 }
 ```
 
@@ -604,5 +617,3 @@ cargo run --example demo
 ## License
 
 MIT
-
-<img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=c18dc510-7aec-427a-868b-2753233f9a35" />
