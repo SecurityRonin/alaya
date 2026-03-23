@@ -454,4 +454,22 @@ mod tests {
         let status = srv.status();
         assert!(status.contains("Episodes: 2"));
     }
+
+    #[test]
+    fn visualize_tool_returns_mermaid() {
+        let srv = make_server();
+
+        // Store some data
+        srv.remember(RememberParams {
+            content: "User likes Rust".into(),
+            role: "user".into(),
+            session_id: "s1".into(),
+        });
+
+        let result = srv.visualize(visualization::VisualizeParams {
+            max_nodes: Some(10),
+            min_weight: Some(0.0),
+        });
+        assert!(result.contains("graph TD"), "should return a Mermaid graph");
+    }
 }

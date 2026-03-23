@@ -1,7 +1,8 @@
 mod common;
 
 use alaya::{
-    ConsolidationReport, EpisodeId, ForgettingReport, MemoryHooks, NoOpHooks, NoOpProvider,
+    ConsolidationReport, EpisodeId, ForgettingReport, MemoryHooks, MockExtractionProvider,
+    NoOpHooks, NoOpProvider,
 };
 use std::sync::{Arc, Mutex};
 
@@ -138,6 +139,66 @@ fn noop_hooks_do_not_affect_results() {
 
     let report = alaya.lifecycle().consolidate(&NoOpProvider).unwrap();
     assert_eq!(report.nodes_created, 0);
+}
+
+#[test]
+fn hooks_fire_on_consolidate_batch() {
+    let mut alaya = common::empty_store();
+    let cons = Arc::new(Mutex::new(Vec::new()));
+    let hooks = RecordingHooks {
+        episodes: Arc::new(Mutex::new(Vec::new())),
+        consolidations: cons.clone(),
+        forgettings: Arc::new(Mutex::new(Vec::new())),
+    };
+    alaya.set_hooks(Box::new(hooks));
+
+    // Store some episodes so consolidation has work
+    alaya
+        .episodes()
+        .store(&common::make_episode("batch test", "user", "s1", 1000))
+        .unwrap();
+
+    let _report = alaya
+        .lifecycle()
+        .consolidate_batch(&NoOpProvider, 5)
+        .unwrap();
+
+    let recorded = cons.lock().unwrap();
+    assert_eq!(
+        recorded.len(),
+        1,
+        "consolidation hook should fire on consolidate_batch"
+    );
+}
+
+#[test]
+fn hooks_fire_on_auto_consolidate_batch() {
+    let mut alaya = common::empty_store();
+    let cons = Arc::new(Mutex::new(Vec::new()));
+    let hooks = RecordingHooks {
+        episodes: Arc::new(Mutex::new(Vec::new())),
+        consolidations: cons.clone(),
+        forgettings: Arc::new(Mutex::new(Vec::new())),
+    };
+    alaya.set_hooks(Box::new(hooks));
+
+    // Set extraction provider (required for auto_consolidate)
+    alaya.set_extraction_provider(Box::new(MockExtractionProvider::empty()));
+
+    // Store an episode so there's something to process
+    alaya
+        .episodes()
+        .store(&common::make_episode("auto batch", "user", "s1", 2000))
+        .unwrap();
+
+    let _report = alaya.lifecycle().auto_consolidate_batch(5).unwrap();
+
+    let recorded = cons.lock().unwrap();
+    assert_eq!(
+        recorded.len(),
+        1,
+        "consolidation hook should fire on auto_consolidate_batch"
+    );
 }
 
 #[test]

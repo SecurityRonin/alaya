@@ -587,4 +587,85 @@ mod tests {
         let ep = store::episodic::get_episode(&conn2, crate::types::EpisodeId(1)).unwrap();
         assert_eq!(ep.content, "already here");
     }
+
+    #[test]
+    fn test_export_import_all_table_types() {
+        let conn = open_memory_db().unwrap();
+
+        // Episodes
+        store::episodic::store_episode(&conn, &episode("ep1")).unwrap();
+
+        // Semantic nodes
+        let node_id = insert_semantic_node(&conn, "test fact", 0.9);
+
+        // Preferences
+        store::implicit::store_preference(&conn, "lang", "Rust", 0.8).unwrap();
+
+        // Impressions
+        store::implicit::store_impression(
+            &conn,
+            &crate::types::NewImpression {
+                domain: "style".to_string(),
+                observation: "prefers dark mode".to_string(),
+                valence: 0.9,
+            },
+        )
+        .unwrap();
+
+        // Categories (direct SQL insert)
+        conn.execute(
+            "INSERT INTO categories (id, label, prototype_node_id, member_count, created_at, last_updated, stability)
+             VALUES (1, 'test-cat', ?1, 1, 1000, 1000, 0.5)",
+            [node_id.0],
+        )
+        .unwrap();
+
+        // Links
+        crate::graph::links::create_link(
+            &conn,
+            crate::types::NodeRef::Episode(crate::types::EpisodeId(1)),
+            crate::types::NodeRef::Semantic(node_id),
+            crate::types::LinkType::Causal,
+            0.8,
+        )
+        .unwrap();
+
+        // Export
+        let mut buf = Vec::new();
+        let report = export_json(&conn, &mut buf).unwrap();
+        assert_eq!(report.episodes, 1);
+        assert_eq!(report.semantic_nodes, 1);
+        assert_eq!(report.preferences, 1);
+        assert_eq!(report.impressions, 1);
+        assert_eq!(report.categories, 1);
+        assert_eq!(report.links, 1);
+
+        // Verify JSON contains categories and links
+        let data: ExportData = serde_json::from_slice(&buf).unwrap();
+        assert_eq!(data.categories.len(), 1);
+        assert_eq!(data.categories[0].label, "test-cat");
+        assert_eq!(data.links.len(), 1);
+        assert_eq!(data.links[0].link_type, "causal");
+
+        // Import into fresh DB
+        let conn2 = open_memory_db().unwrap();
+        let import_report = import_json(&conn2, &mut buf.as_slice()).unwrap();
+        assert_eq!(import_report.episodes_imported, 1);
+        assert_eq!(import_report.semantic_nodes_imported, 1);
+        assert_eq!(import_report.preferences_imported, 1);
+        assert_eq!(import_report.impressions_imported, 1);
+        assert_eq!(import_report.categories_imported, 1);
+        assert_eq!(import_report.links_imported, 1);
+        assert_eq!(import_report.skipped, 0);
+
+        // Import again — all should be skipped
+        let import_report2 = import_json(&conn2, &mut buf.as_slice()).unwrap();
+        assert_eq!(import_report2.episodes_imported, 0);
+        assert_eq!(import_report2.semantic_nodes_imported, 0);
+        assert_eq!(import_report2.preferences_imported, 0);
+        assert_eq!(import_report2.impressions_imported, 0);
+        assert_eq!(import_report2.categories_imported, 0);
+        assert_eq!(import_report2.links_imported, 0);
+        assert_eq!(import_report2.skipped, 6);
+    }
 }

@@ -583,4 +583,142 @@ mod tests {
             "version should still be 6 after second init_db call"
         );
     }
+
+    #[test]
+    fn test_migration_upgrades_existing_db() {
+        // Simulate a DB at version 4 (before superseded_by column was added)
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA journal_mode = WAL;").unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
+
+        // Create tables with the v4 schema (no superseded_by on semantic_nodes)
+        conn.execute_batch(
+            "CREATE TABLE episodes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                content TEXT NOT NULL,
+                role TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                timestamp INTEGER NOT NULL,
+                context_json TEXT NOT NULL DEFAULT '{}'
+            );
+            CREATE TABLE semantic_nodes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                content TEXT NOT NULL,
+                node_type TEXT NOT NULL,
+                confidence REAL NOT NULL DEFAULT 0.5,
+                source_episodes_json TEXT NOT NULL DEFAULT '[]',
+                created_at INTEGER NOT NULL DEFAULT 0,
+                last_corroborated INTEGER NOT NULL DEFAULT 0,
+                corroboration_count INTEGER NOT NULL DEFAULT 1,
+                category_id INTEGER
+            );
+            CREATE TABLE embeddings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                node_type TEXT NOT NULL,
+                node_id INTEGER NOT NULL,
+                embedding BLOB NOT NULL,
+                UNIQUE(node_type, node_id)
+            );
+            CREATE TABLE impressions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                domain TEXT NOT NULL,
+                observation TEXT NOT NULL,
+                valence REAL NOT NULL DEFAULT 0.0,
+                timestamp INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE preferences (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                domain TEXT NOT NULL,
+                preference TEXT NOT NULL,
+                confidence REAL NOT NULL DEFAULT 0.5,
+                evidence_count INTEGER NOT NULL DEFAULT 1,
+                first_observed INTEGER NOT NULL DEFAULT 0,
+                last_reinforced INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE links (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_type TEXT NOT NULL,
+                source_id INTEGER NOT NULL,
+                target_type TEXT NOT NULL,
+                target_id INTEGER NOT NULL,
+                forward_weight REAL NOT NULL DEFAULT 1.0,
+                backward_weight REAL NOT NULL DEFAULT 0.5,
+                link_type TEXT NOT NULL DEFAULT 'associative',
+                created_at INTEGER NOT NULL DEFAULT 0,
+                last_activated INTEGER NOT NULL DEFAULT 0,
+                activation_count INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE node_strengths (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                node_type TEXT NOT NULL,
+                node_id INTEGER NOT NULL,
+                storage_strength REAL NOT NULL DEFAULT 1.0,
+                retrieval_strength REAL NOT NULL DEFAULT 1.0,
+                last_accessed INTEGER NOT NULL DEFAULT 0,
+                access_count INTEGER NOT NULL DEFAULT 0,
+                UNIQUE(node_type, node_id)
+            );
+            CREATE TABLE categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                label TEXT NOT NULL,
+                prototype_node_id INTEGER NOT NULL,
+                member_count INTEGER NOT NULL DEFAULT 0,
+                centroid_embedding BLOB,
+                created_at INTEGER NOT NULL DEFAULT 0,
+                last_updated INTEGER NOT NULL DEFAULT 0,
+                stability REAL NOT NULL DEFAULT 0.0,
+                parent_id INTEGER REFERENCES categories(id)
+            );
+            CREATE TABLE tombstones (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                node_type TEXT NOT NULL,
+                node_id INTEGER NOT NULL,
+                deleted_at INTEGER NOT NULL,
+                reason TEXT
+            );
+            CREATE TABLE conflicts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                node_a_id INTEGER NOT NULL,
+                node_b_id INTEGER NOT NULL,
+                similarity REAL NOT NULL,
+                status TEXT NOT NULL DEFAULT 'detected',
+                detected_at INTEGER NOT NULL,
+                winner_id INTEGER,
+                resolution TEXT,
+                resolved_at INTEGER,
+                UNIQUE(node_a_id, node_b_id)
+            );
+            ",
+        ).unwrap();
+        // Set version to 4 (before superseded_by migration at v5)
+        conn.pragma_update(None, "user_version", 4).unwrap();
+
+        // Insert a node to verify data survives migration
+        conn.execute(
+            "INSERT INTO semantic_nodes (content, node_type, confidence, created_at, last_corroborated)
+             VALUES ('existing fact', 'fact', 0.9, 1000, 1000)",
+            [],
+        ).unwrap();
+
+        // Run init_db — should trigger migration from v4 to v6
+        init_db(&conn).unwrap();
+
+        // Verify version bumped to latest
+        let version: i64 = conn
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, LATEST_VERSION as i64);
+
+        // Verify superseded_by column was added by migration v5
+        conn.execute(
+            "UPDATE semantic_nodes SET superseded_by = NULL WHERE id = 1",
+            [],
+        ).unwrap();
+
+        // Verify original data is intact
+        let content: String = conn
+            .query_row("SELECT content FROM semantic_nodes WHERE id = 1", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(content, "existing fact");
+    }
 }

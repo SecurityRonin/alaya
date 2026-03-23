@@ -600,6 +600,45 @@ mod tests {
     }
 
     #[test]
+    fn corroboration_tie_node_a_newer_wins() {
+        let conn = open_memory_db().unwrap();
+        let (a, b) = make_contradictory_nodes(&conn);
+
+        // Equal corroboration counts
+        conn.execute(
+            "UPDATE semantic_nodes SET corroboration_count = 3 WHERE id = ?1",
+            [a.0],
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE semantic_nodes SET corroboration_count = 3 WHERE id = ?1",
+            [b.0],
+        )
+        .unwrap();
+
+        // Make a NEWER than b (reverse of default: a=2000, b=1000)
+        conn.execute(
+            "UPDATE semantic_nodes SET created_at = 3000 WHERE id = ?1",
+            [a.0],
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE semantic_nodes SET created_at = 500 WHERE id = ?1",
+            [b.0],
+        )
+        .unwrap();
+
+        let report = reconcile(&conn, ConflictStrategy::Corroboration).unwrap();
+        assert_eq!(report.conflicts_resolved, 1);
+
+        // b (older, created_at=500) should be superseded; a wins
+        let node_b = get_semantic_node(&conn, b).unwrap();
+        assert_eq!(node_b.confidence, 0.0);
+        let node_a = get_semantic_node(&conn, a).unwrap();
+        assert!(node_a.confidence > 0.0);
+    }
+
+    #[test]
     fn idempotent_second_reconcile_no_new_detections() {
         let conn = open_memory_db().unwrap();
         let (_a, _b) = make_contradictory_nodes(&conn);
