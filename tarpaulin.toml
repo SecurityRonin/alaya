@@ -1,5 +1,6 @@
 [default]
 packages = ["alaya"]
+exclude = ["alaya-py"]
 features = "async,mcp,tracing"
 skip-clean = true
 out = ["json"]
