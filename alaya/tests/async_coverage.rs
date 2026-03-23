@@ -55,6 +55,7 @@ async fn test_async_read_methods() {
             context: QueryContext::default(),
             max_results: 5,
             boost_categories: None,
+            boost_weights: None,
         })
         .await
         .unwrap();

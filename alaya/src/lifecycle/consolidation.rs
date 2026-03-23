@@ -14,13 +14,32 @@ const CONSOLIDATION_BATCH_SIZE: u32 = 10;
 /// Models the Complementary Learning Systems (CLS) theory:
 /// the hippocampus (episodic) gradually teaches the neocortex (semantic)
 /// through interleaved replay, avoiding catastrophic interference.
+///
+/// Processes all unconsolidated episodes (up to the internal batch size).
 pub fn consolidate(
     conn: &Connection,
     provider: &dyn ConsolidationProvider,
 ) -> Result<ConsolidationReport> {
+    consolidate_batch(conn, provider, CONSOLIDATION_BATCH_SIZE)
+}
+
+/// Run a consolidation cycle on at most `batch_size` unconsolidated episodes.
+///
+/// This allows incremental/streaming consolidation by processing episodes in
+/// fixed-size windows instead of all at once. A `batch_size` of 0 returns an
+/// empty report immediately.
+pub fn consolidate_batch(
+    conn: &Connection,
+    provider: &dyn ConsolidationProvider,
+    batch_size: u32,
+) -> Result<ConsolidationReport> {
     let mut report = ConsolidationReport::default();
 
-    let episodes = episodic::get_unconsolidated_episodes(conn, CONSOLIDATION_BATCH_SIZE)?;
+    if batch_size == 0 {
+        return Ok(report);
+    }
+
+    let episodes = episodic::get_unconsolidated_episodes(conn, batch_size)?;
     if episodes.len() < 3 {
         // Not enough episodes to consolidate — need corroboration
         return Ok(report);
@@ -217,6 +236,40 @@ mod tests {
     use crate::schema::open_memory_db;
     use crate::store::{categories, episodic, semantic};
     use rusqlite::Connection;
+
+    /// A mock provider that dynamically creates one semantic node per episode,
+    /// using the actual episode IDs passed to `extract_knowledge`.
+    struct PerEpisodeProvider;
+
+    impl ConsolidationProvider for PerEpisodeProvider {
+        fn extract_knowledge(&self, episodes: &[Episode]) -> Result<Vec<NewSemanticNode>> {
+            Ok(episodes
+                .iter()
+                .map(|ep| NewSemanticNode {
+                    content: format!("knowledge from: {}", ep.content),
+                    node_type: SemanticType::Fact,
+                    confidence: 0.8,
+                    source_episodes: vec![ep.id],
+                    embedding: None,
+                })
+                .collect())
+        }
+
+        fn extract_impressions(
+            &self,
+            _interaction: &Interaction,
+        ) -> Result<Vec<NewImpression>> {
+            Ok(vec![])
+        }
+
+        fn detect_contradiction(
+            &self,
+            _a: &SemanticNode,
+            _b: &SemanticNode,
+        ) -> Result<bool> {
+            Ok(false)
+        }
+    }
 
     #[test]
     fn test_consolidation_below_threshold() {
@@ -812,5 +865,89 @@ mod tests {
         assert_eq!(report.nodes_created, 1);
         // No category should be assigned (no other categorized neighbors)
         assert_eq!(report.categories_assigned, 0);
+    }
+
+    /// Helper: insert N episodes into the database and return their IDs.
+    fn insert_n_episodes(conn: &Connection, n: usize) -> Vec<EpisodeId> {
+        (0..n)
+            .map(|i| {
+                episodic::store_episode(
+                    conn,
+                    &NewEpisode {
+                        content: format!("batch episode {i}"),
+                        role: Role::User,
+                        session_id: "s1".to_string(),
+                        timestamp: 1000 + (i as i64) * 100,
+                        context: EpisodeContext::default(),
+                        embedding: None,
+                    },
+                )
+                .unwrap()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn test_consolidate_batch_limits_episodes() {
+        let conn = open_memory_db().unwrap();
+        insert_n_episodes(&conn, 10);
+
+        let report = consolidate_batch(&conn, &PerEpisodeProvider, 3).unwrap();
+        assert_eq!(
+            report.episodes_processed, 3,
+            "batch_size=3 should process exactly 3 episodes"
+        );
+        assert_eq!(report.nodes_created, 3, "one node per episode");
+    }
+
+    #[test]
+    fn test_consolidate_batch_zero() {
+        let conn = open_memory_db().unwrap();
+        insert_n_episodes(&conn, 5);
+
+        let report = consolidate_batch(&conn, &PerEpisodeProvider, 0).unwrap();
+        assert_eq!(
+            report.episodes_processed, 0,
+            "batch_size=0 should process nothing"
+        );
+        assert_eq!(report.nodes_created, 0);
+    }
+
+    #[test]
+    fn test_consolidate_full_processes_all() {
+        let conn = open_memory_db().unwrap();
+        insert_n_episodes(&conn, 5);
+
+        // Use the default consolidate() which delegates to consolidate_batch
+        // with the internal CONSOLIDATION_BATCH_SIZE (10), so all 5 episodes
+        // should be processed.
+        let report = consolidate(&conn, &PerEpisodeProvider).unwrap();
+        assert_eq!(
+            report.episodes_processed, 5,
+            "consolidate() should process all 5 episodes"
+        );
+        assert_eq!(report.nodes_created, 5);
+    }
+
+    #[test]
+    fn test_consolidate_batch_multiple_rounds() {
+        let conn = open_memory_db().unwrap();
+        insert_n_episodes(&conn, 5);
+
+        // Round 1: process first 3
+        let r1 = consolidate_batch(&conn, &PerEpisodeProvider, 3).unwrap();
+        assert_eq!(r1.episodes_processed, 3);
+        assert_eq!(r1.nodes_created, 3);
+
+        // Round 2: process remaining 2 — but 2 < 3 (minimum corroboration
+        // threshold), so they won't be processed yet.
+        let r2 = consolidate_batch(&conn, &PerEpisodeProvider, 3).unwrap();
+        assert_eq!(
+            r2.episodes_processed, 0,
+            "only 2 episodes left, below the minimum threshold of 3"
+        );
+
+        // Total across both rounds: 3 processed
+        assert_eq!(r1.episodes_processed + r2.episodes_processed, 3);
     }
 }

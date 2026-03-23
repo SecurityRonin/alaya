@@ -3,16 +3,33 @@ use std::collections::HashMap;
 
 /// Reciprocal Rank Fusion (RRF) merges multiple ranked result sets.
 ///
-/// For each document d: score(d) = sum(1.0 / (k + rank_i + 1))
-/// where rank_i is the 0-based rank of d in result set i.
+/// For each document d: score(d) = sum(weight_i / (k + rank_i + 1))
+/// where rank_i is the 0-based rank of d in result set i and weight_i
+/// is the optional per-set multiplier (defaults to 1.0).
 ///
 /// Reference: Cormack, Clarke & Buettcher (2009)
 pub fn rrf_merge(result_sets: &[Vec<(NodeRef, f64)>], k: u32) -> Vec<(NodeRef, f64)> {
+    rrf_merge_weighted(result_sets, k, None)
+}
+
+/// Like [`rrf_merge`] but accepts optional per-set boost weights.
+/// When `weights` is `Some`, `weights[i]` is used as a multiplier for
+/// the RRF contribution from `result_sets[i]`.
+pub fn rrf_merge_weighted(
+    result_sets: &[Vec<(NodeRef, f64)>],
+    k: u32,
+    weights: Option<&[f32]>,
+) -> Vec<(NodeRef, f64)> {
     let mut scores: HashMap<NodeRef, f64> = HashMap::new();
 
-    for result_set in result_sets {
+    for (set_idx, result_set) in result_sets.iter().enumerate() {
+        let weight = weights
+            .and_then(|w| w.get(set_idx))
+            .copied()
+            .unwrap_or(1.0) as f64;
         for (rank, (node_ref, _original_score)) in result_set.iter().enumerate() {
-            *scores.entry(*node_ref).or_default() += 1.0 / (k as f64 + rank as f64 + 1.0);
+            *scores.entry(*node_ref).or_default() +=
+                weight / (k as f64 + rank as f64 + 1.0);
         }
     }
 

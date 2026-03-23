@@ -212,6 +212,7 @@ pub enum ConflictStrategy {
     #[default]
     Recency,
     Confidence,
+    Corroboration,
     Manual,
 }
 
@@ -370,6 +371,23 @@ pub struct NodeStrength {
 // Retrieval types
 // ---------------------------------------------------------------------------
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BoostWeights {
+    pub bm25: f32,
+    pub vector: f32,
+    pub graph: f32,
+}
+
+impl Default for BoostWeights {
+    fn default() -> Self {
+        Self {
+            bm25: 1.0,
+            vector: 1.0,
+            graph: 1.0,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Query {
     pub text: String,
@@ -377,6 +395,7 @@ pub struct Query {
     pub context: QueryContext,
     pub max_results: usize,
     pub boost_categories: Option<Vec<String>>,
+    pub boost_weights: Option<BoostWeights>,
 }
 
 impl Query {
@@ -395,6 +414,7 @@ impl Query {
             context: QueryContext::default(),
             max_results: 5,
             boost_categories: None,
+            boost_weights: None,
         }
     }
 }
@@ -405,6 +425,10 @@ pub struct QueryContext {
     pub sentiment: f32,
     pub mentioned_entities: Vec<String>,
     pub current_timestamp: Option<i64>,
+    pub after_timestamp: Option<i64>,
+    pub before_timestamp: Option<i64>,
+    pub session_filter: Option<String>,
+    pub exclude_terms: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -881,6 +905,10 @@ mod tests {
         assert_eq!(qc.sentiment, 0.0);
         assert!(qc.mentioned_entities.is_empty());
         assert!(qc.current_timestamp.is_none());
+        assert!(qc.after_timestamp.is_none());
+        assert!(qc.before_timestamp.is_none());
+        assert!(qc.session_filter.is_none());
+        assert!(qc.exclude_terms.is_empty());
     }
 
     #[test]

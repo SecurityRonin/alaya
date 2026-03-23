@@ -562,6 +562,40 @@ fn test_node_category_missing_node() {
 }
 
 // ---------------------------------------------------------------------------
+// Test: admin export_json / import_json wrappers (managers/admin.rs)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_admin_export_json_wrapper() {
+    let store = Alaya::open_in_memory().unwrap();
+    store
+        .episodes()
+        .store(&episode("export via admin", "s1", 1000))
+        .unwrap();
+
+    let mut buf = Vec::new();
+    let report = store.admin().export_json(&mut buf).unwrap();
+    assert_eq!(report.episodes, 1);
+    assert!(!buf.is_empty());
+}
+
+#[test]
+fn test_admin_import_json_wrapper() {
+    let store1 = Alaya::open_in_memory().unwrap();
+    store1
+        .episodes()
+        .store(&episode("import via admin", "s1", 1000))
+        .unwrap();
+
+    let mut buf = Vec::new();
+    store1.admin().export_json(&mut buf).unwrap();
+
+    let store2 = Alaya::open_in_memory().unwrap();
+    let report = store2.admin().import_json(&mut buf.as_slice()).unwrap();
+    assert_eq!(report.episodes_imported, 1);
+}
+
+// ---------------------------------------------------------------------------
 // Test: LlmExtractionProvider Debug impl (extraction.rs lines 132-136)
 // ---------------------------------------------------------------------------
 

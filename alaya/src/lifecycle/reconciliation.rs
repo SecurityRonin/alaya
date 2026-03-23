@@ -115,12 +115,27 @@ fn resolve_conflicts(
                     (conflict.node_b, conflict.node_a)
                 }
             }
+            ConflictStrategy::Corroboration => {
+                if node_a.corroboration_count == node_b.corroboration_count {
+                    // Tie — fall back to recency
+                    if node_a.created_at >= node_b.created_at {
+                        (conflict.node_a, conflict.node_b)
+                    } else {
+                        (conflict.node_b, conflict.node_a)
+                    }
+                } else if node_a.corroboration_count >= node_b.corroboration_count {
+                    (conflict.node_a, conflict.node_b)
+                } else {
+                    (conflict.node_b, conflict.node_a)
+                }
+            }
             ConflictStrategy::Manual => unreachable!(), // filtered above
         };
 
         let resolution_str = match strategy {
             ConflictStrategy::Recency => "recency",
             ConflictStrategy::Confidence => "confidence",
+            ConflictStrategy::Corroboration => "corroboration",
             ConflictStrategy::Manual => unreachable!(),
         };
 
@@ -509,6 +524,118 @@ mod tests {
         assert_eq!(node_a.confidence, 0.0);
         let node_b = get_semantic_node(&conn, b).unwrap();
         assert!(node_b.confidence > 0.0);
+    }
+
+    #[test]
+    fn corroboration_strategy_picks_higher() {
+        let conn = open_memory_db().unwrap();
+        let (_a, b) = make_contradictory_nodes(&conn);
+        // a.corroboration_count=5, b.corroboration_count=2 → a wins
+        conn.execute(
+            "UPDATE semantic_nodes SET corroboration_count = 5 WHERE id = ?1",
+            [_a.0],
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE semantic_nodes SET corroboration_count = 2 WHERE id = ?1",
+            [b.0],
+        )
+        .unwrap();
+
+        let report = reconcile(&conn, ConflictStrategy::Corroboration).unwrap();
+        assert_eq!(report.conflicts_resolved, 1);
+
+        // b (lower corroboration) should be superseded
+        let node_b = get_semantic_node(&conn, b).unwrap();
+        assert_eq!(node_b.confidence, 0.0);
+    }
+
+    #[test]
+    fn corroboration_strategy_node_b_higher() {
+        let conn = open_memory_db().unwrap();
+        let (a, _b) = make_contradictory_nodes(&conn);
+        // a.corroboration_count=1, b.corroboration_count=10 → b wins
+        conn.execute(
+            "UPDATE semantic_nodes SET corroboration_count = 1 WHERE id = ?1",
+            [a.0],
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE semantic_nodes SET corroboration_count = 10 WHERE id = ?1",
+            [_b.0],
+        )
+        .unwrap();
+
+        let report = reconcile(&conn, ConflictStrategy::Corroboration).unwrap();
+        assert_eq!(report.conflicts_resolved, 1);
+
+        // a (lower corroboration) should be superseded
+        let node_a = get_semantic_node(&conn, a).unwrap();
+        assert_eq!(node_a.confidence, 0.0);
+    }
+
+    #[test]
+    fn corroboration_tie_falls_back_to_recency() {
+        let conn = open_memory_db().unwrap();
+        let (a, _b) = make_contradictory_nodes(&conn);
+        // Both have equal corroboration_count → fall back to recency
+        // a.created_at=1000 (older), b.created_at=2000 (newer) → b wins
+        conn.execute(
+            "UPDATE semantic_nodes SET corroboration_count = 3 WHERE id = ?1",
+            [a.0],
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE semantic_nodes SET corroboration_count = 3 WHERE id = ?1",
+            [_b.0],
+        )
+        .unwrap();
+
+        let report = reconcile(&conn, ConflictStrategy::Corroboration).unwrap();
+        assert_eq!(report.conflicts_resolved, 1);
+
+        // a (older, created_at=1000) should be superseded
+        let node_a = get_semantic_node(&conn, a).unwrap();
+        assert_eq!(node_a.confidence, 0.0);
+    }
+
+    #[test]
+    fn corroboration_tie_node_a_newer_wins() {
+        let conn = open_memory_db().unwrap();
+        let (a, b) = make_contradictory_nodes(&conn);
+
+        // Equal corroboration counts
+        conn.execute(
+            "UPDATE semantic_nodes SET corroboration_count = 3 WHERE id = ?1",
+            [a.0],
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE semantic_nodes SET corroboration_count = 3 WHERE id = ?1",
+            [b.0],
+        )
+        .unwrap();
+
+        // Make a NEWER than b (reverse of default: a=2000, b=1000)
+        conn.execute(
+            "UPDATE semantic_nodes SET created_at = 3000 WHERE id = ?1",
+            [a.0],
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE semantic_nodes SET created_at = 500 WHERE id = ?1",
+            [b.0],
+        )
+        .unwrap();
+
+        let report = reconcile(&conn, ConflictStrategy::Corroboration).unwrap();
+        assert_eq!(report.conflicts_resolved, 1);
+
+        // b (older, created_at=500) should be superseded; a wins
+        let node_b = get_semantic_node(&conn, b).unwrap();
+        assert_eq!(node_b.confidence, 0.0);
+        let node_a = get_semantic_node(&conn, a).unwrap();
+        assert!(node_a.confidence > 0.0);
     }
 
     #[test]

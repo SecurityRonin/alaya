@@ -216,6 +216,7 @@ fn test_mcp_recall_max_results() {
         context: alaya::QueryContext::default(),
         max_results: 3,
         boost_categories: None,
+        boost_weights: None,
     };
     let results = store.knowledge().query(&query).unwrap();
     assert!(results.len() <= 3, "should respect max_results limit");

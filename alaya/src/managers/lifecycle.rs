@@ -8,6 +8,8 @@ use crate::{graph, lifecycle, store};
 impl Lifecycle<'_> {
     /// Run consolidation: episodic -> semantic (CLS replay).
     ///
+    /// Processes all unconsolidated episodes (up to the internal batch size).
+    ///
     /// ```
     /// use alaya::{Alaya, NoOpProvider};
     ///
@@ -17,17 +19,58 @@ impl Lifecycle<'_> {
     /// ```
     #[cfg_attr(feature = "tracing", tracing::instrument(skip(self, provider)))]
     pub fn consolidate(&self, provider: &dyn ConsolidationProvider) -> Result<ConsolidationReport> {
-        db::transact(self.conn, |tx| {
+        let report = db::transact(self.conn, |tx| {
             lifecycle::consolidation::consolidate(tx, provider)
-        })
+        })?;
+        if let Some(h) = self.hooks {
+            h.on_consolidated(&report);
+        }
+        Ok(report)
+    }
+
+    /// Run consolidation on at most `batch_size` unconsolidated episodes.
+    ///
+    /// This enables incremental/streaming consolidation by processing episodes
+    /// in fixed-size windows instead of all at once. A `batch_size` of 0 returns
+    /// an empty report immediately.
+    ///
+    /// ```
+    /// use alaya::{Alaya, NoOpProvider};
+    ///
+    /// let alaya = Alaya::open_in_memory().unwrap();
+    /// let report = alaya.lifecycle().consolidate_batch(&NoOpProvider, 5).unwrap();
+    /// assert_eq!(report.nodes_created, 0);
+    /// ```
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self, provider)))]
+    pub fn consolidate_batch(
+        &self,
+        provider: &dyn ConsolidationProvider,
+        batch_size: u32,
+    ) -> Result<ConsolidationReport> {
+        let report = db::transact(self.conn, |tx| {
+            lifecycle::consolidation::consolidate_batch(tx, provider, batch_size)
+        })?;
+        if let Some(h) = self.hooks {
+            h.on_consolidated(&report);
+        }
+        Ok(report)
     }
 
     /// Automatically extract knowledge from unconsolidated episodes using
     /// the configured ExtractionProvider, then learn the extracted nodes.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn auto_consolidate(&self) -> Result<ConsolidationReport> {
-        /// Maximum episodes to fetch per auto-consolidation pass.
-        const AUTO_CONSOLIDATE_BATCH: u32 = 20;
+        self.auto_consolidate_batch(20)
+    }
+
+    /// Automatically extract knowledge from at most `batch_size` unconsolidated
+    /// episodes using the configured ExtractionProvider, then learn the
+    /// extracted nodes.
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
+    pub fn auto_consolidate_batch(&self, batch_size: u32) -> Result<ConsolidationReport> {
+        if batch_size == 0 {
+            return Ok(ConsolidationReport::default());
+        }
 
         let provider = self.extraction_provider.ok_or_else(|| {
             AlayaError::InvalidInput(
@@ -35,14 +78,18 @@ impl Lifecycle<'_> {
             )
         })?;
         let episodes =
-            store::episodic::get_unconsolidated_episodes(self.conn, AUTO_CONSOLIDATE_BATCH)?;
+            store::episodic::get_unconsolidated_episodes(self.conn, batch_size)?;
         if episodes.is_empty() {
             return Ok(ConsolidationReport::default());
         }
         let nodes = provider.extract(&episodes)?;
-        db::transact(self.conn, |tx| {
+        let report = db::transact(self.conn, |tx| {
             lifecycle::consolidation::learn_direct(tx, nodes)
-        })
+        })?;
+        if let Some(h) = self.hooks {
+            h.on_consolidated(&report);
+        }
+        Ok(report)
     }
 
     /// Run transformation: dedup, prune, decay (asraya-paravrtti).
@@ -54,7 +101,11 @@ impl Lifecycle<'_> {
     /// Run forgetting: decay retrieval strengths, archive weak nodes (Bjork).
     #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn forget(&self) -> Result<ForgettingReport> {
-        db::transact(self.conn, |tx| lifecycle::forgetting::forget(tx))
+        let report = db::transact(self.conn, |tx| lifecycle::forgetting::forget(tx))?;
+        if let Some(h) = self.hooks {
+            h.on_forgotten(&report);
+        }
+        Ok(report)
     }
 
     /// Run perfuming: extract impressions, crystallize preferences (vasana).
@@ -218,5 +269,49 @@ mod tests {
         let alaya = Alaya::open_in_memory().unwrap();
         let conflicts = alaya.lifecycle().conflicts().unwrap();
         assert!(conflicts.is_empty());
+    }
+
+    #[test]
+    fn consolidate_batch_with_no_op() {
+        let alaya = Alaya::open_in_memory().unwrap();
+        let report = alaya
+            .lifecycle()
+            .consolidate_batch(&crate::NoOpProvider, 5)
+            .unwrap();
+        assert_eq!(report.nodes_created, 0);
+    }
+
+    #[test]
+    fn consolidate_batch_zero_is_noop() {
+        let alaya = Alaya::open_in_memory().unwrap();
+        let report = alaya
+            .lifecycle()
+            .consolidate_batch(&crate::NoOpProvider, 0)
+            .unwrap();
+        assert_eq!(report.episodes_processed, 0);
+        assert_eq!(report.nodes_created, 0);
+    }
+
+    #[test]
+    fn auto_consolidate_batch_requires_provider() {
+        let alaya = Alaya::open_in_memory().unwrap();
+        let result = alaya.lifecycle().auto_consolidate_batch(5);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn auto_consolidate_batch_zero_is_noop() {
+        let alaya = Alaya::open_in_memory().unwrap();
+        // batch_size=0 returns immediately without checking for a provider
+        let report = alaya.lifecycle().auto_consolidate_batch(0).unwrap();
+        assert_eq!(report.nodes_created, 0);
+    }
+
+    #[test]
+    fn auto_consolidate_batch_with_mock() {
+        let mut alaya = Alaya::open_in_memory().unwrap();
+        alaya.set_extraction_provider(Box::new(crate::MockExtractionProvider::empty()));
+        let report = alaya.lifecycle().auto_consolidate_batch(5).unwrap();
+        assert_eq!(report.nodes_created, 0);
     }
 }

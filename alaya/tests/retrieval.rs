@@ -275,3 +275,228 @@ fn test_cross_domain_bridging_via_categories() {
         "neighbors at depth 2 should include the category node via MemberOf"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Test: temporal filter — after_timestamp
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_temporal_filter_after() {
+    let store = Alaya::open_in_memory().unwrap();
+
+    store
+        .episodes()
+        .store(&episode("event at time 1000", "s1", 1000))
+        .unwrap();
+    store
+        .episodes()
+        .store(&episode("event at time 2000", "s1", 2000))
+        .unwrap();
+    store
+        .episodes()
+        .store(&episode("event at time 3000", "s1", 3000))
+        .unwrap();
+
+    let results = store
+        .knowledge()
+        .query(&Query {
+            text: "event".to_string(),
+            embedding: None,
+            context: QueryContext {
+                after_timestamp: Some(1500),
+                current_timestamp: Some(5000),
+                ..Default::default()
+            },
+            max_results: 10,
+            boost_categories: None,
+            boost_weights: None,
+        })
+        .unwrap();
+
+    assert!(
+        !results.is_empty(),
+        "should return results after timestamp 1500"
+    );
+    for r in &results {
+        assert!(
+            r.timestamp >= 2000,
+            "all results should have timestamp >= 2000, got {}",
+            r.timestamp
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Test: temporal filter — before_timestamp
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_temporal_filter_before() {
+    let store = Alaya::open_in_memory().unwrap();
+
+    store
+        .episodes()
+        .store(&episode("event at time 1000", "s1", 1000))
+        .unwrap();
+    store
+        .episodes()
+        .store(&episode("event at time 2000", "s1", 2000))
+        .unwrap();
+    store
+        .episodes()
+        .store(&episode("event at time 3000", "s1", 3000))
+        .unwrap();
+
+    let results = store
+        .knowledge()
+        .query(&Query {
+            text: "event".to_string(),
+            embedding: None,
+            context: QueryContext {
+                before_timestamp: Some(2500),
+                current_timestamp: Some(5000),
+                ..Default::default()
+            },
+            max_results: 10,
+            boost_categories: None,
+            boost_weights: None,
+        })
+        .unwrap();
+
+    assert!(
+        !results.is_empty(),
+        "should return results before timestamp 2500"
+    );
+    for r in &results {
+        assert!(
+            r.timestamp <= 2000,
+            "all results should have timestamp <= 2000, got {}",
+            r.timestamp
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Test: session filter
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_session_filter() {
+    let store = Alaya::open_in_memory().unwrap();
+
+    store
+        .episodes()
+        .store(&episode("programming topic in session one", "s1", 1000))
+        .unwrap();
+    store
+        .episodes()
+        .store(&episode("programming topic in session two", "s2", 2000))
+        .unwrap();
+
+    let results = store
+        .knowledge()
+        .query(&Query {
+            text: "programming".to_string(),
+            embedding: None,
+            context: QueryContext {
+                session_filter: Some("s1".to_string()),
+                current_timestamp: Some(5000),
+                ..Default::default()
+            },
+            max_results: 10,
+            boost_categories: None,
+            boost_weights: None,
+        })
+        .unwrap();
+
+    assert!(
+        !results.is_empty(),
+        "should return results from session s1"
+    );
+    // All results should be from session s1 (episode at t=1000)
+    for r in &results {
+        // Only episodes from s1 should be returned; s1 episode is at t=1000
+        if let NodeRef::Episode(_) = r.node {
+            assert_eq!(
+                r.timestamp, 1000,
+                "session s1 episode should have timestamp 1000, got {}",
+                r.timestamp
+            );
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Test: exclude_terms post-filter
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_exclude_terms() {
+    let store = Alaya::open_in_memory().unwrap();
+
+    store
+        .episodes()
+        .store(&episode("I love Rust programming", "s1", 1000))
+        .unwrap();
+    store
+        .episodes()
+        .store(&episode("I love Python scripting", "s1", 2000))
+        .unwrap();
+
+    let results = store
+        .knowledge()
+        .query(&Query {
+            text: "love".to_string(),
+            embedding: None,
+            context: QueryContext {
+                exclude_terms: vec!["Python".to_string()],
+                current_timestamp: Some(5000),
+                ..Default::default()
+            },
+            max_results: 10,
+            boost_categories: None,
+            boost_weights: None,
+        })
+        .unwrap();
+
+    assert!(
+        !results.is_empty(),
+        "should return at least one result"
+    );
+    for r in &results {
+        assert!(
+            !r.content.to_lowercase().contains("python"),
+            "results should not contain 'Python', got: {}",
+            r.content
+        );
+    }
+    // Verify the Rust result is present
+    assert!(
+        results.iter().any(|r| r.content.contains("Rust")),
+        "should contain the Rust episode"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test: BoostWeights default values
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_boost_weights_default() {
+    let bw = BoostWeights::default();
+    assert!(
+        (bw.bm25 - 1.0).abs() < f32::EPSILON,
+        "default bm25 weight should be 1.0, got {}",
+        bw.bm25
+    );
+    assert!(
+        (bw.vector - 1.0).abs() < f32::EPSILON,
+        "default vector weight should be 1.0, got {}",
+        bw.vector
+    );
+    assert!(
+        (bw.graph - 1.0).abs() < f32::EPSILON,
+        "default graph weight should be 1.0, got {}",
+        bw.graph
+    );
+}

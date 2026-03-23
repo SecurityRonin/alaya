@@ -1,6 +1,6 @@
 [package]
 name = "alaya"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 rust-version = "1.85"
 authors = ["Albert Hui <albert@securityronin.com>"]
@@ -24,6 +24,8 @@ mcp = ["dep:rmcp", "dep:tokio", "dep:schemars", "dep:anyhow"]
 llm = ["dep:ureq"]
 tracing = ["dep:tracing", "dep:tracing-subscriber"]
 async = ["dep:tokio"]
+vec-sqlite = ["dep:sqlite-vec"]
+local-embeddings = ["dep:fastembed"]
 
 [dependencies]
 rusqlite = { version = "0.32", features = ["modern_sqlite"] }
@@ -44,12 +46,23 @@ ureq = { version = "2", features = ["json"], optional = true }
 tracing = { version = "0.1", optional = true }
 tracing-subscriber = { version = "0.3", features = ["fmt"], optional = true }
 
+# KNN vector search via sqlite-vec (optional)
+sqlite-vec = { version = "0.1", optional = true }
+
+# Local ONNX-based text embeddings (optional)
+fastembed = { version = "5", optional = true }
+
 [dev-dependencies]
 tempfile = "3"
 proptest = "1"
 tokio = { version = "1", features = ["rt", "macros"] }
+criterion = { version = "0.5", features = ["html_reports"] }
 
 [[bin]]
 name = "alaya-mcp"
 path = "src/bin/alaya-mcp.rs"
 required-features = ["mcp"]
+
+[[bench]]
+name = "memory_bench"
+harness = false

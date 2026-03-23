@@ -2,6 +2,22 @@ use rusqlite::Connection;
 
 use crate::error::Result;
 
+/// Latest schema version. Bump this when adding new migrations.
+const LATEST_VERSION: i32 = 6;
+
+/// Sequential migrations. Each entry is (target_version, sql).
+/// For a fresh database (version 0), all tables are created with the full
+/// schema, so migrations are skipped. Migrations only run when upgrading
+/// an existing database from an older version.
+const MIGRATIONS: &[(i32, &str)] = &[
+    (2, "ALTER TABLE semantic_nodes ADD COLUMN category_id INTEGER REFERENCES categories(id);
+         CREATE INDEX IF NOT EXISTS idx_semantic_category ON semantic_nodes(category_id);"),
+    (3, ""), // placeholder - no actual migration needed for v3
+    (4, ""), // placeholder
+    (5, "ALTER TABLE semantic_nodes ADD COLUMN superseded_by INTEGER REFERENCES semantic_nodes(id);"),
+    (6, ""), // establishes migration framework
+];
+
 /// Open (or create) an alaya database at the given path.
 /// Initializes WAL mode, foreign keys, and all tables.
 pub fn open_db(path: &str) -> Result<Connection> {
@@ -37,224 +53,232 @@ pub(crate) fn begin_immediate(conn: &Connection) -> Result<rusqlite::Transaction
     )?)
 }
 
+/// Run migrations from `from_version` (exclusive) up to `to_version` (inclusive).
+/// Only executes migration SQL for versions in that range.
+fn run_migrations(conn: &Connection, from_version: i32, to_version: i32) -> Result<()> {
+    for &(version, sql) in MIGRATIONS {
+        if version > from_version && version <= to_version {
+            if !sql.is_empty() {
+                conn.execute_batch(sql)?;
+            }
+        }
+    }
+    Ok(())
+}
+
 fn init_db(conn: &Connection) -> Result<()> {
     conn.execute_batch("PRAGMA journal_mode = WAL;")?;
     conn.execute_batch("PRAGMA foreign_keys = ON;")?;
     conn.execute_batch("PRAGMA synchronous = NORMAL;")?;
-    conn.execute_batch("PRAGMA user_version = 5;")?;
 
-    conn.execute_batch(
-        "
-        -- =================================================================
-        -- Episodic store (hippocampus)
-        -- =================================================================
-        CREATE TABLE IF NOT EXISTS episodes (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            content      TEXT    NOT NULL,
-            role         TEXT    NOT NULL,
-            session_id   TEXT    NOT NULL,
-            timestamp    INTEGER NOT NULL,
-            context_json TEXT    NOT NULL DEFAULT '{}'
-        );
+    let current_version: i32 = conn
+        .pragma_query_value(None, "user_version", |row| row.get(0))?;
 
-        CREATE INDEX IF NOT EXISTS idx_episodes_session
-            ON episodes(session_id);
-        CREATE INDEX IF NOT EXISTS idx_episodes_timestamp
-            ON episodes(timestamp);
-
-        -- FTS5 full-text index on episode content
-        CREATE VIRTUAL TABLE IF NOT EXISTS episodes_fts
-            USING fts5(content, content=episodes, content_rowid=id);
-
-        -- Keep FTS5 in sync via triggers
-        CREATE TRIGGER IF NOT EXISTS episodes_ai AFTER INSERT ON episodes
-        BEGIN
-            INSERT INTO episodes_fts(rowid, content) VALUES (new.id, new.content);
-        END;
-
-        CREATE TRIGGER IF NOT EXISTS episodes_ad AFTER DELETE ON episodes
-        BEGIN
-            INSERT INTO episodes_fts(episodes_fts, rowid, content)
-                VALUES ('delete', old.id, old.content);
-        END;
-
-        CREATE TRIGGER IF NOT EXISTS episodes_au AFTER UPDATE OF content ON episodes
-        BEGIN
-            INSERT INTO episodes_fts(episodes_fts, rowid, content)
-                VALUES ('delete', old.id, old.content);
-            INSERT INTO episodes_fts(rowid, content) VALUES (new.id, new.content);
-        END;
-
-        -- =================================================================
-        -- Semantic store (neocortex)
-        -- =================================================================
-        CREATE TABLE IF NOT EXISTS semantic_nodes (
-            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-            content             TEXT    NOT NULL,
-            node_type           TEXT    NOT NULL,
-            confidence          REAL    NOT NULL DEFAULT 0.5,
-            source_episodes_json TEXT   NOT NULL DEFAULT '[]',
-            created_at          INTEGER NOT NULL,
-            last_corroborated   INTEGER NOT NULL,
-            corroboration_count INTEGER NOT NULL DEFAULT 1
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_semantic_type
-            ON semantic_nodes(node_type);
-
-        -- =================================================================
-        -- Implicit store — impressions (vasana raw traces)
-        -- =================================================================
-        CREATE TABLE IF NOT EXISTS impressions (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            domain      TEXT    NOT NULL,
-            observation TEXT    NOT NULL,
-            valence     REAL    NOT NULL DEFAULT 0.0,
-            timestamp   INTEGER NOT NULL
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_impressions_domain
-            ON impressions(domain);
-        CREATE INDEX IF NOT EXISTS idx_impressions_timestamp
-            ON impressions(timestamp);
-
-        -- =================================================================
-        -- Implicit store — crystallized preferences
-        -- =================================================================
-        CREATE TABLE IF NOT EXISTS preferences (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            domain          TEXT    NOT NULL,
-            preference      TEXT    NOT NULL,
-            confidence      REAL    NOT NULL DEFAULT 0.5,
-            evidence_count  INTEGER NOT NULL DEFAULT 1,
-            first_observed  INTEGER NOT NULL,
-            last_reinforced INTEGER NOT NULL
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_preferences_domain
-            ON preferences(domain);
-
-        -- =================================================================
-        -- Embeddings (shared across all stores)
-        -- =================================================================
-        CREATE TABLE IF NOT EXISTS embeddings (
-            id        INTEGER PRIMARY KEY AUTOINCREMENT,
-            node_type TEXT    NOT NULL,
-            node_id   INTEGER NOT NULL,
-            embedding BLOB    NOT NULL,
-            model     TEXT    NOT NULL DEFAULT '',
-            created_at INTEGER NOT NULL
-        );
-
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_embeddings_node
-            ON embeddings(node_type, node_id);
-
-        -- =================================================================
-        -- Graph overlay (Hebbian links)
-        -- =================================================================
-        CREATE TABLE IF NOT EXISTS links (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            source_type     TEXT    NOT NULL,
-            source_id       INTEGER NOT NULL,
-            target_type     TEXT    NOT NULL,
-            target_id       INTEGER NOT NULL,
-            forward_weight  REAL    NOT NULL DEFAULT 0.5,
-            backward_weight REAL    NOT NULL DEFAULT 0.5,
-            link_type       TEXT    NOT NULL,
-            created_at      INTEGER NOT NULL,
-            last_activated  INTEGER NOT NULL,
-            activation_count INTEGER NOT NULL DEFAULT 1
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_links_source
-            ON links(source_type, source_id);
-        CREATE INDEX IF NOT EXISTS idx_links_target
-            ON links(target_type, target_id);
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_links_pair
-            ON links(source_type, source_id, target_type, target_id, link_type);
-
-        -- =================================================================
-        -- Node strengths (Bjork dual-strength model)
-        -- =================================================================
-        CREATE TABLE IF NOT EXISTS node_strengths (
-            node_type          TEXT    NOT NULL,
-            node_id            INTEGER NOT NULL,
-            storage_strength   REAL    NOT NULL DEFAULT 0.5,
-            retrieval_strength REAL    NOT NULL DEFAULT 1.0,
-            access_count       INTEGER NOT NULL DEFAULT 1,
-            last_accessed      INTEGER NOT NULL,
-            PRIMARY KEY (node_type, node_id)
-        );
-
-        -- =================================================================
-        -- Categories (emergent ontology)
-        -- =================================================================
-        CREATE TABLE IF NOT EXISTS categories (
-            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-            label               TEXT    NOT NULL,
-            prototype_node_id   INTEGER REFERENCES semantic_nodes(id),
-            member_count        INTEGER NOT NULL DEFAULT 0,
-            centroid_embedding  BLOB,
-            created_at          INTEGER NOT NULL,
-            last_updated        INTEGER NOT NULL,
-            stability           REAL    NOT NULL DEFAULT 0.0,
-            parent_id           INTEGER REFERENCES categories(id)
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_categories_stability
-            ON categories(stability);
-
-        -- =================================================================
-        -- Tombstones: track deleted nodes for cascade auditing
-        -- =================================================================
-        CREATE TABLE IF NOT EXISTS tombstones (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            node_type   TEXT NOT NULL,
-            node_id     INTEGER NOT NULL,
-            deleted_at  INTEGER NOT NULL,
-            reason      TEXT
-        );
-        CREATE INDEX IF NOT EXISTS idx_tombstones_type_id ON tombstones(node_type, node_id);
-
-        -- =================================================================
-        -- Conflicts (reconciliation)
-        -- =================================================================
-        CREATE TABLE IF NOT EXISTS conflicts (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            node_a_id       INTEGER NOT NULL REFERENCES semantic_nodes(id),
-            node_b_id       INTEGER NOT NULL REFERENCES semantic_nodes(id),
-            similarity      REAL    NOT NULL,
-            status          TEXT    NOT NULL DEFAULT 'detected',
-            resolution      TEXT,
-            winner_id       INTEGER REFERENCES semantic_nodes(id),
-            detected_at     INTEGER NOT NULL,
-            resolved_at     INTEGER,
-            UNIQUE(node_a_id, node_b_id)
-        );
-        CREATE INDEX IF NOT EXISTS idx_conflicts_status ON conflicts(status);
-        ",
-    )?;
-
-    // Migration v1->v2: add category_id to semantic_nodes
-    let has_category: bool = conn
-        .prepare("SELECT category_id FROM semantic_nodes LIMIT 0")
-        .is_ok();
-    if !has_category {
+    if current_version == 0 {
+        // Fresh database: create all tables with the full latest schema.
+        // No migrations needed since tables already include all columns.
         conn.execute_batch(
-            "ALTER TABLE semantic_nodes ADD COLUMN category_id INTEGER REFERENCES categories(id);
-             CREATE INDEX IF NOT EXISTS idx_semantic_category ON semantic_nodes(category_id);",
+            "
+            -- =================================================================
+            -- Episodic store (hippocampus)
+            -- =================================================================
+            CREATE TABLE IF NOT EXISTS episodes (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                content      TEXT    NOT NULL,
+                role         TEXT    NOT NULL,
+                session_id   TEXT    NOT NULL,
+                timestamp    INTEGER NOT NULL,
+                context_json TEXT    NOT NULL DEFAULT '{}'
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_episodes_session
+                ON episodes(session_id);
+            CREATE INDEX IF NOT EXISTS idx_episodes_timestamp
+                ON episodes(timestamp);
+
+            -- FTS5 full-text index on episode content
+            CREATE VIRTUAL TABLE IF NOT EXISTS episodes_fts
+                USING fts5(content, content=episodes, content_rowid=id);
+
+            -- Keep FTS5 in sync via triggers
+            CREATE TRIGGER IF NOT EXISTS episodes_ai AFTER INSERT ON episodes
+            BEGIN
+                INSERT INTO episodes_fts(rowid, content) VALUES (new.id, new.content);
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS episodes_ad AFTER DELETE ON episodes
+            BEGIN
+                INSERT INTO episodes_fts(episodes_fts, rowid, content)
+                    VALUES ('delete', old.id, old.content);
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS episodes_au AFTER UPDATE OF content ON episodes
+            BEGIN
+                INSERT INTO episodes_fts(episodes_fts, rowid, content)
+                    VALUES ('delete', old.id, old.content);
+                INSERT INTO episodes_fts(rowid, content) VALUES (new.id, new.content);
+            END;
+
+            -- =================================================================
+            -- Semantic store (neocortex)
+            -- =================================================================
+            CREATE TABLE IF NOT EXISTS semantic_nodes (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                content             TEXT    NOT NULL,
+                node_type           TEXT    NOT NULL,
+                confidence          REAL    NOT NULL DEFAULT 0.5,
+                source_episodes_json TEXT   NOT NULL DEFAULT '[]',
+                created_at          INTEGER NOT NULL,
+                last_corroborated   INTEGER NOT NULL,
+                corroboration_count INTEGER NOT NULL DEFAULT 1,
+                category_id         INTEGER REFERENCES categories(id),
+                superseded_by       INTEGER REFERENCES semantic_nodes(id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_semantic_type
+                ON semantic_nodes(node_type);
+            CREATE INDEX IF NOT EXISTS idx_semantic_category
+                ON semantic_nodes(category_id);
+
+            -- =================================================================
+            -- Implicit store — impressions (vasana raw traces)
+            -- =================================================================
+            CREATE TABLE IF NOT EXISTS impressions (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                domain      TEXT    NOT NULL,
+                observation TEXT    NOT NULL,
+                valence     REAL    NOT NULL DEFAULT 0.0,
+                timestamp   INTEGER NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_impressions_domain
+                ON impressions(domain);
+            CREATE INDEX IF NOT EXISTS idx_impressions_timestamp
+                ON impressions(timestamp);
+
+            -- =================================================================
+            -- Implicit store — crystallized preferences
+            -- =================================================================
+            CREATE TABLE IF NOT EXISTS preferences (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                domain          TEXT    NOT NULL,
+                preference      TEXT    NOT NULL,
+                confidence      REAL    NOT NULL DEFAULT 0.5,
+                evidence_count  INTEGER NOT NULL DEFAULT 1,
+                first_observed  INTEGER NOT NULL,
+                last_reinforced INTEGER NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_preferences_domain
+                ON preferences(domain);
+
+            -- =================================================================
+            -- Embeddings (shared across all stores)
+            -- =================================================================
+            CREATE TABLE IF NOT EXISTS embeddings (
+                id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                node_type TEXT    NOT NULL,
+                node_id   INTEGER NOT NULL,
+                embedding BLOB    NOT NULL,
+                model     TEXT    NOT NULL DEFAULT '',
+                created_at INTEGER NOT NULL
+            );
+
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_embeddings_node
+                ON embeddings(node_type, node_id);
+
+            -- =================================================================
+            -- Graph overlay (Hebbian links)
+            -- =================================================================
+            CREATE TABLE IF NOT EXISTS links (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_type     TEXT    NOT NULL,
+                source_id       INTEGER NOT NULL,
+                target_type     TEXT    NOT NULL,
+                target_id       INTEGER NOT NULL,
+                forward_weight  REAL    NOT NULL DEFAULT 0.5,
+                backward_weight REAL    NOT NULL DEFAULT 0.5,
+                link_type       TEXT    NOT NULL,
+                created_at      INTEGER NOT NULL,
+                last_activated  INTEGER NOT NULL,
+                activation_count INTEGER NOT NULL DEFAULT 1
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_links_source
+                ON links(source_type, source_id);
+            CREATE INDEX IF NOT EXISTS idx_links_target
+                ON links(target_type, target_id);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_links_pair
+                ON links(source_type, source_id, target_type, target_id, link_type);
+
+            -- =================================================================
+            -- Node strengths (Bjork dual-strength model)
+            -- =================================================================
+            CREATE TABLE IF NOT EXISTS node_strengths (
+                node_type          TEXT    NOT NULL,
+                node_id            INTEGER NOT NULL,
+                storage_strength   REAL    NOT NULL DEFAULT 0.5,
+                retrieval_strength REAL    NOT NULL DEFAULT 1.0,
+                access_count       INTEGER NOT NULL DEFAULT 1,
+                last_accessed      INTEGER NOT NULL,
+                PRIMARY KEY (node_type, node_id)
+            );
+
+            -- =================================================================
+            -- Categories (emergent ontology)
+            -- =================================================================
+            CREATE TABLE IF NOT EXISTS categories (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                label               TEXT    NOT NULL,
+                prototype_node_id   INTEGER REFERENCES semantic_nodes(id),
+                member_count        INTEGER NOT NULL DEFAULT 0,
+                centroid_embedding  BLOB,
+                created_at          INTEGER NOT NULL,
+                last_updated        INTEGER NOT NULL,
+                stability           REAL    NOT NULL DEFAULT 0.0,
+                parent_id           INTEGER REFERENCES categories(id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_categories_stability
+                ON categories(stability);
+
+            -- =================================================================
+            -- Tombstones: track deleted nodes for cascade auditing
+            -- =================================================================
+            CREATE TABLE IF NOT EXISTS tombstones (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                node_type   TEXT NOT NULL,
+                node_id     INTEGER NOT NULL,
+                deleted_at  INTEGER NOT NULL,
+                reason      TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_tombstones_type_id ON tombstones(node_type, node_id);
+
+            -- =================================================================
+            -- Conflicts (reconciliation)
+            -- =================================================================
+            CREATE TABLE IF NOT EXISTS conflicts (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                node_a_id       INTEGER NOT NULL REFERENCES semantic_nodes(id),
+                node_b_id       INTEGER NOT NULL REFERENCES semantic_nodes(id),
+                similarity      REAL    NOT NULL,
+                status          TEXT    NOT NULL DEFAULT 'detected',
+                resolution      TEXT,
+                winner_id       INTEGER REFERENCES semantic_nodes(id),
+                detected_at     INTEGER NOT NULL,
+                resolved_at     INTEGER,
+                UNIQUE(node_a_id, node_b_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_conflicts_status ON conflicts(status);
+            ",
         )?;
+    } else if current_version < LATEST_VERSION {
+        // Existing database: run only the migrations needed to get current.
+        run_migrations(conn, current_version, LATEST_VERSION)?;
     }
 
-    // Migration v4->v5: add superseded_by to semantic_nodes
-    let has_superseded: bool = conn
-        .prepare("SELECT superseded_by FROM semantic_nodes LIMIT 0")
-        .is_ok();
-    if !has_superseded {
-        conn.execute_batch(
-            "ALTER TABLE semantic_nodes ADD COLUMN superseded_by INTEGER REFERENCES semantic_nodes(id);",
-        )?;
-    }
+    // Set version to latest (idempotent for already-current databases)
+    conn.pragma_update(None, "user_version", LATEST_VERSION)?;
 
     Ok(())
 }
@@ -355,20 +379,20 @@ mod tests {
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .unwrap();
         assert_eq!(
-            version, 5,
-            "schema version should be 5 after conflicts migration"
+            version, 6,
+            "schema version should be 6 after migration framework"
         );
     }
 
     #[test]
-    fn test_schema_version_is_5_compat() {
+    fn test_schema_version_is_6_compat() {
         let conn = open_memory_db().unwrap();
         let version: i64 = conn
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .unwrap();
         assert_eq!(
-            version, 5,
-            "schema version should be 5 after conflicts migration"
+            version, 6,
+            "schema version should be 6 after migration framework"
         );
     }
 
@@ -465,12 +489,12 @@ mod tests {
     }
 
     #[test]
-    fn test_schema_version_is_5() {
+    fn test_schema_version_is_6() {
         let conn = open_memory_db().unwrap();
         let version: i64 = conn
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 5);
+        assert_eq!(version, 6);
     }
 
     #[test]
@@ -532,5 +556,169 @@ mod tests {
             [],
         )
         .unwrap();
+    }
+
+    #[test]
+    fn test_fresh_db_gets_latest_version() {
+        let conn = open_memory_db().unwrap();
+        let version: i64 = conn
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .unwrap();
+        assert_eq!(
+            version, 6,
+            "fresh database should be at latest version (6)"
+        );
+    }
+
+    #[test]
+    fn test_migration_framework_idempotent() {
+        let conn = open_memory_db().unwrap();
+        // Second init_db call should not fail
+        init_db(&conn).unwrap();
+        let version: i64 = conn
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .unwrap();
+        assert_eq!(
+            version, 6,
+            "version should still be 6 after second init_db call"
+        );
+    }
+
+    #[test]
+    fn test_migration_upgrades_existing_db() {
+        // Simulate a DB at version 4 (before superseded_by column was added)
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA journal_mode = WAL;").unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
+
+        // Create tables with the v4 schema (no superseded_by on semantic_nodes)
+        conn.execute_batch(
+            "CREATE TABLE episodes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                content TEXT NOT NULL,
+                role TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                timestamp INTEGER NOT NULL,
+                context_json TEXT NOT NULL DEFAULT '{}'
+            );
+            CREATE TABLE semantic_nodes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                content TEXT NOT NULL,
+                node_type TEXT NOT NULL,
+                confidence REAL NOT NULL DEFAULT 0.5,
+                source_episodes_json TEXT NOT NULL DEFAULT '[]',
+                created_at INTEGER NOT NULL DEFAULT 0,
+                last_corroborated INTEGER NOT NULL DEFAULT 0,
+                corroboration_count INTEGER NOT NULL DEFAULT 1,
+                category_id INTEGER
+            );
+            CREATE TABLE embeddings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                node_type TEXT NOT NULL,
+                node_id INTEGER NOT NULL,
+                embedding BLOB NOT NULL,
+                UNIQUE(node_type, node_id)
+            );
+            CREATE TABLE impressions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                domain TEXT NOT NULL,
+                observation TEXT NOT NULL,
+                valence REAL NOT NULL DEFAULT 0.0,
+                timestamp INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE preferences (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                domain TEXT NOT NULL,
+                preference TEXT NOT NULL,
+                confidence REAL NOT NULL DEFAULT 0.5,
+                evidence_count INTEGER NOT NULL DEFAULT 1,
+                first_observed INTEGER NOT NULL DEFAULT 0,
+                last_reinforced INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE links (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_type TEXT NOT NULL,
+                source_id INTEGER NOT NULL,
+                target_type TEXT NOT NULL,
+                target_id INTEGER NOT NULL,
+                forward_weight REAL NOT NULL DEFAULT 1.0,
+                backward_weight REAL NOT NULL DEFAULT 0.5,
+                link_type TEXT NOT NULL DEFAULT 'associative',
+                created_at INTEGER NOT NULL DEFAULT 0,
+                last_activated INTEGER NOT NULL DEFAULT 0,
+                activation_count INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE node_strengths (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                node_type TEXT NOT NULL,
+                node_id INTEGER NOT NULL,
+                storage_strength REAL NOT NULL DEFAULT 1.0,
+                retrieval_strength REAL NOT NULL DEFAULT 1.0,
+                last_accessed INTEGER NOT NULL DEFAULT 0,
+                access_count INTEGER NOT NULL DEFAULT 0,
+                UNIQUE(node_type, node_id)
+            );
+            CREATE TABLE categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                label TEXT NOT NULL,
+                prototype_node_id INTEGER NOT NULL,
+                member_count INTEGER NOT NULL DEFAULT 0,
+                centroid_embedding BLOB,
+                created_at INTEGER NOT NULL DEFAULT 0,
+                last_updated INTEGER NOT NULL DEFAULT 0,
+                stability REAL NOT NULL DEFAULT 0.0,
+                parent_id INTEGER REFERENCES categories(id)
+            );
+            CREATE TABLE tombstones (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                node_type TEXT NOT NULL,
+                node_id INTEGER NOT NULL,
+                deleted_at INTEGER NOT NULL,
+                reason TEXT
+            );
+            CREATE TABLE conflicts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                node_a_id INTEGER NOT NULL,
+                node_b_id INTEGER NOT NULL,
+                similarity REAL NOT NULL,
+                status TEXT NOT NULL DEFAULT 'detected',
+                detected_at INTEGER NOT NULL,
+                winner_id INTEGER,
+                resolution TEXT,
+                resolved_at INTEGER,
+                UNIQUE(node_a_id, node_b_id)
+            );
+            ",
+        ).unwrap();
+        // Set version to 4 (before superseded_by migration at v5)
+        conn.pragma_update(None, "user_version", 4).unwrap();
+
+        // Insert a node to verify data survives migration
+        conn.execute(
+            "INSERT INTO semantic_nodes (content, node_type, confidence, created_at, last_corroborated)
+             VALUES ('existing fact', 'fact', 0.9, 1000, 1000)",
+            [],
+        ).unwrap();
+
+        // Run init_db — should trigger migration from v4 to v6
+        init_db(&conn).unwrap();
+
+        // Verify version bumped to latest
+        let version: i64 = conn
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, LATEST_VERSION as i64);
+
+        // Verify superseded_by column was added by migration v5
+        conn.execute(
+            "UPDATE semantic_nodes SET superseded_by = NULL WHERE id = 1",
+            [],
+        ).unwrap();
+
+        // Verify original data is intact
+        let content: String = conn
+            .query_row("SELECT content FROM semantic_nodes WHERE id = 1", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(content, "existing fact");
     }
 }

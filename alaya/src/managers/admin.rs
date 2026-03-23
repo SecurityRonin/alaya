@@ -1,6 +1,9 @@
+use std::io::{Read, Write};
+
 use super::Admin;
 use crate::db;
 use crate::error::{AlayaError, Result};
+use crate::store::export::{ExportReport, ImportReport};
 use crate::types::*;
 use crate::{graph, store};
 
@@ -122,6 +125,41 @@ impl Admin<'_> {
             ),
             _ => Ok(Some(format!("{}#{}", node.type_str(), node.id()))),
         }
+    }
+
+    /// Export all memory data to JSON.
+    ///
+    /// Writes human-readable (pretty-printed) JSON to `writer`.
+    /// Returns an [`ExportReport`] with counts of exported records.
+    ///
+    /// ```no_run
+    /// use alaya::Alaya;
+    ///
+    /// let alaya = Alaya::open_in_memory().unwrap();
+    /// let mut buf = Vec::new();
+    /// let report = alaya.admin().export_json(&mut buf).unwrap();
+    /// ```
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self, writer)))]
+    pub fn export_json(&self, writer: &mut dyn Write) -> Result<ExportReport> {
+        store::export::export_json(self.conn, writer)
+    }
+
+    /// Import memory data from JSON.
+    ///
+    /// Reads JSON from `reader`, inserts records into the database inside a
+    /// transaction. Uses `INSERT OR IGNORE` to skip duplicate records.
+    /// Returns an [`ImportReport`] with counts of imported and skipped records.
+    ///
+    /// ```no_run
+    /// use alaya::Alaya;
+    ///
+    /// let alaya = Alaya::open_in_memory().unwrap();
+    /// let json = b"{}";
+    /// let report = alaya.admin().import_json(&mut &json[..]).unwrap();
+    /// ```
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self, reader)))]
+    pub fn import_json(&self, reader: &mut dyn Read) -> Result<ImportReport> {
+        store::export::import_json(self.conn, reader)
     }
 }
 
