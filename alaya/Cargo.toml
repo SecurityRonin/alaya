@@ -13,7 +13,7 @@ keywords = ["memory", "knowledge-graph", "mcp-server", "ai-agent", "sqlite"]
 categories = ["database", "science"]
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin_include)'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin)', 'cfg(tarpaulin_include)'] }
 
 
 [features]

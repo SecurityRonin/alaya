@@ -264,7 +264,7 @@ fn run_actor(mut store: Alaya, rx: mpsc::Receiver<Request>) {
 /// Async wrapper around [`Alaya`] using the actor pattern.
 ///
 /// A dedicated `std::thread` owns the [`Alaya`] instance and its SQLite
-/// connection. All public methods send a [`Request`] over a
+/// connection. All public methods send a `Request` over a
 /// `tokio::sync::mpsc` channel and await a `oneshot` reply.
 ///
 /// The struct is `Send + Sync` and can be shared via `Arc<AsyncAlaya>`.

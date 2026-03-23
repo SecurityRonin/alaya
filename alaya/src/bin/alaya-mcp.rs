@@ -7,7 +7,7 @@
 //! Environment:
 //!   ALAYA_DB           — path to SQLite database (default: ~/.alaya/memory.db)
 //!   ALAYA_LLM_API_KEY  — API key for auto-consolidation (enables ExtractionProvider)
-//!   ALAYA_LLM_API_URL  — API endpoint (default: https://api.openai.com/v1/chat/completions)
+//!   ALAYA_LLM_API_URL  — API endpoint (default: <https://api.openai.com/v1/chat/completions>)
 //!   ALAYA_LLM_MODEL    — model name (default: gpt-4o-mini)
 
 use std::path::PathBuf;
