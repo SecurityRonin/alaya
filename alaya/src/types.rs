@@ -212,6 +212,7 @@ pub enum ConflictStrategy {
     #[default]
     Recency,
     Confidence,
+    Corroboration,
     Manual,
 }
 
