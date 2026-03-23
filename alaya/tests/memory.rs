@@ -19,16 +19,12 @@ fn episode(content: &str, session: &str, ts: i64) -> NewEpisode {
 }
 
 /// Store `count` episodes in a session, returning all created IDs.
-fn store_n_episodes(
-    store: &Alaya,
-    session: &str,
-    count: usize,
-    base_ts: i64,
-) -> Vec<EpisodeId> {
+fn store_n_episodes(store: &Alaya, session: &str, count: usize, base_ts: i64) -> Vec<EpisodeId> {
     (0..count)
         .map(|i| {
             store
-                .episodes().store(&episode(
+                .episodes()
+                .store(&episode(
                     &format!("Episode {i} in session {session} about Rust programming"),
                     session,
                     base_ts + (i as i64) * 100,
@@ -51,21 +47,24 @@ fn test_persistence_across_open_close() {
     {
         let store = Alaya::open(&db_path).unwrap();
         store
-            .episodes().store(&episode(
+            .episodes()
+            .store(&episode(
                 "Rust has zero-cost abstractions",
                 "persist-s1",
                 1000,
             ))
             .unwrap();
         store
-            .episodes().store(&episode(
+            .episodes()
+            .store(&episode(
                 "Ownership prevents data races",
                 "persist-s1",
                 2000,
             ))
             .unwrap();
         store
-            .episodes().store(&episode(
+            .episodes()
+            .store(&episode(
                 "The borrow checker catches bugs at compile time",
                 "persist-s1",
                 3000,
@@ -177,7 +176,10 @@ fn test_learn_creates_causal_links() {
     let node_id = knowledge[0].id;
 
     // Verify neighbors() finds Causal links to source episodes
-    let neighbors = store.graph().neighbors(NodeRef::Semantic(node_id), 1).unwrap();
+    let neighbors = store
+        .graph()
+        .neighbors(NodeRef::Semantic(node_id), 1)
+        .unwrap();
     assert!(
         !neighbors.is_empty(),
         "semantic node should have episode neighbors via Causal links"

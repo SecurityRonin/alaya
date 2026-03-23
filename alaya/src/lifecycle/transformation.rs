@@ -1235,7 +1235,10 @@ mod tests {
         categories::assign_node_to_category(&conn, NodeId(1), cat_id).unwrap();
 
         let (_, dissolved) = maintain_categories(&conn).unwrap();
-        assert_eq!(dissolved, 1, "category with post-increment stability 0.01 should be dissolved");
+        assert_eq!(
+            dissolved, 1,
+            "category with post-increment stability 0.01 should be dissolved"
+        );
 
         let remaining = categories::list_categories(&conn, None).unwrap();
         assert!(remaining.is_empty(), "dissolved category should be removed");
@@ -1260,12 +1263,9 @@ mod tests {
 
         // Create 3 categories with nearly identical centroids
         let emb = vec![1.0f32, 0.0, 0.0];
-        let c1 =
-            categories::store_category(&conn, "cat-1", NodeId(1), Some(&emb), None).unwrap();
-        let c2 =
-            categories::store_category(&conn, "cat-2", NodeId(2), Some(&emb), None).unwrap();
-        let c3 =
-            categories::store_category(&conn, "cat-3", NodeId(3), Some(&emb), None).unwrap();
+        let c1 = categories::store_category(&conn, "cat-1", NodeId(1), Some(&emb), None).unwrap();
+        let c2 = categories::store_category(&conn, "cat-2", NodeId(2), Some(&emb), None).unwrap();
+        let c3 = categories::store_category(&conn, "cat-3", NodeId(3), Some(&emb), None).unwrap();
 
         // All same stability so sorted order is predictable (by id)
         conn.execute(
@@ -1282,7 +1282,10 @@ mod tests {
         embeddings::store_embedding(&conn, "semantic", 3, &[1.0, 0.0, 0.0], "").unwrap();
 
         let (merged, _dissolved) = maintain_categories(&conn).unwrap();
-        assert!(merged >= 2, "should merge at least 2 pairs: merged={merged}");
+        assert!(
+            merged >= 2,
+            "should merge at least 2 pairs: merged={merged}"
+        );
 
         let remaining = categories::list_categories(&conn, None).unwrap();
         assert_eq!(
@@ -1314,9 +1317,8 @@ mod tests {
             categories::store_category(&conn, "will-merge-low-stab", NodeId(1), Some(&emb), None)
                 .unwrap();
         // c2: high stability
-        let c2 =
-            categories::store_category(&conn, "keep-high-stab", NodeId(2), Some(&emb), None)
-                .unwrap();
+        let c2 = categories::store_category(&conn, "keep-high-stab", NodeId(2), Some(&emb), None)
+            .unwrap();
 
         // c1 has very low stability (below dissolve threshold) AND is similar to c2
         conn.execute(
@@ -1359,14 +1361,9 @@ mod tests {
         }
 
         let centroid = vec![1.0f32, 0.0, 0.0];
-        let cat_id = categories::store_category(
-            &conn,
-            "coherent-cat",
-            NodeId(1),
-            Some(&centroid),
-            None,
-        )
-        .unwrap();
+        let cat_id =
+            categories::store_category(&conn, "coherent-cat", NodeId(1), Some(&centroid), None)
+                .unwrap();
 
         // Assign all nodes with very similar embeddings → high coherence
         for i in 1..=10 {
@@ -1396,14 +1393,9 @@ mod tests {
 
         // Centroid that's somewhat different from most members so coherence is low
         let centroid = vec![0.5f32, 0.5, 0.5];
-        let cat_id = categories::store_category(
-            &conn,
-            "no-split-cat",
-            NodeId(1),
-            Some(&centroid),
-            None,
-        )
-        .unwrap();
+        let cat_id =
+            categories::store_category(&conn, "no-split-cat", NodeId(1), Some(&centroid), None)
+                .unwrap();
 
         for i in 1..=8 {
             categories::assign_node_to_category(&conn, NodeId(i), cat_id).unwrap();
@@ -1447,50 +1439,31 @@ mod tests {
         // We need centroid such that avg sim to it is < 0.6
         // Use a 4D centroid orthogonal to both clusters
         let centroid = vec![0.0f32, 0.0, 0.0, 1.0];
-        let cat_id = categories::store_category(
-            &conn,
-            "split-me",
-            NodeId(1),
-            Some(&centroid),
-            None,
-        )
-        .unwrap();
+        let cat_id =
+            categories::store_category(&conn, "split-me", NodeId(1), Some(&centroid), None)
+                .unwrap();
 
         // Cluster 1: 8 nodes in one direction (4D)
         for i in 1..=8 {
             categories::assign_node_to_category(&conn, NodeId(i), cat_id).unwrap();
-            embeddings::store_embedding(
-                &conn,
-                "semantic",
-                i,
-                &[0.95, 0.05, 0.0, 0.0],
-                "",
-            )
-            .unwrap();
+            embeddings::store_embedding(&conn, "semantic", i, &[0.95, 0.05, 0.0, 0.0], "").unwrap();
         }
         // Cluster 2: 8 nodes in orthogonal direction (4D)
         for i in 9..=16 {
             categories::assign_node_to_category(&conn, NodeId(i), cat_id).unwrap();
-            embeddings::store_embedding(
-                &conn,
-                "semantic",
-                i,
-                &[0.0, 0.0, 0.95, 0.05],
-                "",
-            )
-            .unwrap();
+            embeddings::store_embedding(&conn, "semantic", i, &[0.0, 0.0, 0.95, 0.05], "").unwrap();
         }
 
         let splits = split_large_categories(&conn).unwrap();
-        assert!(splits >= 1, "should split incoherent category: splits={splits}");
+        assert!(
+            splits >= 1,
+            "should split incoherent category: splits={splits}"
+        );
 
         // Verify sub-categories were created with truncated labels
         let all_cats = categories::list_categories(&conn, None).unwrap();
         // Original category + sub-categories
-        let sub_cats: Vec<_> = all_cats
-            .iter()
-            .filter(|c| c.id != cat_id)
-            .collect();
+        let sub_cats: Vec<_> = all_cats.iter().filter(|c| c.id != cat_id).collect();
         assert!(!sub_cats.is_empty(), "should have created sub-categories");
         for cat in &sub_cats {
             assert!(

@@ -56,13 +56,16 @@ fn test_episodes_by_session() {
     let store = Alaya::open_in_memory().unwrap();
 
     store
-        .episodes().store(&episode("hello world", "s1", 1000))
+        .episodes()
+        .store(&episode("hello world", "s1", 1000))
         .unwrap();
     store
-        .episodes().store(&episode("goodbye world", "s1", 2000))
+        .episodes()
+        .store(&episode("goodbye world", "s1", 2000))
         .unwrap();
     store
-        .episodes().store(&episode("other session", "s2", 3000))
+        .episodes()
+        .store(&episode("other session", "s2", 3000))
         .unwrap();
 
     let eps = store.episodes().by_session("s1").unwrap();
@@ -85,7 +88,8 @@ fn test_knowledge_breakdown() {
     assert!(bd.is_empty());
 
     store
-        .knowledge().learn(vec![
+        .knowledge()
+        .learn(vec![
             NewSemanticNode {
                 content: "fact 1".to_string(),
                 node_type: SemanticType::Fact,
@@ -125,12 +129,11 @@ fn test_strongest_link() {
 
     assert!(store.graph().strongest_link().unwrap().is_none());
 
-    let ep1 = store
-        .episodes().store(&episode("ep1", "s1", 1000))
-        .unwrap();
+    let ep1 = store.episodes().store(&episode("ep1", "s1", 1000)).unwrap();
 
     store
-        .knowledge().learn(vec![NewSemanticNode {
+        .knowledge()
+        .learn(vec![NewSemanticNode {
             content: "test knowledge".to_string(),
             node_type: SemanticType::Fact,
             confidence: 0.9,
@@ -153,14 +156,16 @@ fn test_node_content_all_variants() {
 
     // Episode content
     let ep_id = store
-        .episodes().store(&episode("episode content here", "s1", 1000))
+        .episodes()
+        .store(&episode("episode content here", "s1", 1000))
         .unwrap();
     let content = store.admin().node_content(NodeRef::Episode(ep_id)).unwrap();
     assert!(content.is_some());
 
     // Semantic content
     store
-        .knowledge().learn(vec![NewSemanticNode {
+        .knowledge()
+        .learn(vec![NewSemanticNode {
             content: "semantic node content here".to_string(),
             node_type: SemanticType::Fact,
             confidence: 0.9,
@@ -170,13 +175,17 @@ fn test_node_content_all_variants() {
         .unwrap();
     let knowledge = store.knowledge().filter(None).unwrap();
     let node_id = knowledge[0].id;
-    let content = store.admin().node_content(NodeRef::Semantic(node_id)).unwrap();
+    let content = store
+        .admin()
+        .node_content(NodeRef::Semantic(node_id))
+        .unwrap();
     assert!(content.is_some());
 
     // Category content — create via consolidation + transform
     for i in 0..5 {
         store
-            .episodes().store(&NewEpisode {
+            .episodes()
+            .store(&NewEpisode {
                 content: format!("cooking topic {i}"),
                 role: Role::User,
                 session_id: "s2".to_string(),
@@ -215,27 +224,34 @@ fn test_node_content_all_variants() {
 
     let cats = store.admin().categories(None).unwrap();
     if !cats.is_empty() {
-        let cat_content = store.admin().node_content(NodeRef::Category(cats[0].id)).unwrap();
+        let cat_content = store
+            .admin()
+            .node_content(NodeRef::Category(cats[0].id))
+            .unwrap();
         assert!(cat_content.is_some());
     }
 
     // Missing nodes return None
     assert!(store
-        .admin().node_content(NodeRef::Episode(EpisodeId(999)))
+        .admin()
+        .node_content(NodeRef::Episode(EpisodeId(999)))
         .unwrap()
         .is_none());
     assert!(store
-        .admin().node_content(NodeRef::Semantic(NodeId(999)))
+        .admin()
+        .node_content(NodeRef::Semantic(NodeId(999)))
         .unwrap()
         .is_none());
     assert!(store
-        .admin().node_content(NodeRef::Category(CategoryId(999)))
+        .admin()
+        .node_content(NodeRef::Category(CategoryId(999)))
         .unwrap()
         .is_none());
 
     // Preference variant returns formatted string
     let pref_content = store
-        .admin().node_content(NodeRef::Preference(PreferenceId(1)))
+        .admin()
+        .node_content(NodeRef::Preference(PreferenceId(1)))
         .unwrap();
     assert!(pref_content.is_some());
 }
@@ -273,7 +289,8 @@ fn test_dedup_skip_already_deleted_node() {
 
     for i in 0..4 {
         store
-            .episodes().store(&episode(&format!("ep {i}"), "s1", 1000 + i))
+            .episodes()
+            .store(&episode(&format!("ep {i}"), "s1", 1000 + i))
             .unwrap();
     }
 
@@ -337,7 +354,8 @@ fn test_category_voting_during_consolidation() {
     // Phase 1: Create episodes and consolidate to get categorized semantic nodes
     for i in 0..5 {
         store
-            .episodes().store(&NewEpisode {
+            .episodes()
+            .store(&NewEpisode {
                 content: format!("cooking topic {i}"),
                 role: Role::User,
                 session_id: "s1".to_string(),
@@ -387,7 +405,8 @@ fn test_category_voting_during_consolidation() {
     // This triggers the category voting path (consolidation.rs:141).
     for i in 5..10 {
         store
-            .episodes().store(&NewEpisode {
+            .episodes()
+            .store(&NewEpisode {
                 content: format!("more cooking {i}"),
                 role: Role::User,
                 session_id: "s2".to_string(),
@@ -427,10 +446,12 @@ fn test_activation_below_threshold_skip() {
     // Create a chain of episodes with temporal links.
     // Spreading activation from ep1 at low depth should not reach far nodes.
     let id1 = store
-        .episodes().store(&episode("deep chain start", "s1", 1000))
+        .episodes()
+        .store(&episode("deep chain start", "s1", 1000))
         .unwrap();
     let id2 = store
-        .episodes().store(&NewEpisode {
+        .episodes()
+        .store(&NewEpisode {
             content: "chain link 2".to_string(),
             role: Role::User,
             session_id: "s1".to_string(),
@@ -443,7 +464,8 @@ fn test_activation_below_threshold_skip() {
         })
         .unwrap();
     let _id3 = store
-        .episodes().store(&NewEpisode {
+        .episodes()
+        .store(&NewEpisode {
             content: "chain link 3".to_string(),
             role: Role::User,
             session_id: "s1".to_string(),
@@ -486,7 +508,8 @@ fn test_dream_operation() {
     // Store episodes and dream
     for i in 0..5 {
         store
-            .episodes().store(&episode(
+            .episodes()
+            .store(&episode(
                 &format!("Dream test episode {i} about machine learning"),
                 "dream-s1",
                 1000 + i * 100,
@@ -574,12 +597,8 @@ fn test_unconsolidated_episodes() {
     assert!(uncons.is_empty());
 
     // Store episodes
-    store
-        .episodes().store(&episode("ep1", "s1", 1000))
-        .unwrap();
-    store
-        .episodes().store(&episode("ep2", "s1", 2000))
-        .unwrap();
+    store.episodes().store(&episode("ep1", "s1", 1000)).unwrap();
+    store.episodes().store(&episode("ep2", "s1", 2000)).unwrap();
 
     let uncons = store.episodes().unconsolidated(10).unwrap();
     assert_eq!(uncons.len(), 2);
@@ -596,11 +615,23 @@ fn test_unconsolidated_episodes() {
 #[test]
 fn test_purge_by_session() {
     let store = Alaya::open_in_memory().unwrap();
-    store.episodes().store(&episode("s1-ep1", "s1", 1000)).unwrap();
-    store.episodes().store(&episode("s1-ep2", "s1", 2000)).unwrap();
-    store.episodes().store(&episode("s2-ep1", "s2", 3000)).unwrap();
+    store
+        .episodes()
+        .store(&episode("s1-ep1", "s1", 1000))
+        .unwrap();
+    store
+        .episodes()
+        .store(&episode("s1-ep2", "s1", 2000))
+        .unwrap();
+    store
+        .episodes()
+        .store(&episode("s2-ep1", "s2", 3000))
+        .unwrap();
 
-    let report = store.admin().purge(PurgeFilter::Session("s1".to_string())).unwrap();
+    let report = store
+        .admin()
+        .purge(PurgeFilter::Session("s1".to_string()))
+        .unwrap();
     assert_eq!(report.episodes_deleted, 2);
     assert_eq!(store.admin().status().unwrap().episode_count, 1);
 }
@@ -637,7 +668,8 @@ fn test_perfume_with_impressions() {
     let store = Alaya::open_in_memory().unwrap();
 
     store
-        .episodes().store(&episode("I like dark mode", "s1", 1000))
+        .episodes()
+        .store(&episode("I like dark mode", "s1", 1000))
         .unwrap();
 
     let interaction = Interaction {
@@ -664,12 +696,14 @@ fn test_status_with_data() {
     // Store episodes and learn knowledge
     for i in 0..5 {
         store
-            .episodes().store(&episode(&format!("topic {i}"), "s1", 1000 + i))
+            .episodes()
+            .store(&episode(&format!("topic {i}"), "s1", 1000 + i))
             .unwrap();
     }
 
     store
-        .knowledge().learn(vec![
+        .knowledge()
+        .learn(vec![
             NewSemanticNode {
                 content: "fact one".to_string(),
                 node_type: SemanticType::Fact,

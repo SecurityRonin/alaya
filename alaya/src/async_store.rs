@@ -169,13 +169,21 @@ fn run_actor(mut store: Alaya, rx: mpsc::Receiver<Request>) {
 
             // --- Lifecycle ---
             Request::Consolidate { reply } => {
-                let _ = reply.send(store.lifecycle().consolidate(consolidation_provider.as_ref()));
+                let _ = reply.send(
+                    store
+                        .lifecycle()
+                        .consolidate(consolidation_provider.as_ref()),
+                );
             }
             Request::AutoConsolidate { reply } => {
                 let _ = reply.send(store.lifecycle().auto_consolidate());
             }
             Request::Perfume { interaction, reply } => {
-                let _ = reply.send(store.lifecycle().perfume(&interaction, consolidation_provider.as_ref()));
+                let _ = reply.send(
+                    store
+                        .lifecycle()
+                        .perfume(&interaction, consolidation_provider.as_ref()),
+                );
             }
             Request::Transform { reply } => {
                 let _ = reply.send(store.lifecycle().transform());
@@ -185,7 +193,11 @@ fn run_actor(mut store: Alaya, rx: mpsc::Receiver<Request>) {
             }
             Request::Dream { interaction, reply } => {
                 let inter_ref = interaction.as_ref();
-                let _ = reply.send(store.lifecycle().dream(consolidation_provider.as_ref(), inter_ref));
+                let _ = reply.send(
+                    store
+                        .lifecycle()
+                        .dream(consolidation_provider.as_ref(), inter_ref),
+                );
             }
             Request::Reconcile { reply } => {
                 let _ = reply.send(store.lifecycle().reconcile());
@@ -464,11 +476,7 @@ impl AsyncAlaya {
         self.send(|reply| Request::Conflicts { reply }).await
     }
 
-    pub async fn resolve_conflict(
-        &self,
-        conflict_id: ConflictId,
-        winner_id: NodeId,
-    ) -> Result<()> {
+    pub async fn resolve_conflict(&self, conflict_id: ConflictId, winner_id: NodeId) -> Result<()> {
         self.send(|reply| Request::ResolveConflict {
             conflict_id,
             winner_id,

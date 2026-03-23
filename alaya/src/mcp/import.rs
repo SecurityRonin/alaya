@@ -825,8 +825,9 @@ mod tests {
                 narrative TEXT,
                 concepts TEXT,
                 created_at TEXT
-            );"
-        ).unwrap();
+            );",
+        )
+        .unwrap();
         drop(conn);
 
         let srv = make_server();
@@ -853,8 +854,9 @@ mod tests {
                 narrative TEXT,
                 concepts TEXT,
                 created_at TEXT
-            );"
-        ).unwrap();
+            );",
+        )
+        .unwrap();
         // Insert observation with empty strings mixed into facts and concepts arrays
         conn.execute(
             "INSERT INTO observations (title, facts, narrative, concepts, created_at)
@@ -866,7 +868,8 @@ mod tests {
                 r#"["real concept", "", "  "]"#,
                 "2024-01-01T00:00:00Z"
             ],
-        ).unwrap();
+        )
+        .unwrap();
         drop(conn);
 
         let srv = make_server();
@@ -963,8 +966,9 @@ mod tests {
                 narrative TEXT,
                 concepts TEXT,
                 created_at TEXT
-            );"
-        ).unwrap();
+            );",
+        )
+        .unwrap();
         conn.execute(
             "INSERT INTO observations (title, facts, narrative, concepts, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5)",
@@ -975,7 +979,8 @@ mod tests {
                 r#"["some concept"]"#,
                 "2024-01-01"
             ],
-        ).unwrap();
+        )
+        .unwrap();
         drop(conn);
 
         // Create a server with corrupted semantic_nodes table
@@ -1006,8 +1011,9 @@ mod tests {
         // so row.get(2), row.get(3), row.get(4) will fail
         conn.execute_batch(
             "CREATE TABLE observations (title TEXT, facts TEXT);
-             INSERT INTO observations VALUES ('test', '[\"fact\"]');"
-        ).unwrap();
+             INSERT INTO observations VALUES ('test', '[\"fact\"]');",
+        )
+        .unwrap();
         drop(conn);
 
         let srv = make_server();

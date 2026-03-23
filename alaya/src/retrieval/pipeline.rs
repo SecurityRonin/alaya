@@ -1146,7 +1146,10 @@ mod tests {
 
         // Loser should not appear in results
         let has_loser = results.iter().any(|r| r.node == NodeRef::Semantic(loser));
-        assert!(!has_loser, "superseded node should be excluded from retrieval");
+        assert!(
+            !has_loser,
+            "superseded node should be excluded from retrieval"
+        );
     }
 
     #[test]
@@ -1241,14 +1244,9 @@ mod tests {
         .unwrap();
 
         // Create a category with that prototype
-        let cat_id = crate::store::categories::store_category(
-            &conn,
-            "programming",
-            NodeId(1),
-            None,
-            None,
-        )
-        .unwrap();
+        let cat_id =
+            crate::store::categories::store_category(&conn, "programming", NodeId(1), None, None)
+                .unwrap();
 
         // Create a strong link from the episode to the category
         // This ensures spreading activation includes the Category node

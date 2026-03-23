@@ -162,8 +162,7 @@ mod tests {
 
     #[test]
     fn result_ext_passes_through_non_db_error() {
-        let err: crate::Result<()> =
-            Err(crate::AlayaError::InvalidInput("original".into()));
+        let err: crate::Result<()> = Err(crate::AlayaError::InvalidInput("original".into()));
         let result = err.with_context("ignored_context");
         match result.unwrap_err() {
             crate::AlayaError::InvalidInput(msg) => assert_eq!(msg, "original"),

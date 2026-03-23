@@ -452,10 +452,7 @@ mod tests {
     #[test]
     fn neighbors_db_error() {
         let store = Alaya::open_in_memory().unwrap();
-        store
-            .raw_conn()
-            .execute_batch("DROP TABLE links")
-            .unwrap();
+        store.raw_conn().execute_batch("DROP TABLE links").unwrap();
         let srv = AlayaMcp::new(store);
         let result = srv.neighbors(NeighborsParams {
             node_type: "episode".into(),

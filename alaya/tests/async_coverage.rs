@@ -30,9 +30,18 @@ async fn test_async_read_methods() {
     let store = AsyncAlaya::open_in_memory().unwrap();
 
     // Store some episodes
-    let ep1 = store.store_episode(new_episode("hello world", "s1", 1000)).await.unwrap();
-    let ep2 = store.store_episode(new_episode("goodbye world", "s1", 2000)).await.unwrap();
-    store.store_episode(new_episode("other session", "s2", 3000)).await.unwrap();
+    let ep1 = store
+        .store_episode(new_episode("hello world", "s1", 1000))
+        .await
+        .unwrap();
+    let ep2 = store
+        .store_episode(new_episode("goodbye world", "s1", 2000))
+        .await
+        .unwrap();
+    store
+        .store_episode(new_episode("other session", "s2", 3000))
+        .await
+        .unwrap();
 
     // status
     let status = store.status().await.unwrap();
@@ -103,7 +112,10 @@ async fn test_async_read_methods() {
     // node_content
     let content = store.node_content(NodeRef::Episode(ep1)).await.unwrap();
     assert!(content.is_some());
-    let missing = store.node_content(NodeRef::Episode(EpisodeId(999))).await.unwrap();
+    let missing = store
+        .node_content(NodeRef::Episode(EpisodeId(999)))
+        .await
+        .unwrap();
     assert!(missing.is_none());
 
     // knowledge_breakdown
@@ -114,7 +126,10 @@ async fn test_async_read_methods() {
     let eps = store.episodes_by_session("s1".to_string()).await.unwrap();
     assert_eq!(eps.len(), 2);
 
-    let eps = store.episodes_by_session("nonexistent".to_string()).await.unwrap();
+    let eps = store
+        .episodes_by_session("nonexistent".to_string())
+        .await
+        .unwrap();
     assert!(eps.is_empty());
 
     // unconsolidated_episodes
@@ -133,9 +148,18 @@ async fn test_async_lifecycle_methods() {
     let store = AsyncAlaya::open_in_memory().unwrap();
 
     // Store episodes for lifecycle operations
-    let ep1 = store.store_episode(new_episode("I love Rust programming", "s1", 1000)).await.unwrap();
-    store.store_episode(new_episode("Tokio is great for async", "s1", 2000)).await.unwrap();
-    store.store_episode(new_episode("SQLite is reliable", "s1", 3000)).await.unwrap();
+    let ep1 = store
+        .store_episode(new_episode("I love Rust programming", "s1", 1000))
+        .await
+        .unwrap();
+    store
+        .store_episode(new_episode("Tokio is great for async", "s1", 2000))
+        .await
+        .unwrap();
+    store
+        .store_episode(new_episode("SQLite is reliable", "s1", 3000))
+        .await
+        .unwrap();
 
     // consolidate (uses NoOpProvider by default — returns 0 nodes)
     let report = store.consolidate().await.unwrap();
@@ -143,15 +167,13 @@ async fn test_async_lifecycle_methods() {
 
     // learn
     let report = store
-        .learn(vec![
-            NewSemanticNode {
-                content: "User likes Rust".to_string(),
-                node_type: SemanticType::Fact,
-                confidence: 0.9,
-                source_episodes: vec![ep1],
-                embedding: None,
-            },
-        ])
+        .learn(vec![NewSemanticNode {
+            content: "User likes Rust".to_string(),
+            node_type: SemanticType::Fact,
+            confidence: 0.9,
+            source_episodes: vec![ep1],
+            embedding: None,
+        }])
         .await
         .unwrap();
     assert_eq!(report.nodes_created, 1);
@@ -205,8 +227,14 @@ async fn test_async_lifecycle_methods() {
     let _ = report;
 
     // purge (by session)
-    store.store_episode(new_episode("to be purged", "purge-me", 6000)).await.unwrap();
-    let report = store.purge(PurgeFilter::Session("purge-me".to_string())).await.unwrap();
+    store
+        .store_episode(new_episode("to be purged", "purge-me", 6000))
+        .await
+        .unwrap();
+    let report = store
+        .purge(PurgeFilter::Session("purge-me".to_string()))
+        .await
+        .unwrap();
     assert_eq!(report.episodes_deleted, 1);
 
     store.close().await.unwrap();
@@ -239,7 +267,10 @@ async fn test_async_set_providers() {
         .unwrap();
 
     // Verify extraction provider works by auto_consolidating
-    store.store_episode(new_episode("test", "s1", 1000)).await.unwrap();
+    store
+        .store_episode(new_episode("test", "s1", 1000))
+        .await
+        .unwrap();
     let report = store.auto_consolidate().await.unwrap();
     assert_eq!(report.nodes_created, 0); // empty mock returns nothing
 
@@ -316,12 +347,18 @@ async fn test_async_knowledge_and_categories() {
         let _ = cat;
 
         // node_content for category
-        let content = store.node_content(NodeRef::Category(cats[0].id)).await.unwrap();
+        let content = store
+            .node_content(NodeRef::Category(cats[0].id))
+            .await
+            .unwrap();
         assert!(content.is_some());
     }
 
     // neighbors (may or may not have links depending on episode relationships)
-    let neighbors = store.neighbors(NodeRef::Episode(EpisodeId(1)), 2).await.unwrap();
+    let neighbors = store
+        .neighbors(NodeRef::Episode(EpisodeId(1)), 2)
+        .await
+        .unwrap();
     let _ = neighbors; // just exercising the path
 
     // strongest_link with links

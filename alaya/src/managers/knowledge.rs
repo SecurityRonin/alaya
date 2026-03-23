@@ -80,9 +80,7 @@ impl Knowledge<'_> {
     pub fn filter(&self, filter: Option<KnowledgeFilter>) -> Result<Vec<SemanticNode>> {
         let f = filter.unwrap_or_default();
         match f.node_type {
-            Some(nt) => {
-                store::semantic::find_by_type(self.conn, nt, f.limit.unwrap_or(100) as u32)
-            }
+            Some(nt) => store::semantic::find_by_type(self.conn, nt, f.limit.unwrap_or(100) as u32),
             None => {
                 // Return all types, ordered by confidence
                 let mut all = Vec::new();
@@ -139,7 +137,10 @@ mod tests {
     #[test]
     fn query_returns_stored_episodes() {
         let alaya = Alaya::open_in_memory().unwrap();
-        alaya.episodes().store(&episode("Rust has zero-cost abstractions")).unwrap();
+        alaya
+            .episodes()
+            .store(&episode("Rust has zero-cost abstractions"))
+            .unwrap();
 
         let results = alaya
             .knowledge()

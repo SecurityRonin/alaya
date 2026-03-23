@@ -7,8 +7,7 @@ impl Graph<'_> {
     /// Get graph neighbors of a node up to `depth` hops via spreading activation.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn neighbors(&self, node: NodeRef, depth: u32) -> Result<Vec<(NodeRef, f32)>> {
-        let result =
-            graph::activation::spread_activation(self.conn, &[node], depth, 0.05, 0.6)?;
+        let result = graph::activation::spread_activation(self.conn, &[node], depth, 0.05, 0.6)?;
         let mut pairs: Vec<(NodeRef, f32)> =
             result.into_iter().filter(|(nr, _)| *nr != node).collect();
         pairs.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
@@ -48,10 +47,7 @@ mod tests {
         ep2.context.preceding_episode = Some(id1);
         let id2 = alaya.episodes().store(&ep2).unwrap();
 
-        let neighbors = alaya
-            .graph()
-            .neighbors(NodeRef::Episode(id1), 2)
-            .unwrap();
+        let neighbors = alaya.graph().neighbors(NodeRef::Episode(id1), 2).unwrap();
         assert!(
             neighbors.iter().any(|(nr, _)| *nr == NodeRef::Episode(id2)),
             "expected id2 in neighbors: {neighbors:?}"

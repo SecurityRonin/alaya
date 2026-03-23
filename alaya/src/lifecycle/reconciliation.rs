@@ -12,10 +12,7 @@ const CONFLICT_SIMILARITY_THRESHOLD: f32 = 0.85;
 const LLM_VERIFICATION_BATCH_SIZE: usize = 20;
 
 /// Run the full reconciliation lifecycle: detect conflicts, then resolve them.
-pub fn reconcile(
-    conn: &Connection,
-    strategy: ConflictStrategy,
-) -> Result<ReconcileReport> {
+pub fn reconcile(conn: &Connection, strategy: ConflictStrategy) -> Result<ReconcileReport> {
     let mut report = ReconcileReport::default();
 
     // Phase 1: Detect
@@ -68,13 +65,9 @@ fn detect_conflicts(conn: &Connection, report: &mut ReconcileReport) -> Result<(
 
             let sim = embeddings::cosine_similarity(&nodes[i].2, &nodes[j].2);
             if sim >= CONFLICT_SIMILARITY_THRESHOLD {
-                if let Some(_id) = conflicts::insert_conflict(
-                    conn,
-                    nodes[i].0,
-                    nodes[j].0,
-                    sim,
-                    now,
-                )? {
+                if let Some(_id) =
+                    conflicts::insert_conflict(conn, nodes[i].0, nodes[j].0, sim, now)?
+                {
                     report.conflicts_detected += 1;
                 }
             }

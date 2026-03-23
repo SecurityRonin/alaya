@@ -399,10 +399,7 @@ mod tests {
         for i in 0..6 {
             let interaction =
                 make_interaction(&format!("style interaction {i}"), "s1", 1000 + i * 100);
-            alaya
-                .lifecycle()
-                .perfume(&interaction, &provider)
-                .unwrap();
+            alaya.lifecycle().perfume(&interaction, &provider).unwrap();
         }
 
         // Preferences for "style" domain should be non-empty
@@ -433,10 +430,7 @@ mod tests {
         for i in 0..6 {
             let interaction =
                 make_interaction(&format!("bullet interaction {i}"), "s1", 2000 + i * 100);
-            alaya
-                .lifecycle()
-                .perfume(&interaction, &provider)
-                .unwrap();
+            alaya.lifecycle().perfume(&interaction, &provider).unwrap();
         }
 
         // No domain filter -- should return all preferences
@@ -640,10 +634,7 @@ mod tests {
         ep3.context.preceding_episode = Some(id2);
         let _id3 = alaya.episodes().store(&ep3).unwrap();
 
-        let neighbors = alaya
-            .graph()
-            .neighbors(NodeRef::Episode(id1), 2)
-            .unwrap();
+        let neighbors = alaya.graph().neighbors(NodeRef::Episode(id1), 2).unwrap();
         assert!(
             !neighbors.is_empty(),
             "episode with temporal links should have neighbors"
@@ -659,10 +650,7 @@ mod tests {
             .store(&make_new_episode("isolated msg", "s1", 1000))
             .unwrap();
 
-        let neighbors = alaya
-            .graph()
-            .neighbors(NodeRef::Episode(id), 2)
-            .unwrap();
+        let neighbors = alaya.graph().neighbors(NodeRef::Episode(id), 2).unwrap();
         assert!(
             neighbors.is_empty(),
             "isolated node should have no neighbors"
@@ -687,10 +675,7 @@ mod tests {
         ]);
 
         let interaction = make_interaction("Please use formal markdown", "s1", 1000);
-        let report = alaya
-            .lifecycle()
-            .perfume(&interaction, &provider)
-            .unwrap();
+        let report = alaya.lifecycle().perfume(&interaction, &provider).unwrap();
 
         assert_eq!(
             report.impressions_stored, 2,
@@ -799,10 +784,7 @@ mod tests {
 
         assert_eq!(alaya.admin().status().unwrap().episode_count, 1);
 
-        let results = alaya
-            .knowledge()
-            .query(&Query::simple("s2 msg1"))
-            .unwrap();
+        let results = alaya.knowledge().query(&Query::simple("s2 msg1")).unwrap();
         assert!(!results.is_empty(), "s2 episodes should still be queryable");
     }
 
@@ -855,10 +837,7 @@ mod tests {
         ep2.context.preceding_episode = Some(id1);
         alaya.episodes().store(&ep2).unwrap();
 
-        let neighbors = alaya
-            .graph()
-            .neighbors(NodeRef::Episode(id1), 0)
-            .unwrap();
+        let neighbors = alaya.graph().neighbors(NodeRef::Episode(id1), 0).unwrap();
         assert!(neighbors.is_empty(), "depth=0 should return no neighbors");
     }
 
@@ -1084,10 +1063,7 @@ mod tests {
 
         for i in 0..4 {
             let interaction = make_interaction(&format!("msg {i}"), "s1", 1000 + i * 100);
-            let report = alaya
-                .lifecycle()
-                .perfume(&interaction, &provider)
-                .unwrap();
+            let report = alaya.lifecycle().perfume(&interaction, &provider).unwrap();
             assert_eq!(
                 report.preferences_crystallized, 0,
                 "should not crystallize below threshold"
@@ -1100,10 +1076,7 @@ mod tests {
             .is_empty());
 
         let interaction = make_interaction("msg 4", "s1", 1400);
-        let report = alaya
-            .lifecycle()
-            .perfume(&interaction, &provider)
-            .unwrap();
+        let report = alaya.lifecycle().perfume(&interaction, &provider).unwrap();
         assert_eq!(
             report.preferences_crystallized, 1,
             "5th impression should trigger crystallization"
@@ -1114,10 +1087,7 @@ mod tests {
         assert_eq!(prefs[0].domain, "verbosity");
 
         let interaction = make_interaction("msg 5", "s1", 1500);
-        let report = alaya
-            .lifecycle()
-            .perfume(&interaction, &provider)
-            .unwrap();
+        let report = alaya.lifecycle().perfume(&interaction, &provider).unwrap();
         assert_eq!(report.preferences_crystallized, 0);
         assert_eq!(
             report.preferences_reinforced, 1,
@@ -1391,10 +1361,7 @@ mod tests {
             context: EpisodeContext::default(),
         };
 
-        let report = alaya
-            .lifecycle()
-            .dream(&noop, Some(&interaction))
-            .unwrap();
+        let report = alaya.lifecycle().dream(&noop, Some(&interaction)).unwrap();
 
         assert!(report.perfuming.is_some());
         let perf = report.perfuming.unwrap();
@@ -1620,9 +1587,7 @@ mod tests {
             .raw_conn()
             .execute_batch("DROP TABLE episodes")
             .unwrap();
-        let result = alaya
-            .admin()
-            .node_content(NodeRef::Episode(EpisodeId(1)));
+        let result = alaya.admin().node_content(NodeRef::Episode(EpisodeId(1)));
         assert!(result.is_err(), "should propagate DB error, not NotFound");
         assert!(
             !matches!(result, Ok(None)),

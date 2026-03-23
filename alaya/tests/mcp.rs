@@ -35,7 +35,8 @@ fn test_mcp_remember_and_recall_flow() {
 
     // Simulate MCP "remember" tool
     let id = store
-        .episodes().store(&make_episode(
+        .episodes()
+        .store(&make_episode(
             "I love hiking in the mountains",
             Role::User,
             "session-1",
@@ -45,7 +46,8 @@ fn test_mcp_remember_and_recall_flow() {
     assert!(id.0 > 0);
 
     store
-        .episodes().store(&make_episode(
+        .episodes()
+        .store(&make_episode(
             "That sounds fun! Do you have a favorite trail?",
             Role::Assistant,
             "session-1",
@@ -54,7 +56,8 @@ fn test_mcp_remember_and_recall_flow() {
         .unwrap();
 
     store
-        .episodes().store(&make_episode(
+        .episodes()
+        .store(&make_episode(
             "Yes, I love the Appalachian Trail",
             Role::User,
             "session-1",
@@ -67,7 +70,10 @@ fn test_mcp_remember_and_recall_flow() {
     assert!(!results.is_empty(), "recall should find hiking memories");
 
     // Also search for "Appalachian"
-    let results2 = store.knowledge().query(&Query::simple("Appalachian")).unwrap();
+    let results2 = store
+        .knowledge()
+        .query(&Query::simple("Appalachian"))
+        .unwrap();
     assert!(
         !results2.is_empty(),
         "recall should find Appalachian Trail memory"
@@ -87,7 +93,8 @@ fn test_mcp_status_flow() {
     // Store episodes
     for i in 0..3 {
         store
-            .episodes().store(&make_episode(
+            .episodes()
+            .store(&make_episode(
                 &format!("message {i}"),
                 Role::User,
                 "s1",
@@ -123,7 +130,8 @@ fn test_mcp_knowledge_flow() {
 
     // With type filter
     let nodes = store
-        .knowledge().filter(Some(KnowledgeFilter {
+        .knowledge()
+        .filter(Some(KnowledgeFilter {
             node_type: Some(SemanticType::Fact),
             ..Default::default()
         }))
@@ -137,16 +145,21 @@ fn test_mcp_purge_session_flow() {
 
     // Store in two sessions
     store
-        .episodes().store(&make_episode("msg in s1", Role::User, "s1", 1000))
+        .episodes()
+        .store(&make_episode("msg in s1", Role::User, "s1", 1000))
         .unwrap();
     store
-        .episodes().store(&make_episode("msg in s2", Role::User, "s2", 2000))
+        .episodes()
+        .store(&make_episode("msg in s2", Role::User, "s2", 2000))
         .unwrap();
 
     assert_eq!(store.admin().status().unwrap().episode_count, 2);
 
     // Purge session s1
-    let report = store.admin().purge(PurgeFilter::Session("s1".to_string())).unwrap();
+    let report = store
+        .admin()
+        .purge(PurgeFilter::Session("s1".to_string()))
+        .unwrap();
     assert_eq!(report.episodes_deleted, 1);
     assert_eq!(store.admin().status().unwrap().episode_count, 1);
 }
@@ -156,10 +169,12 @@ fn test_mcp_purge_all_flow() {
     let store = Alaya::open_in_memory().unwrap();
 
     store
-        .episodes().store(&make_episode("msg1", Role::User, "s1", 1000))
+        .episodes()
+        .store(&make_episode("msg1", Role::User, "s1", 1000))
         .unwrap();
     store
-        .episodes().store(&make_episode("msg2", Role::User, "s1", 2000))
+        .episodes()
+        .store(&make_episode("msg2", Role::User, "s1", 2000))
         .unwrap();
 
     store.admin().purge(PurgeFilter::All).unwrap();
@@ -184,7 +199,8 @@ fn test_mcp_recall_max_results() {
 
     for i in 0..10 {
         store
-            .episodes().store(&make_episode(
+            .episodes()
+            .store(&make_episode(
                 &format!("Rust programming tip number {i}"),
                 Role::User,
                 "s1",
@@ -216,7 +232,8 @@ fn test_mcp_role_parsing() {
         (Role::System, "system"),
     ] {
         let id = store
-            .episodes().store(&make_episode("test", role, "s1", 1000))
+            .episodes()
+            .store(&make_episode("test", role, "s1", 1000))
             .unwrap();
         assert!(id.0 > 0, "role '{role_str}' should be accepted");
     }
@@ -263,10 +280,12 @@ fn test_mcp_learn_with_session_links() {
 
     // Store episodes first
     let ep1 = store
-        .episodes().store(&make_episode("msg1", Role::User, "s1", 1000))
+        .episodes()
+        .store(&make_episode("msg1", Role::User, "s1", 1000))
         .unwrap();
     let ep2 = store
-        .episodes().store(&make_episode("msg2", Role::User, "s1", 2000))
+        .episodes()
+        .store(&make_episode("msg2", Role::User, "s1", 2000))
         .unwrap();
 
     // Learn with those episodes as sources
@@ -292,13 +311,16 @@ fn test_mcp_episodes_by_session() {
 
     // Store episodes in two sessions
     store
-        .episodes().store(&make_episode("msg1", Role::User, "s1", 1000))
+        .episodes()
+        .store(&make_episode("msg1", Role::User, "s1", 1000))
         .unwrap();
     store
-        .episodes().store(&make_episode("msg2", Role::Assistant, "s1", 2000))
+        .episodes()
+        .store(&make_episode("msg2", Role::Assistant, "s1", 2000))
         .unwrap();
     store
-        .episodes().store(&make_episode("msg3", Role::User, "s2", 3000))
+        .episodes()
+        .store(&make_episode("msg3", Role::User, "s2", 3000))
         .unwrap();
 
     // Query session s1
@@ -322,7 +344,8 @@ fn test_unconsolidated_episodes_count() {
     // Store 10 episodes
     for i in 0..10 {
         store
-            .episodes().store(&make_episode(
+            .episodes()
+            .store(&make_episode(
                 &format!("msg {i}"),
                 Role::User,
                 "s1",
@@ -372,7 +395,8 @@ fn test_mcp_rich_status_fields() {
 
     // Add an episode
     store
-        .episodes().store(&make_episode("test content", Role::User, "s1", 1000))
+        .episodes()
+        .store(&make_episode("test content", Role::User, "s1", 1000))
         .unwrap();
 
     // Learn a fact and a relationship
@@ -406,12 +430,16 @@ fn test_mcp_rich_status_fields() {
     assert!(strongest.is_some(), "learn should have created links");
 
     // node_content should resolve episode content
-    let label = store.admin().node_content(NodeRef::Episode(EpisodeId(1))).unwrap();
+    let label = store
+        .admin()
+        .node_content(NodeRef::Episode(EpisodeId(1)))
+        .unwrap();
     assert_eq!(label, Some("test content".to_string()));
 
     // node_content for missing node
     let missing = store
-        .admin().node_content(NodeRef::Episode(EpisodeId(999)))
+        .admin()
+        .node_content(NodeRef::Episode(EpisodeId(999)))
         .unwrap();
     assert!(missing.is_none());
 }
@@ -593,7 +621,8 @@ fn test_import_claude_code_data_flow() {
             .unwrap_or(0);
 
         store
-            .episodes().store(&NewEpisode {
+            .episodes()
+            .store(&NewEpisode {
                 content: content_text,
                 role,
                 session_id,

@@ -44,5 +44,4 @@ pub(crate) mod fixtures {
         .unwrap();
         NodeId(conn.last_insert_rowid())
     }
-
 }

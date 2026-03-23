@@ -292,6 +292,99 @@ propagate errors through subsequent reasoning chains.  This asymmetry
 suggests that extraction systems should be calibrated conservatively,
 preferring to miss genuine facts over fabricating spurious ones.
 
+\subsection{The Meta-Problem: Unbounded Growth Beyond the Context Window}
+\label{sec:memorymd-meta}
+
+The MEMORY.md problem, as documented above, manifests primarily in the
+\emph{context window}: an ever-growing file inflates token consumption
+per API call.  However, the same underlying anti-pattern---append-only
+storage with no eviction policy---can replicate at other system layers.
+We document one such case where a tool \emph{designed to solve} the
+MEMORY.md problem inadvertently reproduced it in process memory.
+
+Claude-mem~\cite{newman2025claudemem} is a widely deployed memory plugin that
+replaces flat-file injection with structured observations stored in
+SQLite and synchronized to a vector database.  Its architecture
+addresses the cost, structure, and retrieval problems described in
+\S\ref{sec:memorymd-cost}--\ref{sec:memorymd-retrieval}: observations
+are typed, timestamped, and retrieved via semantic search rather than
+full-context injection.  However, its long-running daemon process
+(\texttt{worker-service.cjs}) maintains an in-memory
+\texttt{conversationHistory[]} array per active session.  Every AI
+interaction pushes a \texttt{\{role, content\}} object into this
+array.  The array is never trimmed.
+
+The plugin includes a stale-session reaper
+(\texttt{reapStaleSessions})---added in response to a community bug
+report documenting the same unbounded growth---that removes sessions
+idle for more than 15~minutes.  However, the reaper only handles
+\emph{idle} sessions.  Active sessions that continuously receive
+observations accumulate the full AI request/response text ($\sim$10--100
+KB per turn) without bound.  In observed deployments, the daemon process
+grew from its initial footprint to 2~GB RSS over 36~hours, triggering
+macOS virtual memory compressor saturation, 50+ million swap operations,
+and a load average exceeding~370 on a 48~GB system---ironically, the
+exact class of resource exhaustion that the plugin's companion monitoring
+tool (frugalclaw) was designed to detect.
+
+\begin{table}[!t]
+\centering
+\caption{The unbounded-growth anti-pattern manifesting at two distinct
+system layers.  Both share the same root cause (append-only storage
+without eviction) and the same structural fix (sliding window or
+compaction cycle).}
+\label{tab:unbounded-growth-layers}
+\small
+\begin{tabular}{@{}L{2.4cm}L{2.6cm}L{2.6cm}@{}}
+\toprule
+& \textbf{OpenClaw MEMORY.md} & \textbf{claude-mem daemon} \\
+\midrule
+\textbf{Growth medium}
+  & Markdown file on disk
+  & In-memory array per session \\
+\addlinespace
+\textbf{Growth trigger}
+  & Session appends observations
+  & AI turn pushes \texttt{\{role,content\}} \\
+\addlinespace
+\textbf{Bound/cap}
+  & None
+  & None (reaper handles only idle sessions) \\
+\addlinespace
+\textbf{Resource exhausted}
+  & Context window (tokens \& cost)
+  & Process RSS (system RAM) \\
+\addlinespace
+\textbf{Observable symptom}
+  & Slow, expensive sessions
+  & 2~GB daemon, OS thrashing \\
+\addlinespace
+\textbf{Structural fix}
+  & Ranked retrieval (\S\ref{sec:memorymd-cost})
+  & Sliding window on conversation history \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:unbounded-growth-layers} juxtaposes the two
+manifestations.  The structural parallel is exact: in both cases,
+an append-only data structure grows without bound because no lifecycle
+management (eviction, compaction, or summarization) is applied.  The
+difference is the resource consumed---tokens in one case, RAM in the
+other---but the fix is architecturally identical: impose a bounded
+retention policy, whether through ranked retrieval (for context windows)
+or a sliding window with periodic summarization (for runtime state).
+
+This case illustrates a broader principle: the five convergent design
+requirements identified in~\S\ref{sec:memorymd-convergence} apply not
+only to the agent's \emph{external} memory store but to any
+accumulating state within the memory system's own runtime.  A memory
+system that solves unbounded growth in the context window but replicates
+it in process memory has not solved the problem---it has displaced it.
+We term this \emph{layer displacement}: the migration of an anti-pattern
+from one architectural layer to another, preserving its structure while
+changing its observable symptoms.
+
 \subsection{Convergent Design Principles}
 \label{sec:memorymd-convergence}
 

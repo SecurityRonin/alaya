@@ -63,16 +63,12 @@ fn episode(content: &str, session: &str, ts: i64) -> NewEpisode {
 }
 
 /// Store `count` episodes in a session, returning all created IDs.
-fn store_n_episodes(
-    store: &Alaya,
-    session: &str,
-    count: usize,
-    base_ts: i64,
-) -> Vec<EpisodeId> {
+fn store_n_episodes(store: &Alaya, session: &str, count: usize, base_ts: i64) -> Vec<EpisodeId> {
     (0..count)
         .map(|i| {
             store
-                .episodes().store(&episode(
+                .episodes()
+                .store(&episode(
                     &format!("Episode {i} in session {session} about Rust programming"),
                     session,
                     base_ts + (i as i64) * 100,
@@ -102,7 +98,10 @@ fn test_multi_session_lifecycle() {
     );
 
     // Query -- BM25 should find episodes mentioning "Rust"
-    let results = store.knowledge().query(&Query::simple("Rust programming")).unwrap();
+    let results = store
+        .knowledge()
+        .query(&Query::simple("Rust programming"))
+        .unwrap();
     assert!(!results.is_empty(), "query should return matching episodes");
 
     // Consolidate with NoOpProvider -- won't create semantic nodes but should
@@ -136,7 +135,10 @@ fn test_multi_session_lifecycle() {
         timestamp: 5000,
         context: EpisodeContext::default(),
     };
-    let pr = store.lifecycle().perfume(&interaction, &perfume_provider).unwrap();
+    let pr = store
+        .lifecycle()
+        .perfume(&interaction, &perfume_provider)
+        .unwrap();
     assert_eq!(
         pr.impressions_stored, 1,
         "perfume should store 1 impression"
@@ -183,7 +185,8 @@ fn test_multi_session_purge_isolation() {
 
     // Purge session "beta"
     let purge_report = store
-        .admin().purge(PurgeFilter::Session("beta".to_string()))
+        .admin()
+        .purge(PurgeFilter::Session("beta".to_string()))
         .unwrap();
     assert_eq!(
         purge_report.episodes_deleted, 3,
@@ -197,7 +200,10 @@ fn test_multi_session_purge_isolation() {
     );
 
     // Verify "alpha" episodes survive by querying
-    let alpha_results = store.knowledge().query(&Query::simple("session alpha")).unwrap();
+    let alpha_results = store
+        .knowledge()
+        .query(&Query::simple("session alpha"))
+        .unwrap();
     assert!(
         !alpha_results.is_empty(),
         "'alpha' episodes should survive the purge of 'beta'"
@@ -218,7 +224,10 @@ fn test_multi_session_purge_isolation() {
     );
 
     // Verify the remaining episodes are from gamma
-    let gamma_results = store.knowledge().query(&Query::simple("session gamma")).unwrap();
+    let gamma_results = store
+        .knowledge()
+        .query(&Query::simple("session gamma"))
+        .unwrap();
     assert!(
         !gamma_results.is_empty(),
         "'gamma' episodes should still be queryable"
@@ -399,17 +408,20 @@ fn test_memory_decay_and_revival() {
 
     // Store episodes that will be our "memories"
     store
-        .episodes().store(&episode("Rust async runtime uses tokio", "decay-s1", 1000))
+        .episodes()
+        .store(&episode("Rust async runtime uses tokio", "decay-s1", 1000))
         .unwrap();
     store
-        .episodes().store(&episode(
+        .episodes()
+        .store(&episode(
             "Tokio has a multi-threaded scheduler",
             "decay-s1",
             2000,
         ))
         .unwrap();
     store
-        .episodes().store(&episode("Async functions return futures", "decay-s1", 3000))
+        .episodes()
+        .store(&episode("Async functions return futures", "decay-s1", 3000))
         .unwrap();
 
     let status = store.admin().status().unwrap();
@@ -435,7 +447,10 @@ fn test_memory_decay_and_revival() {
 
     // Now REVIVE the memory by querying it. The retrieval pipeline calls
     // on_access() for each returned result, which resets retrieval_strength to 1.0.
-    let results = store.knowledge().query(&Query::simple("Rust async tokio")).unwrap();
+    let results = store
+        .knowledge()
+        .query(&Query::simple("Rust async tokio"))
+        .unwrap();
     assert!(
         !results.is_empty(),
         "decayed memories should still be retrievable (they're latent, not gone)"
@@ -479,7 +494,8 @@ fn test_emergent_category_lifecycle() {
     // Phase 1: Store episodes about cooking
     for i in 0..5 {
         store
-            .episodes().store(&NewEpisode {
+            .episodes()
+            .store(&NewEpisode {
                 content: format!(
                     "I made {} for dinner",
                     ["pasta", "risotto", "gnocchi", "lasagna", "ravioli"][i]
@@ -556,7 +572,8 @@ fn test_emergent_category_lifecycle() {
     // Store more episodes for the second batch
     for i in 5..10 {
         store
-            .episodes().store(&NewEpisode {
+            .episodes()
+            .store(&NewEpisode {
                 content: format!("cooking episode {i}"),
                 role: Role::User,
                 session_id: "s2".to_string(),
@@ -602,7 +619,8 @@ fn test_category_survives_transform_cycles() {
     // Create a batch of episodes and consolidate
     for i in 0..5 {
         store
-            .episodes().store(&NewEpisode {
+            .episodes()
+            .store(&NewEpisode {
                 content: format!("Rust memory management topic {i}"),
                 role: Role::User,
                 session_id: "s1".to_string(),

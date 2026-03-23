@@ -29,10 +29,7 @@ pub fn insert_conflict(
 }
 
 /// Get all conflicts with the given status.
-pub fn get_conflicts_by_status(
-    conn: &Connection,
-    status: ConflictStatus,
-) -> Result<Vec<Conflict>> {
+pub fn get_conflicts_by_status(conn: &Connection, status: ConflictStatus) -> Result<Vec<Conflict>> {
     let mut stmt = conn.prepare(
         "SELECT id, node_a_id, node_b_id, similarity, status, detected_at
          FROM conflicts WHERE status = ?1
@@ -195,9 +192,7 @@ mod tests {
     #[test]
     fn get_unresolved_includes_detected_and_verified() {
         let (conn, a, b) = setup();
-        let id = insert_conflict(&conn, a, b, 0.92, 1000)
-            .unwrap()
-            .unwrap();
+        let id = insert_conflict(&conn, a, b, 0.92, 1000).unwrap().unwrap();
 
         let unresolved = get_unresolved_conflicts(&conn).unwrap();
         assert_eq!(unresolved.len(), 1);
@@ -214,9 +209,7 @@ mod tests {
     #[test]
     fn resolve_conflict_sets_fields() {
         let (conn, a, b) = setup();
-        let id = insert_conflict(&conn, a, b, 0.92, 1000)
-            .unwrap()
-            .unwrap();
+        let id = insert_conflict(&conn, a, b, 0.92, 1000).unwrap().unwrap();
         resolve_conflict(&conn, id, a, "confidence", 2000).unwrap();
 
         let resolved = get_conflicts_by_status(&conn, ConflictStatus::Resolved).unwrap();
@@ -244,9 +237,7 @@ mod tests {
     #[test]
     fn dismissed_not_in_unresolved() {
         let (conn, a, b) = setup();
-        let id = insert_conflict(&conn, a, b, 0.92, 1000)
-            .unwrap()
-            .unwrap();
+        let id = insert_conflict(&conn, a, b, 0.92, 1000).unwrap().unwrap();
         update_conflict_status(&conn, id, ConflictStatus::Dismissed).unwrap();
         let unresolved = get_unresolved_conflicts(&conn).unwrap();
         assert_eq!(unresolved.len(), 0);

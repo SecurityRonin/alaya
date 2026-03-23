@@ -47,7 +47,8 @@ pub fn handle_remember(server: &super::AlayaMcp, params: RememberParams) -> Stri
                     }
                     Ok(_) => {
                         // Provider returned zero nodes — fall back to prompt
-                        if let Ok(episodes) = server.with_store(|s| s.episodes().unconsolidated(20)) {
+                        if let Ok(episodes) = server.with_store(|s| s.episodes().unconsolidated(20))
+                        {
                             response.push_str(&format!(
                                 "\n\n--- Consolidation suggested ---\n\
                                  You have {} unconsolidated episodes. \
@@ -69,7 +70,8 @@ pub fn handle_remember(server: &super::AlayaMcp, params: RememberParams) -> Stri
                         // Provider error or no provider — fall back to prompt with note
                         let err_msg = e.to_string();
                         let is_no_provider = err_msg.contains("extraction provider");
-                        if let Ok(episodes) = server.with_store(|s| s.episodes().unconsolidated(20)) {
+                        if let Ok(episodes) = server.with_store(|s| s.episodes().unconsolidated(20))
+                        {
                             if !is_no_provider {
                                 response.push_str(&format!("\n\n(Auto-consolidation failed: {e})"));
                             }
@@ -604,7 +606,9 @@ mod tests {
         });
         // Should contain the error message from the failed consolidation
         assert!(
-            result.contains("Auto-consolidation failed") || result.contains("Consolidation suggested") || result.contains("Error:"),
+            result.contains("Auto-consolidation failed")
+                || result.contains("Consolidation suggested")
+                || result.contains("Error:"),
             "Should show consolidation failure: {result}"
         );
     }

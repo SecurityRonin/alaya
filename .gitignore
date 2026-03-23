@@ -35,3 +35,5 @@ alaya-paper/*.pdf
 .worktrees/
 survey-paper/main.fdb_latexmk
 survey-paper/main.fls
+
+tarpaulin-report.json

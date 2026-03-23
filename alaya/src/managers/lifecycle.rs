@@ -16,10 +16,7 @@ impl Lifecycle<'_> {
     /// assert_eq!(report.nodes_created, 0); // no episodes to consolidate
     /// ```
     #[cfg_attr(feature = "tracing", tracing::instrument(skip(self, provider)))]
-    pub fn consolidate(
-        &self,
-        provider: &dyn ConsolidationProvider,
-    ) -> Result<ConsolidationReport> {
+    pub fn consolidate(&self, provider: &dyn ConsolidationProvider) -> Result<ConsolidationReport> {
         db::transact(self.conn, |tx| {
             lifecycle::consolidation::consolidate(tx, provider)
         })
@@ -151,10 +148,7 @@ mod tests {
     #[test]
     fn consolidate_with_no_op() {
         let alaya = Alaya::open_in_memory().unwrap();
-        let report = alaya
-            .lifecycle()
-            .consolidate(&crate::NoOpProvider)
-            .unwrap();
+        let report = alaya.lifecycle().consolidate(&crate::NoOpProvider).unwrap();
         assert_eq!(report.nodes_created, 0);
     }
 
@@ -168,9 +162,7 @@ mod tests {
     #[test]
     fn auto_consolidate_with_mock() {
         let mut alaya = Alaya::open_in_memory().unwrap();
-        alaya.set_extraction_provider(Box::new(
-            crate::MockExtractionProvider::empty(),
-        ));
+        alaya.set_extraction_provider(Box::new(crate::MockExtractionProvider::empty()));
         let report = alaya.lifecycle().auto_consolidate().unwrap();
         assert_eq!(report.nodes_created, 0);
     }
@@ -192,10 +184,7 @@ mod tests {
     #[test]
     fn dream_runs_full_lifecycle() {
         let alaya = Alaya::open_in_memory().unwrap();
-        let report = alaya
-            .lifecycle()
-            .dream(&crate::NoOpProvider, None)
-            .unwrap();
+        let report = alaya.lifecycle().dream(&crate::NoOpProvider, None).unwrap();
         assert_eq!(report.consolidation.episodes_processed, 0);
         assert!(report.perfuming.is_none());
     }

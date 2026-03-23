@@ -105,7 +105,11 @@ pub fn delete_node(conn: &Connection, id: NodeId) -> Result<()> {
 }
 
 pub fn count_nodes(conn: &Connection) -> Result<u64> {
-    let count: i64 = conn.query_row("SELECT count(*) FROM semantic_nodes WHERE superseded_by IS NULL", [], |row| row.get(0))?;
+    let count: i64 = conn.query_row(
+        "SELECT count(*) FROM semantic_nodes WHERE superseded_by IS NULL",
+        [],
+        |row| row.get(0),
+    )?;
     Ok(count as u64)
 }
 

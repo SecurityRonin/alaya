@@ -46,8 +46,7 @@ impl Admin<'_> {
                 PurgeFilter::Session(ref session_id) => {
                     let eps = store::episodic::get_episodes_by_session(tx, session_id)?;
                     let ids: Vec<EpisodeId> = eps.iter().map(|e| e.id).collect();
-                    report.episodes_deleted =
-                        store::episodic::delete_episodes(tx, &ids)? as u32;
+                    report.episodes_deleted = store::episodic::delete_episodes(tx, &ids)? as u32;
                 }
                 PurgeFilter::OlderThan(ts) => {
                     report.episodes_deleted =
@@ -227,14 +226,8 @@ mod tests {
     fn node_content_truncates() {
         let alaya = Alaya::open_in_memory().unwrap();
         let long_content = "a".repeat(50);
-        let id = alaya
-            .episodes()
-            .store(&episode(&long_content))
-            .unwrap();
-        let content = alaya
-            .admin()
-            .node_content(NodeRef::Episode(id))
-            .unwrap();
+        let id = alaya.episodes().store(&episode(&long_content)).unwrap();
+        let content = alaya.admin().node_content(NodeRef::Episode(id)).unwrap();
         assert!(content.is_some());
         let text = content.unwrap();
         assert!(text.ends_with("..."));
@@ -245,10 +238,7 @@ mod tests {
     fn node_content_for_semantic_node() {
         let alaya = Alaya::open_in_memory().unwrap();
         let nid = insert_semantic_node(alaya.raw_conn(), "test fact content", 0.9);
-        let content = alaya
-            .admin()
-            .node_content(NodeRef::Semantic(nid))
-            .unwrap();
+        let content = alaya.admin().node_content(NodeRef::Semantic(nid)).unwrap();
         assert_eq!(content, Some("test fact content".to_string()));
     }
 

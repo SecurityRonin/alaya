@@ -6,7 +6,8 @@ fn full_lifecycle_learn_reconcile_superseded_excluded() {
 
     // Learn contradictory facts
     store
-        .knowledge().learn(vec![
+        .knowledge()
+        .learn(vec![
             NewSemanticNode {
                 content: "user prefers dark mode".to_string(),
                 node_type: SemanticType::Fact,
@@ -45,7 +46,8 @@ fn manual_strategy_reconcile_then_resolve() {
     store.set_conflict_strategy(ConflictStrategy::Manual);
 
     store
-        .knowledge().learn(vec![
+        .knowledge()
+        .learn(vec![
             NewSemanticNode {
                 content: "prefers tabs".to_string(),
                 node_type: SemanticType::Fact,
@@ -70,7 +72,10 @@ fn manual_strategy_reconcile_then_resolve() {
 
     // Manually resolve
     let winner = conflicts[0].node_a;
-    store.lifecycle().resolve_conflict(conflicts[0].id, winner).unwrap();
+    store
+        .lifecycle()
+        .resolve_conflict(conflicts[0].id, winner)
+        .unwrap();
 
     assert!(store.lifecycle().conflicts().unwrap().is_empty());
     assert_eq!(store.knowledge().filter(None).unwrap().len(), 1);
@@ -80,7 +85,8 @@ fn manual_strategy_reconcile_then_resolve() {
 fn idempotent_reconcile() {
     let store = Alaya::open_in_memory().unwrap();
     store
-        .knowledge().learn(vec![
+        .knowledge()
+        .learn(vec![
             NewSemanticNode {
                 content: "fact A".to_string(),
                 node_type: SemanticType::Fact,
@@ -113,7 +119,8 @@ fn reconcile_after_transform_preserves_categories() {
     // Store enough episodes and facts for transform to assign categories
     for i in 0..5 {
         store
-            .episodes().store(&NewEpisode {
+            .episodes()
+            .store(&NewEpisode {
                 content: format!("cooking topic {i}"),
                 role: Role::User,
                 session_id: "s1".to_string(),
@@ -125,7 +132,8 @@ fn reconcile_after_transform_preserves_categories() {
     }
 
     store
-        .knowledge().learn(vec![
+        .knowledge()
+        .learn(vec![
             NewSemanticNode {
                 content: "likes Italian food".to_string(),
                 node_type: SemanticType::Fact,
