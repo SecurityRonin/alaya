@@ -146,7 +146,6 @@ impl Lifecycle<'_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::testutil::fixtures::*;
     use crate::Alaya;
 
     #[test]

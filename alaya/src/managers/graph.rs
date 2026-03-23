@@ -41,7 +41,7 @@ mod tests {
     #[test]
     fn neighbors_finds_linked_episodes() {
         let alaya = Alaya::open_in_memory().unwrap();
-        let mut ep1 = episode("first message");
+        let ep1 = episode("first message");
         let id1 = alaya.episodes().store(&ep1).unwrap();
 
         let mut ep2 = episode("second message");

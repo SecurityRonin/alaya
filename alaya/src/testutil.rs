@@ -6,11 +6,6 @@ pub(crate) mod fixtures {
     use crate::types::*;
     use rusqlite::Connection;
 
-    /// Open an in-memory DB with schema initialized.
-    pub fn test_db() -> Connection {
-        crate::schema::open_memory_db().unwrap()
-    }
-
     /// Episode factory with sensible defaults.
     pub fn episode(content: &str) -> NewEpisode {
         NewEpisode {
@@ -20,15 +15,6 @@ pub(crate) mod fixtures {
             timestamp: 1000,
             context: EpisodeContext::default(),
             embedding: None,
-        }
-    }
-
-    /// Episode with custom role and timestamp.
-    pub fn episode_at(content: &str, role: Role, ts: i64) -> NewEpisode {
-        NewEpisode {
-            timestamp: ts,
-            role,
-            ..episode(content)
         }
     }
 
@@ -59,8 +45,4 @@ pub(crate) mod fixtures {
         NodeId(conn.last_insert_rowid())
     }
 
-    /// Store an episode via the store module, returning its EpisodeId.
-    pub fn store_test_episode(conn: &Connection, content: &str) -> EpisodeId {
-        crate::store::episodic::store_episode(conn, &episode(content)).unwrap()
-    }
 }
