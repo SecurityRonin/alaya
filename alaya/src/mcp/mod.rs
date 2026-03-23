@@ -24,6 +24,7 @@ mod query;
 mod serialization;
 mod status;
 mod validation;
+mod visualization;
 
 use std::sync::atomic::AtomicU32;
 use std::sync::Mutex;
@@ -347,6 +348,17 @@ impl AlayaMcp {
     fn list_conflicts(&self) -> String {
         lifecycle::handle_conflicts(self)
     }
+
+    /// Generate a Mermaid diagram of the memory graph.
+    #[tool(
+        description = "Generate a Mermaid diagram of the memory graph showing episodes, knowledge, categories, and their connections. Returns a Mermaid graph definition that can be rendered visually."
+    )]
+    fn visualize(
+        &self,
+        #[tool(aggr)] params: visualization::VisualizeParams,
+    ) -> String {
+        visualization::handle_visualize(self, params)
+    }
 }
 
 #[tool(tool_box)]
@@ -362,7 +374,8 @@ impl ServerHandler for AlayaMcp {
                  'import_claude_mem' to import from claude-mem.db, \
                  'import_claude_code' to import from Claude Code JSONL files, \
                  'purge' to delete data, 'reconcile_memories' to detect and resolve \
-                 contradictions, and 'list_conflicts' to review unresolved conflicts."
+                 contradictions, 'list_conflicts' to review unresolved conflicts, and \
+                 'visualize' to generate a Mermaid diagram of the memory graph."
                     .into(),
             ),
             ..Default::default()
