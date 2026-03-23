@@ -34,7 +34,7 @@ async fn test_async_read_methods() {
         .store_episode(new_episode("hello world", "s1", 1000))
         .await
         .unwrap();
-    let ep2 = store
+    let _ep2 = store
         .store_episode(new_episode("goodbye world", "s1", 2000))
         .await
         .unwrap();

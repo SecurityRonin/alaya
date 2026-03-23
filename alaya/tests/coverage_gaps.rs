@@ -575,7 +575,7 @@ fn test_llm_extraction_provider_debug() {
         .build()
         .unwrap();
 
-    let debug_output = format!("{:?}", provider);
+    let debug_output = format!("{provider:?}");
     assert!(debug_output.contains("LlmExtractionProvider"));
     assert!(debug_output.contains("example.com"));
     assert!(debug_output.contains("gpt-4"));
