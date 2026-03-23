@@ -137,6 +137,7 @@ mod tests {
             sentiment: 0.5,
             mentioned_entities: vec!["tokio".to_string()],
             current_timestamp: None,
+            ..Default::default()
         };
         let sim = context_similarity(&candidate, &query);
         // topic_sim=1.0, entity_sim=1.0, sentiment_sim=1.0
@@ -158,6 +159,7 @@ mod tests {
             sentiment: 1.0,
             mentioned_entities: vec!["tokio".to_string()],
             current_timestamp: None,
+            ..Default::default()
         };
         let sim = context_similarity(&candidate, &query);
         // topic_sim=0, entity_sim=0, sentiment_sim=1.0-(2.0/2.0)=0.0

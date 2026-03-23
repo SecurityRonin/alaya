@@ -1,10 +1,18 @@
 use crate::error::Result;
 use crate::types::*;
-use rusqlite::{params, Connection};
+use rusqlite::Connection;
 
 /// Search episodes via FTS5 BM25 ranking.
 /// Returns (EpisodeId, normalized_score) where score is in [0.0, 1.0].
-pub fn search_bm25(conn: &Connection, query: &str, limit: usize) -> Result<Vec<(EpisodeId, f64)>> {
+///
+/// Applies temporal filters (`after_timestamp`, `before_timestamp`) and
+/// session scoping (`session_filter`) from the [`QueryContext`] when present.
+pub fn search_bm25(
+    conn: &Connection,
+    query: &str,
+    limit: usize,
+    context: &QueryContext,
+) -> Result<Vec<(EpisodeId, f64)>> {
     if query.trim().is_empty() {
         return Ok(vec![]);
     }
@@ -26,17 +34,52 @@ pub fn search_bm25(conn: &Connection, query: &str, limit: usize) -> Result<Vec<(
     }
 
     let fetch_limit = (limit * 3) as u32;
-    let mut stmt = conn.prepare(
+
+    // Build dynamic WHERE clause for temporal/session filters
+    let mut extra_clauses = String::new();
+    let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
+
+    // ?1 = sanitized query, ?2 = fetch_limit
+    param_values.push(Box::new(sanitized.trim().to_string()));
+    param_values.push(Box::new(fetch_limit));
+
+    let mut param_idx = 3;
+
+    if let Some(after) = context.after_timestamp {
+        extra_clauses.push_str(&format!(" AND e.timestamp >= ?{param_idx}"));
+        param_values.push(Box::new(after));
+        param_idx += 1;
+    }
+
+    if let Some(before) = context.before_timestamp {
+        extra_clauses.push_str(&format!(" AND e.timestamp <= ?{param_idx}"));
+        param_values.push(Box::new(before));
+        param_idx += 1;
+    }
+
+    if let Some(ref session) = context.session_filter {
+        extra_clauses.push_str(&format!(" AND e.session_id = ?{param_idx}"));
+        param_values.push(Box::new(session.clone()));
+        // param_idx += 1; // last param, no need to increment
+        let _ = param_idx; // suppress unused warning
+    }
+
+    let sql = format!(
         "SELECT e.id, rank
          FROM episodes_fts fts
          JOIN episodes e ON e.id = fts.rowid
-         WHERE episodes_fts MATCH ?1
+         WHERE episodes_fts MATCH ?1{extra_clauses}
          ORDER BY rank
-         LIMIT ?2",
-    )?;
+         LIMIT ?2"
+    );
+
+    let mut stmt = conn.prepare(&sql)?;
+
+    let param_refs: Vec<&dyn rusqlite::types::ToSql> =
+        param_values.iter().map(|p| p.as_ref()).collect();
 
     let rows: Vec<(i64, f64)> = stmt
-        .query_map(params![sanitized.trim(), fetch_limit], |row| {
+        .query_map(param_refs.as_slice(), |row| {
             Ok((row.get(0)?, row.get(1)?))
         })?
         .filter_map(|r| r.ok())
@@ -102,7 +145,7 @@ mod tests {
         )
         .unwrap();
 
-        let results = search_bm25(&conn, "Rust programming", 10).unwrap();
+        let results = search_bm25(&conn, "Rust programming", 10, &QueryContext::default()).unwrap();
         assert!(!results.is_empty());
         assert_eq!(results[0].0, EpisodeId(1));
     }
@@ -110,7 +153,7 @@ mod tests {
     #[test]
     fn test_empty_query() {
         let conn = open_memory_db().unwrap();
-        let results = search_bm25(&conn, "", 10).unwrap();
+        let results = search_bm25(&conn, "", 10, &QueryContext::default()).unwrap();
         assert!(results.is_empty());
     }
 
@@ -118,7 +161,7 @@ mod tests {
     fn test_bm25_special_chars_only_query() {
         let conn = open_memory_db().unwrap();
         // A query of only special characters should sanitize to empty and return empty
-        let results = search_bm25(&conn, "!@#$%^&*()", 10).unwrap();
+        let results = search_bm25(&conn, "!@#$%^&*()", 10, &QueryContext::default()).unwrap();
         assert!(results.is_empty());
     }
 
@@ -139,7 +182,7 @@ mod tests {
         .unwrap();
 
         // Single result means min_rank == max_rank, range == 0 => score = 1.0
-        let results = search_bm25(&conn, "frobnicator", 10).unwrap();
+        let results = search_bm25(&conn, "frobnicator", 10, &QueryContext::default()).unwrap();
         assert_eq!(results.len(), 1);
         assert!(
             (results[0].1 - 1.0).abs() < 0.01,
@@ -167,7 +210,7 @@ mod tests {
             .unwrap();
         }
         // Request only 2 results
-        let results = search_bm25(&conn, "widget", 2).unwrap();
+        let results = search_bm25(&conn, "widget", 2, &QueryContext::default()).unwrap();
         assert!(
             results.len() <= 2,
             "should respect limit of 2, got {}",
@@ -179,7 +222,7 @@ mod tests {
     fn test_bm25_whitespace_only_query() {
         let conn = open_memory_db().unwrap();
         // A query that is only whitespace sanitizes to empty after trim
-        let results = search_bm25(&conn, "   ", 10).unwrap();
+        let results = search_bm25(&conn, "   ", 10, &QueryContext::default()).unwrap();
         assert!(
             results.is_empty(),
             "whitespace-only query should return empty"
@@ -213,7 +256,7 @@ mod tests {
             },
         )
         .unwrap();
-        let results = search_bm25(&conn, "Rust", 10).unwrap();
+        let results = search_bm25(&conn, "Rust", 10, &QueryContext::default()).unwrap();
         assert!(!results.is_empty());
         for (_, score) in &results {
             assert!(

@@ -131,6 +131,7 @@ pub fn handle_recall(server: &super::AlayaMcp, params: RecallParams) -> String {
         context: crate::QueryContext::default(),
         max_results: params.max_results.unwrap_or(5),
         boost_categories: params.boost_category.map(|c| vec![c.to_string()]),
+        boost_weights: None,
     };
 
     match server.with_store(|s| s.knowledge().query(&query)) {

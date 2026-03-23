@@ -24,10 +24,11 @@ pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemor
     #[cfg(feature = "tracing")]
     let _bm25_span = tracing::info_span!("bm25_search").entered();
 
-    let bm25_results: Vec<(NodeRef, f64)> = bm25::search_bm25(conn, &query.text, fetch_limit)?
-        .into_iter()
-        .map(|(eid, score)| (NodeRef::Episode(eid), score))
-        .collect();
+    let bm25_results: Vec<(NodeRef, f64)> =
+        bm25::search_bm25(conn, &query.text, fetch_limit, &query.context)?
+            .into_iter()
+            .map(|(eid, score)| (NodeRef::Episode(eid), score))
+            .collect();
 
     #[cfg(feature = "tracing")]
     trace!(bm25_count = bm25_results.len(), "BM25 search complete");
@@ -82,14 +83,18 @@ pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemor
     #[cfg(feature = "tracing")]
     let _rrf_span = tracing::info_span!("rrf_fusion").entered();
 
+    let boost = query.boost_weights.as_ref();
     let mut sets: Vec<Vec<(NodeRef, f64)>> = vec![bm25_results];
+    let mut weights: Vec<f32> = vec![boost.map_or(1.0, |b| b.bm25)];
     if !vector_results.is_empty() {
         sets.push(vector_results);
+        weights.push(boost.map_or(1.0, |b| b.vector));
     }
     if !graph_results.is_empty() {
         sets.push(graph_results);
+        weights.push(boost.map_or(1.0, |b| b.graph));
     }
-    let fused = fusion::rrf_merge(&sets, 60);
+    let fused = fusion::rrf_merge_weighted(&sets, 60, Some(&weights));
 
     #[cfg(feature = "tracing")]
     trace!(fused_count = fused.len(), "RRF fusion complete");
@@ -145,10 +150,24 @@ pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemor
     #[cfg(feature = "tracing")]
     let _rerank_span = tracing::info_span!("rerank").entered();
 
-    let results = rerank::rerank(candidates, &query.context, now, query.max_results);
+    let mut results = rerank::rerank(candidates, &query.context, now, query.max_results);
 
     #[cfg(feature = "tracing")]
     drop(_rerank_span);
+
+    // Stage 3b: Post-filter — remove results containing any exclude_terms (case-insensitive)
+    if !query.context.exclude_terms.is_empty() {
+        let exclude_lower: Vec<String> = query
+            .context
+            .exclude_terms
+            .iter()
+            .map(|t| t.to_lowercase())
+            .collect();
+        results.retain(|scored| {
+            let content_lower = scored.content.to_lowercase();
+            !exclude_lower.iter().any(|term| content_lower.contains(term))
+        });
+    }
 
     // Stage 4: Post-retrieval updates (RIF + strength tracking)
     for scored in &results {
@@ -243,6 +262,7 @@ mod tests {
                 },
                 max_results: 5,
                 boost_categories: None,
+                boost_weights: None,
             },
         )
         .unwrap();
@@ -270,6 +290,7 @@ mod tests {
                 },
                 max_results: 5,
                 boost_categories: None,
+                boost_weights: None,
             },
         )
         .unwrap();
@@ -313,6 +334,7 @@ mod tests {
                 },
                 max_results: 5,
                 boost_categories: None,
+                boost_weights: None,
             },
         )
         .unwrap();
@@ -359,6 +381,7 @@ mod tests {
                 },
                 max_results: 3,
                 boost_categories: None,
+                boost_weights: None,
             },
         )
         .unwrap();
@@ -391,6 +414,7 @@ mod tests {
                 },
                 max_results: 1,
                 boost_categories: None,
+                boost_weights: None,
             },
         )
         .unwrap();
@@ -433,9 +457,11 @@ mod tests {
                     mentioned_entities: vec!["tokio".to_string()],
                     sentiment: 0.5,
                     current_timestamp: Some(5000),
+                    ..Default::default()
                 },
                 max_results: 10,
                 boost_categories: None,
+                boost_weights: None,
             },
         )
         .unwrap();
@@ -468,6 +494,7 @@ mod tests {
                 },
                 max_results: 5,
                 boost_categories: None,
+                boost_weights: None,
             },
         )
         .unwrap();
@@ -524,6 +551,7 @@ mod tests {
                 },
                 max_results: 10,
                 boost_categories: None,
+                boost_weights: None,
             },
         )
         .unwrap();
@@ -579,6 +607,7 @@ mod tests {
                 },
                 max_results: 10,
                 boost_categories: None,
+                boost_weights: None,
             },
         )
         .unwrap();
@@ -641,6 +670,7 @@ mod tests {
                 },
                 max_results: 10,
                 boost_categories: None,
+                boost_weights: None,
             },
         )
         .unwrap();
@@ -693,6 +723,7 @@ mod tests {
                 },
                 max_results: 1,
                 boost_categories: None,
+                boost_weights: None,
             },
         )
         .unwrap();
@@ -789,6 +820,7 @@ mod tests {
                 },
                 max_results: 5,
                 boost_categories: None,
+                boost_weights: None,
             },
         )
         .unwrap();
@@ -834,6 +866,7 @@ mod tests {
                 },
                 max_results: 5,
                 boost_categories: None,
+                boost_weights: None,
             },
         )
         .unwrap();
@@ -882,6 +915,7 @@ mod tests {
                 },
                 max_results: 5,
                 boost_categories: None,
+                boost_weights: None,
             },
         )
         .unwrap();
@@ -941,6 +975,7 @@ mod tests {
                 },
                 max_results: 5,
                 boost_categories: None,
+                boost_weights: None,
             },
         )
         .unwrap();
@@ -998,6 +1033,7 @@ mod tests {
                 },
                 max_results: 10,
                 boost_categories: None,
+                boost_weights: None,
             },
         )
         .unwrap();
@@ -1055,6 +1091,7 @@ mod tests {
                 },
                 max_results: 1, // Only retrieve 1
                 boost_categories: None,
+                boost_weights: None,
             },
         )
         .unwrap();
@@ -1140,6 +1177,7 @@ mod tests {
                 },
                 max_results: 10,
                 boost_categories: None,
+                boost_weights: None,
             },
         )
         .unwrap();
@@ -1199,6 +1237,7 @@ mod tests {
                 },
                 max_results: 10,
                 boost_categories: None,
+                boost_weights: None,
             },
         )
         .unwrap();
@@ -1270,6 +1309,7 @@ mod tests {
                 },
                 max_results: 10,
                 boost_categories: None,
+                boost_weights: None,
             },
         )
         .unwrap();
@@ -1310,6 +1350,7 @@ mod tests {
                 },
                 max_results: 5,
                 boost_categories: None,
+                boost_weights: None,
             },
         )
         .unwrap();

@@ -649,6 +649,7 @@ fn chapter_7_enriched_retrieval(store: &Alaya) {
         },
         max_results: 10,
         boost_categories: None,
+        boost_weights: None,
     };
     let enriched_results = store.knowledge().query(&enriched_query).expect("enriched query failed");
     for (i, mem) in enriched_results.iter().enumerate() {

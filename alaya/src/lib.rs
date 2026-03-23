@@ -310,6 +310,7 @@ mod tests {
             context: QueryContext::default(),
             max_results: 5,
             boost_categories: None,
+            boost_weights: None,
         });
         assert!(result.is_err());
         assert!(
@@ -327,6 +328,7 @@ mod tests {
             context: QueryContext::default(),
             max_results: 0,
             boost_categories: None,
+            boost_weights: None,
         });
         assert!(result.is_err());
         assert!(
