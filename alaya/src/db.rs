@@ -146,4 +146,28 @@ mod tests {
         let ok: std::result::Result<i32, rusqlite::Error> = Ok(42);
         assert_eq!(ok.with_context("ctx").unwrap(), 42);
     }
+
+    #[test]
+    fn result_ext_rewraps_db_error_with_new_context() {
+        let err: crate::Result<()> = Err(crate::AlayaError::Db {
+            source: rusqlite::Error::QueryReturnedNoRows,
+            context: "old_context".to_string(),
+        });
+        let result = err.with_context("new_context");
+        match result.unwrap_err() {
+            crate::AlayaError::Db { context, .. } => assert_eq!(context, "new_context"),
+            other => panic!("expected Db error, got: {other}"),
+        }
+    }
+
+    #[test]
+    fn result_ext_passes_through_non_db_error() {
+        let err: crate::Result<()> =
+            Err(crate::AlayaError::InvalidInput("original".into()));
+        let result = err.with_context("ignored_context");
+        match result.unwrap_err() {
+            crate::AlayaError::InvalidInput(msg) => assert_eq!(msg, "original"),
+            other => panic!("expected InvalidInput error, got: {other}"),
+        }
+    }
 }

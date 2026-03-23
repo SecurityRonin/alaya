@@ -1284,4 +1284,38 @@ mod tests {
             );
         }
     }
+
+    // ---------------------------------------------------------------------------
+    // Tracing coverage — exercises trace!() macro format args in pipeline
+    // ---------------------------------------------------------------------------
+    #[cfg(feature = "tracing")]
+    #[test]
+    fn test_query_with_tracing_subscriber() {
+        // Initialize a subscriber at TRACE level so trace!() args are evaluated.
+        // try_init because other tests may have already set one.
+        let _ = tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::TRACE)
+            .with_test_writer()
+            .try_init();
+
+        let conn = open_memory_db().unwrap();
+        episodic::store_episode(&conn, &ep("Rust memory safety", "s1", 1000)).unwrap();
+
+        let results = execute_query(
+            &conn,
+            &Query {
+                text: "Rust".to_string(),
+                embedding: Some(vec![0.1, 0.2, 0.3]),
+                context: QueryContext {
+                    current_timestamp: Some(2000),
+                    ..Default::default()
+                },
+                max_results: 5,
+                boost_categories: None,
+            },
+        )
+        .unwrap();
+
+        assert!(results.len() <= 5);
+    }
 }
