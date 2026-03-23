@@ -174,6 +174,7 @@ impl LinkType {
     }
 }
 
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ConflictStatus {
@@ -205,6 +206,7 @@ impl ConflictStatus {
     }
 }
 
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ConflictStrategy {
     #[default]
