@@ -126,7 +126,7 @@ jobs:
         run: cargo install cargo-tarpaulin
 
       - name: Run coverage
-        run: cargo tarpaulin -p alaya --features "async,mcp,tracing" --skip-clean --out json
+        run: cargo tarpaulin -p alaya --features "async,mcp,tracing" --exclude-files "tests/*" --skip-clean --out json
 
       - name: Check coverage threshold
         run: |
