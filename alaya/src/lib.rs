@@ -50,6 +50,9 @@ pub mod extraction;
 #[cfg(feature = "async")]
 pub mod async_store;
 
+#[cfg(feature = "local-embeddings")]
+pub mod local_embeddings;
+
 #[cfg(test)]
 pub(crate) mod testutil;
 
@@ -66,6 +69,9 @@ pub use types::*;
 
 #[cfg(feature = "llm")]
 pub use extraction::LlmExtractionProvider;
+
+#[cfg(feature = "local-embeddings")]
+pub use local_embeddings::LocalEmbeddingProvider;
 
 /// The main entry point. Owns a SQLite connection and exposes the full
 /// store / query / lifecycle API via focused sub-managers.

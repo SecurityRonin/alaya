@@ -25,6 +25,7 @@ llm = ["dep:ureq"]
 tracing = ["dep:tracing", "dep:tracing-subscriber"]
 async = ["dep:tokio"]
 vec-sqlite = ["dep:sqlite-vec"]
+local-embeddings = ["dep:fastembed"]
 
 [dependencies]
 rusqlite = { version = "0.32", features = ["modern_sqlite"] }
@@ -47,6 +48,9 @@ tracing-subscriber = { version = "0.3", features = ["fmt"], optional = true }
 
 # KNN vector search via sqlite-vec (optional)
 sqlite-vec = { version = "0.1", optional = true }
+
+# Local ONNX-based text embeddings (optional)
+fastembed = { version = "5", optional = true }
 
 [dev-dependencies]
 tempfile = "3"
