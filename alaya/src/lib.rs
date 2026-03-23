@@ -61,6 +61,7 @@ pub use provider::{
     ConsolidationProvider, EmbeddingProvider, ExtractionProvider, MockEmbeddingProvider,
     MockExtractionProvider, NoOpProvider,
 };
+pub use store::export::{ExportData, ExportReport, ImportReport};
 pub use types::*;
 
 #[cfg(feature = "llm")]
