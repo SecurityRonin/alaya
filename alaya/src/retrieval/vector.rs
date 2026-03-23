@@ -4,16 +4,55 @@ use crate::types::*;
 use rusqlite::Connection;
 
 /// Search all embeddings by vector similarity.
+///
+/// When the `vec-sqlite` feature is enabled, episode embeddings are searched
+/// using KNN via the vec0 virtual table (much faster than brute-force at scale).
+/// Non-episode node types still fall back to brute-force cosine scan.
 pub fn search_vector(
     conn: &Connection,
     query_embedding: &[f32],
     limit: usize,
 ) -> Result<Vec<(NodeRef, f64)>> {
-    let results = embeddings::search_by_vector(conn, query_embedding, None, limit)?;
-    Ok(results
-        .into_iter()
-        .map(|(nr, sim)| (nr, sim as f64))
-        .collect())
+    #[cfg(feature = "vec-sqlite")]
+    {
+        // Try KNN for episodes via sqlite-vec. If the vec_episodes table
+        // hasn't been created (extension not initialised), fall back to
+        // the brute-force path for all node types.
+        match crate::store::vec_search::knn_search(conn, query_embedding, limit) {
+            Ok(vec_results) => {
+                let mut results: Vec<(NodeRef, f64)> = vec_results
+                    .into_iter()
+                    .map(|(id, sim)| (NodeRef::Episode(EpisodeId(id)), sim as f64))
+                    .collect();
+
+                // Also search non-episode embeddings via brute-force and merge
+                let brute_results =
+                    embeddings::search_by_vector(conn, query_embedding, Some("semantic"), limit)?;
+                results.extend(
+                    brute_results
+                        .into_iter()
+                        .map(|(nr, sim)| (nr, sim as f64)),
+                );
+
+                // Re-sort by similarity descending and truncate
+                results
+                    .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+                results.truncate(limit);
+                return Ok(results);
+            }
+            Err(_) => {
+                // vec_episodes table not available — fall through to brute-force
+            }
+        }
+    }
+
+    {
+        let results = embeddings::search_by_vector(conn, query_embedding, None, limit)?;
+        Ok(results
+            .into_iter()
+            .map(|(nr, sim)| (nr, sim as f64))
+            .collect())
+    }
 }
 
 #[cfg(test)]

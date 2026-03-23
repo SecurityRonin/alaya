@@ -6,3 +6,5 @@ pub mod export;
 pub mod implicit;
 pub mod semantic;
 pub mod strengths;
+#[cfg(feature = "vec-sqlite")]
+pub mod vec_search;

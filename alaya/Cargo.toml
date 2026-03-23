@@ -24,6 +24,7 @@ mcp = ["dep:rmcp", "dep:tokio", "dep:schemars", "dep:anyhow"]
 llm = ["dep:ureq"]
 tracing = ["dep:tracing", "dep:tracing-subscriber"]
 async = ["dep:tokio"]
+vec-sqlite = ["dep:sqlite-vec"]
 
 [dependencies]
 rusqlite = { version = "0.32", features = ["modern_sqlite"] }
@@ -43,6 +44,9 @@ ureq = { version = "2", features = ["json"], optional = true }
 # Tracing instrumentation (optional, zero-cost when disabled)
 tracing = { version = "0.1", optional = true }
 tracing-subscriber = { version = "0.3", features = ["fmt"], optional = true }
+
+# KNN vector search via sqlite-vec (optional)
+sqlite-vec = { version = "0.1", optional = true }
 
 [dev-dependencies]
 tempfile = "3"

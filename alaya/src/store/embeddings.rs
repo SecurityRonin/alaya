@@ -47,6 +47,17 @@ pub fn store_embedding(
          VALUES (?1, ?2, ?3, ?4, ?5)",
         params![node_type, node_id, blob, model, now],
     )?;
+
+    // When vec-sqlite is enabled, also upsert into the vec0 virtual table
+    // for episode embeddings to enable KNN search.
+    // The upsert is best-effort: if the vec_episodes table has not been
+    // created (init_vec_extension + create_vec_table not called), we
+    // silently skip rather than failing the regular embedding store.
+    #[cfg(feature = "vec-sqlite")]
+    if node_type == "episode" {
+        let _ = super::vec_search::upsert_vec(conn, node_id, embedding);
+    }
+
     Ok(())
 }
 
