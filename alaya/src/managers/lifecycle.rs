@@ -19,9 +19,13 @@ impl Lifecycle<'_> {
     /// ```
     #[cfg_attr(feature = "tracing", tracing::instrument(skip(self, provider)))]
     pub fn consolidate(&self, provider: &dyn ConsolidationProvider) -> Result<ConsolidationReport> {
-        db::transact(self.conn, |tx| {
+        let report = db::transact(self.conn, |tx| {
             lifecycle::consolidation::consolidate(tx, provider)
-        })
+        })?;
+        if let Some(h) = self.hooks {
+            h.on_consolidated(&report);
+        }
+        Ok(report)
     }
 
     /// Run consolidation on at most `batch_size` unconsolidated episodes.
@@ -43,9 +47,13 @@ impl Lifecycle<'_> {
         provider: &dyn ConsolidationProvider,
         batch_size: u32,
     ) -> Result<ConsolidationReport> {
-        db::transact(self.conn, |tx| {
+        let report = db::transact(self.conn, |tx| {
             lifecycle::consolidation::consolidate_batch(tx, provider, batch_size)
-        })
+        })?;
+        if let Some(h) = self.hooks {
+            h.on_consolidated(&report);
+        }
+        Ok(report)
     }
 
     /// Automatically extract knowledge from unconsolidated episodes using
@@ -75,9 +83,13 @@ impl Lifecycle<'_> {
             return Ok(ConsolidationReport::default());
         }
         let nodes = provider.extract(&episodes)?;
-        db::transact(self.conn, |tx| {
+        let report = db::transact(self.conn, |tx| {
             lifecycle::consolidation::learn_direct(tx, nodes)
-        })
+        })?;
+        if let Some(h) = self.hooks {
+            h.on_consolidated(&report);
+        }
+        Ok(report)
     }
 
     /// Run transformation: dedup, prune, decay (asraya-paravrtti).
@@ -89,7 +101,11 @@ impl Lifecycle<'_> {
     /// Run forgetting: decay retrieval strengths, archive weak nodes (Bjork).
     #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     pub fn forget(&self) -> Result<ForgettingReport> {
-        db::transact(self.conn, |tx| lifecycle::forgetting::forget(tx))
+        let report = db::transact(self.conn, |tx| lifecycle::forgetting::forget(tx))?;
+        if let Some(h) = self.hooks {
+            h.on_forgotten(&report);
+        }
+        Ok(report)
     }
 
     /// Run perfuming: extract impressions, crystallize preferences (vasana).

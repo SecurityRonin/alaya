@@ -11,6 +11,7 @@ pub(crate) mod lifecycle;
 
 use rusqlite::Connection;
 
+use crate::hooks::MemoryHooks;
 use crate::provider::{EmbeddingProvider, ExtractionProvider};
 use crate::types::ConflictStrategy;
 
@@ -19,6 +20,7 @@ use crate::types::ConflictStrategy;
 pub struct Episodes<'a> {
     pub(crate) conn: &'a Connection,
     pub(crate) embedding_provider: Option<&'a dyn EmbeddingProvider>,
+    pub(crate) hooks: Option<&'a dyn MemoryHooks>,
 }
 
 /// Knowledge sub-manager: query and manage semantic knowledge.
@@ -40,6 +42,7 @@ pub struct Lifecycle<'a> {
     pub(crate) conn: &'a Connection,
     pub(crate) extraction_provider: Option<&'a dyn ExtractionProvider>,
     pub(crate) conflict_strategy: ConflictStrategy,
+    pub(crate) hooks: Option<&'a dyn MemoryHooks>,
 }
 
 /// Graph sub-manager: neighbors, link queries.

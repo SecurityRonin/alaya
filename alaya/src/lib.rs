@@ -33,6 +33,7 @@ pub(crate) mod db;
 pub(crate) mod decay;
 pub(crate) mod error;
 pub(crate) mod graph;
+pub mod hooks;
 pub(crate) mod lifecycle;
 pub mod managers;
 pub(crate) mod provider;
@@ -60,6 +61,7 @@ use rusqlite::Connection;
 use std::path::Path;
 
 pub use error::{AlayaError, Result};
+pub use hooks::{MemoryHooks, NoOpHooks};
 pub use provider::{
     ConsolidationProvider, EmbeddingProvider, ExtractionProvider, MockEmbeddingProvider,
     MockExtractionProvider, NoOpProvider,
@@ -80,6 +82,7 @@ pub struct Alaya {
     embedding_provider: Option<Box<dyn EmbeddingProvider>>,
     extraction_provider: Option<Box<dyn ExtractionProvider>>,
     conflict_strategy: ConflictStrategy,
+    hooks: Option<Box<dyn MemoryHooks>>,
 }
 
 impl Alaya {
@@ -91,6 +94,7 @@ impl Alaya {
             embedding_provider: None,
             extraction_provider: None,
             conflict_strategy: ConflictStrategy::default(),
+            hooks: None,
         })
     }
 
@@ -102,6 +106,7 @@ impl Alaya {
             embedding_provider: None,
             extraction_provider: None,
             conflict_strategy: ConflictStrategy::default(),
+            hooks: None,
         })
     }
 
@@ -120,6 +125,7 @@ impl Alaya {
             embedding_provider: None,
             extraction_provider: None,
             conflict_strategy: ConflictStrategy::default(),
+            hooks: None,
         })
     }
 
@@ -136,6 +142,23 @@ impl Alaya {
     /// Configure the conflict resolution strategy.
     pub fn set_conflict_strategy(&mut self, strategy: ConflictStrategy) {
         self.conflict_strategy = strategy;
+    }
+
+    /// Set lifecycle event hooks for reacting to memory events.
+    ///
+    /// ```
+    /// use alaya::{Alaya, MemoryHooks, NoOpHooks};
+    ///
+    /// let mut alaya = Alaya::open_in_memory().unwrap();
+    /// alaya.set_hooks(Box::new(NoOpHooks));
+    /// ```
+    pub fn set_hooks(&mut self, hooks: Box<dyn MemoryHooks>) {
+        self.hooks = Some(hooks);
+    }
+
+    /// Access the configured hooks, if any.
+    pub(crate) fn hooks(&self) -> Option<&dyn MemoryHooks> {
+        self.hooks.as_deref()
     }
 
     #[cfg(feature = "sqlcipher")]
@@ -157,6 +180,7 @@ impl Alaya {
         managers::Episodes {
             conn: &self.conn,
             embedding_provider: self.embedding_provider.as_deref(),
+            hooks: self.hooks(),
         }
     }
 
@@ -172,6 +196,7 @@ impl Alaya {
             conn: &self.conn,
             extraction_provider: self.extraction_provider.as_deref(),
             conflict_strategy: self.conflict_strategy,
+            hooks: self.hooks(),
         }
     }
 

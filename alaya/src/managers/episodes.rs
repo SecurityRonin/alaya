@@ -49,7 +49,7 @@ impl Episodes<'_> {
             }
         }
 
-        db::transact(self.conn, |tx| {
+        let id = db::transact(self.conn, |tx| {
             let id = store::episodic::store_episode(tx, episode)?;
 
             let effective_embedding = match &episode.embedding {
@@ -75,7 +75,13 @@ impl Episodes<'_> {
             }
 
             Ok(id)
-        })
+        })?;
+
+        if let Some(h) = self.hooks {
+            h.on_episode_stored(id);
+        }
+
+        Ok(id)
     }
 
     /// Return all episodes belonging to the given session.
