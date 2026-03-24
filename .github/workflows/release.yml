@@ -207,6 +207,7 @@ jobs:
           vcpkg install openssl:x64-windows-static-md
           echo "OPENSSL_DIR=$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows-static-md" >> $env:GITHUB_ENV
           echo "OPENSSL_STATIC=1" >> $env:GITHUB_ENV
+          echo "RUSTFLAGS=-Clink-arg=advapi32.lib -Clink-arg=crypt32.lib -Clink-arg=user32.lib -Clink-arg=gdi32.lib" >> $env:GITHUB_ENV
         shell: pwsh
 
       - uses: PyO3/maturin-action@6fef5d39aef859fecc0e2751d71ea0bb42a6fc78 # v1.50.0
