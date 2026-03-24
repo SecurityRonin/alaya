@@ -57,10 +57,8 @@ pub(crate) fn begin_immediate(conn: &Connection) -> Result<rusqlite::Transaction
 /// Only executes migration SQL for versions in that range.
 fn run_migrations(conn: &Connection, from_version: i32, to_version: i32) -> Result<()> {
     for &(version, sql) in MIGRATIONS {
-        if version > from_version && version <= to_version {
-            if !sql.is_empty() {
-                conn.execute_batch(sql)?;
-            }
+        if version > from_version && version <= to_version && !sql.is_empty() {
+            conn.execute_batch(sql)?;
         }
     }
     Ok(())

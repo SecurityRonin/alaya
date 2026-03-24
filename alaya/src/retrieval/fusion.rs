@@ -8,6 +8,7 @@ use std::collections::HashMap;
 /// is the optional per-set multiplier (defaults to 1.0).
 ///
 /// Reference: Cormack, Clarke & Buettcher (2009)
+#[cfg(test)]
 pub fn rrf_merge(result_sets: &[Vec<(NodeRef, f64)>], k: u32) -> Vec<(NodeRef, f64)> {
     rrf_merge_weighted(result_sets, k, None)
 }
