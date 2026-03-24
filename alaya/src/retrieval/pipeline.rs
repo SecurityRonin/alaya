@@ -165,7 +165,9 @@ pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemor
             .collect();
         results.retain(|scored| {
             let content_lower = scored.content.to_lowercase();
-            !exclude_lower.iter().any(|term| content_lower.contains(term))
+            !exclude_lower
+                .iter()
+                .any(|term| content_lower.contains(term))
         });
     }
 

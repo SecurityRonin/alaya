@@ -28,15 +28,10 @@ pub fn search_vector(
                 // Also search non-episode embeddings via brute-force and merge
                 let brute_results =
                     embeddings::search_by_vector(conn, query_embedding, Some("semantic"), limit)?;
-                results.extend(
-                    brute_results
-                        .into_iter()
-                        .map(|(nr, sim)| (nr, sim as f64)),
-                );
+                results.extend(brute_results.into_iter().map(|(nr, sim)| (nr, sim as f64)));
 
                 // Re-sort by similarity descending and truncate
-                results
-                    .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+                results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
                 results.truncate(limit);
                 return Ok(results);
             }

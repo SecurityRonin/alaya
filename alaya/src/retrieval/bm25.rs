@@ -79,9 +79,7 @@ pub fn search_bm25(
         param_values.iter().map(|p| p.as_ref()).collect();
 
     let rows: Vec<(i64, f64)> = stmt
-        .query_map(param_refs.as_slice(), |row| {
-            Ok((row.get(0)?, row.get(1)?))
-        })?
+        .query_map(param_refs.as_slice(), |row| Ok((row.get(0)?, row.get(1)?)))?
         .filter_map(|r| r.ok())
         .collect();
 

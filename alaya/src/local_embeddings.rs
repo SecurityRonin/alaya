@@ -42,9 +42,9 @@ impl LocalEmbeddingProvider {
         .map_err(|e| AlayaError::InvalidInput(format!("Failed to load embedding model: {e}")))?;
 
         // Determine dimensions by embedding a probe string.
-        let test = text_embedding
-            .embed(vec!["test"], None)
-            .map_err(|e| AlayaError::InvalidInput(format!("Failed to determine dimensions: {e}")))?;
+        let test = text_embedding.embed(vec!["test"], None).map_err(|e| {
+            AlayaError::InvalidInput(format!("Failed to determine dimensions: {e}"))
+        })?;
         let dimensions = test.first().map(|v| v.len()).unwrap_or(384);
 
         Ok(Self {

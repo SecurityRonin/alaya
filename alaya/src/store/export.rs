@@ -332,9 +332,16 @@ pub fn import_json(conn: &Connection, reader: &mut dyn Read) -> Result<ImportRep
                 category_id, superseded_by)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             params![
-                node.id, node.content, node.node_type, node.confidence,
-                node.source_episodes_json, node.created_at, node.last_corroborated,
-                node.corroboration_count, node.category_id, node.superseded_by
+                node.id,
+                node.content,
+                node.node_type,
+                node.confidence,
+                node.source_episodes_json,
+                node.created_at,
+                node.last_corroborated,
+                node.corroboration_count,
+                node.category_id,
+                node.superseded_by
             ],
         )?;
         if changed > 0 {
@@ -351,8 +358,13 @@ pub fn import_json(conn: &Connection, reader: &mut dyn Read) -> Result<ImportRep
                 evidence_count, first_observed, last_reinforced)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
-                pref.id, pref.domain, pref.preference, pref.confidence,
-                pref.evidence_count, pref.first_observed, pref.last_reinforced
+                pref.id,
+                pref.domain,
+                pref.preference,
+                pref.confidence,
+                pref.evidence_count,
+                pref.first_observed,
+                pref.last_reinforced
             ],
         )?;
         if changed > 0 {
@@ -367,7 +379,13 @@ pub fn import_json(conn: &Connection, reader: &mut dyn Read) -> Result<ImportRep
         let changed = tx.execute(
             "INSERT OR IGNORE INTO impressions (id, domain, observation, valence, timestamp)
              VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![imp.id, imp.domain, imp.observation, imp.valence, imp.timestamp],
+            params![
+                imp.id,
+                imp.domain,
+                imp.observation,
+                imp.valence,
+                imp.timestamp
+            ],
         )?;
         if changed > 0 {
             report.impressions_imported += 1;
@@ -383,9 +401,15 @@ pub fn import_json(conn: &Connection, reader: &mut dyn Read) -> Result<ImportRep
                 centroid_embedding, created_at, last_updated, stability, parent_id)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             params![
-                cat.id, cat.label, cat.prototype_node_id, cat.member_count,
-                cat.centroid_embedding, cat.created_at, cat.last_updated,
-                cat.stability, cat.parent_id
+                cat.id,
+                cat.label,
+                cat.prototype_node_id,
+                cat.member_count,
+                cat.centroid_embedding,
+                cat.created_at,
+                cat.last_updated,
+                cat.stability,
+                cat.parent_id
             ],
         )?;
         if changed > 0 {
@@ -403,9 +427,17 @@ pub fn import_json(conn: &Connection, reader: &mut dyn Read) -> Result<ImportRep
                 created_at, last_activated, activation_count)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
-                link.id, link.source_type, link.source_id, link.target_type, link.target_id,
-                link.forward_weight, link.backward_weight, link.link_type,
-                link.created_at, link.last_activated, link.activation_count
+                link.id,
+                link.source_type,
+                link.source_id,
+                link.target_type,
+                link.target_id,
+                link.forward_weight,
+                link.backward_weight,
+                link.link_type,
+                link.created_at,
+                link.last_activated,
+                link.activation_count
             ],
         )?;
         if changed > 0 {
@@ -427,8 +459,8 @@ pub fn import_json(conn: &Connection, reader: &mut dyn Read) -> Result<ImportRep
 mod tests {
     use super::*;
     use crate::schema::open_memory_db;
-    use crate::testutil::fixtures::*;
     use crate::store;
+    use crate::testutil::fixtures::*;
 
     #[test]
     fn test_export_empty_db() {

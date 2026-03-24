@@ -88,8 +88,7 @@ pub fn visualize(alaya: &Alaya, params: &Value) -> crate::Result<String> {
 
     // 4. Query preferences
     {
-        let mut stmt =
-            conn.prepare("SELECT id, domain, preference FROM preferences LIMIT ?1")?;
+        let mut stmt = conn.prepare("SELECT id, domain, preference FROM preferences LIMIT ?1")?;
         let rows = stmt.query_map([max_nodes as i64], |row| {
             Ok((
                 row.get::<_, i64>(0)?,
@@ -133,37 +132,20 @@ pub fn visualize(alaya: &Alaya, params: &Value) -> crate::Result<String> {
 
     // 6. Add styling classes
     lines.push(String::new());
-    lines.push(
-        "    classDef episode fill:#4A90D9,stroke:#333,color:#fff;".to_string(),
-    );
-    lines.push(
-        "    classDef semantic fill:#7BC67B,stroke:#333,color:#fff;".to_string(),
-    );
-    lines.push(
-        "    classDef category fill:#9B59B6,stroke:#333,color:#fff;".to_string(),
-    );
-    lines.push(
-        "    classDef preference fill:#E67E22,stroke:#333,color:#fff;".to_string(),
-    );
+    lines.push("    classDef episode fill:#4A90D9,stroke:#333,color:#fff;".to_string());
+    lines.push("    classDef semantic fill:#7BC67B,stroke:#333,color:#fff;".to_string());
+    lines.push("    classDef category fill:#9B59B6,stroke:#333,color:#fff;".to_string());
+    lines.push("    classDef preference fill:#E67E22,stroke:#333,color:#fff;".to_string());
 
     // 7. Assign classes to nodes
     if !episode_ids.is_empty() {
-        lines.push(format!(
-            "    class {} episode;",
-            episode_ids.join(",")
-        ));
+        lines.push(format!("    class {} episode;", episode_ids.join(",")));
     }
     if !semantic_ids.is_empty() {
-        lines.push(format!(
-            "    class {} semantic;",
-            semantic_ids.join(",")
-        ));
+        lines.push(format!("    class {} semantic;", semantic_ids.join(",")));
     }
     if !category_ids.is_empty() {
-        lines.push(format!(
-            "    class {} category;",
-            category_ids.join(",")
-        ));
+        lines.push(format!("    class {} category;", category_ids.join(",")));
     }
     if !preference_ids.is_empty() {
         lines.push(format!(
@@ -302,7 +284,10 @@ mod tests {
         }
         let result = visualize(&alaya, &json!({"max_nodes": 5})).unwrap();
         // Count actual node definitions (lines with ep_N[")
-        let node_count = result.lines().filter(|l| l.contains("ep_") && l.contains("[\"")).count();
+        let node_count = result
+            .lines()
+            .filter(|l| l.contains("ep_") && l.contains("[\""))
+            .count();
         assert!(
             node_count <= 5,
             "should have at most 5 episode nodes, got {node_count}"
@@ -332,10 +317,7 @@ mod tests {
         .unwrap();
         let result = visualize(&alaya, &json!({"min_weight": 0.1})).unwrap();
         // Link should NOT appear because weight (0.05) < min_weight (0.1)
-        assert!(
-            !result.contains("-->"),
-            "weak link should be filtered out"
-        );
+        assert!(!result.contains("-->"), "weak link should be filtered out");
     }
 
     #[test]
@@ -479,6 +461,9 @@ mod tests {
         .unwrap();
         let result = visualize(&alaya, &json!({})).unwrap();
         assert!(result.contains("sn_1"));
-        assert!(!result.contains("sn_2"), "superseded nodes should be excluded");
+        assert!(
+            !result.contains("sn_2"),
+            "superseded nodes should be excluded"
+        );
     }
 }

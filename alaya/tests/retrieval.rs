@@ -409,10 +409,7 @@ fn test_session_filter() {
         })
         .unwrap();
 
-    assert!(
-        !results.is_empty(),
-        "should return results from session s1"
-    );
+    assert!(!results.is_empty(), "should return results from session s1");
     // All results should be from session s1 (episode at t=1000)
     for r in &results {
         // Only episodes from s1 should be returned; s1 episode is at t=1000
@@ -459,10 +456,7 @@ fn test_exclude_terms() {
         })
         .unwrap();
 
-    assert!(
-        !results.is_empty(),
-        "should return at least one result"
-    );
+    assert!(!results.is_empty(), "should return at least one result");
     for r in &results {
         assert!(
             !r.content.to_lowercase().contains("python"),

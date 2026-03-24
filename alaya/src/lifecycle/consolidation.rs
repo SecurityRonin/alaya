@@ -255,18 +255,11 @@ mod tests {
                 .collect())
         }
 
-        fn extract_impressions(
-            &self,
-            _interaction: &Interaction,
-        ) -> Result<Vec<NewImpression>> {
+        fn extract_impressions(&self, _interaction: &Interaction) -> Result<Vec<NewImpression>> {
             Ok(vec![])
         }
 
-        fn detect_contradiction(
-            &self,
-            _a: &SemanticNode,
-            _b: &SemanticNode,
-        ) -> Result<bool> {
+        fn detect_contradiction(&self, _a: &SemanticNode, _b: &SemanticNode) -> Result<bool> {
             Ok(false)
         }
     }
