@@ -353,10 +353,7 @@ impl AlayaMcp {
     #[tool(
         description = "Generate a Mermaid diagram of the memory graph showing episodes, knowledge, categories, and their connections. Returns a Mermaid graph definition that can be rendered visually."
     )]
-    fn visualize(
-        &self,
-        #[tool(aggr)] params: visualization::VisualizeParams,
-    ) -> String {
+    fn visualize(&self, #[tool(aggr)] params: visualization::VisualizeParams) -> String {
         visualization::handle_visualize(self, params)
     }
 }

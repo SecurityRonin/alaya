@@ -68,10 +68,7 @@ mod tests {
                 .push(report.nodes_created);
         }
         fn on_forgotten(&self, report: &ForgettingReport) {
-            self.forgettings
-                .lock()
-                .unwrap()
-                .push(report.nodes_archived);
+            self.forgettings.lock().unwrap().push(report.nodes_archived);
         }
     }
 
@@ -164,6 +161,9 @@ mod tests {
         hooks.on_episode_stored(EpisodeId(2));
         hooks.on_episode_stored(EpisodeId(3));
         assert_eq!(eps.lock().unwrap().len(), 3);
-        assert_eq!(*eps.lock().unwrap(), vec![EpisodeId(1), EpisodeId(2), EpisodeId(3)]);
+        assert_eq!(
+            *eps.lock().unwrap(),
+            vec![EpisodeId(1), EpisodeId(2), EpisodeId(3)]
+        );
     }
 }

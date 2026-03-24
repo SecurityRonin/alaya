@@ -1,6 +1,8 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
-use alaya::{Alaya, EpisodeContext, NewEpisode, NewSemanticNode, NoOpProvider, Query, Role, SemanticType};
+use alaya::{
+    Alaya, EpisodeContext, NewEpisode, NewSemanticNode, NoOpProvider, Query, Role, SemanticType,
+};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -21,7 +23,11 @@ fn populate_episodes(alaya: &Alaya, count: usize) {
     for i in 0..count {
         let episode = NewEpisode {
             content: format!("Episode number {} about topic {}", i, i % 10),
-            role: if i % 2 == 0 { Role::User } else { Role::Assistant },
+            role: if i % 2 == 0 {
+                Role::User
+            } else {
+                Role::Assistant
+            },
             session_id: format!("session-{}", i % 5),
             timestamp: 1000 + i as i64,
             context: EpisodeContext::default(),
@@ -69,7 +75,11 @@ fn bench_store_episode(c: &mut Criterion) {
         b.iter(|| {
             let episode = NewEpisode {
                 content: format!("Benchmark episode {} about concept {}", i, i % 10),
-                role: if i % 2 == 0 { Role::User } else { Role::Assistant },
+                role: if i % 2 == 0 {
+                    Role::User
+                } else {
+                    Role::Assistant
+                },
                 session_id: format!("bench-session-{}", i % 3),
                 timestamp: 2000 + i as i64,
                 context: EpisodeContext::default(),

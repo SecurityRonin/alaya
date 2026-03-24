@@ -71,8 +71,7 @@ fn init_db(conn: &Connection) -> Result<()> {
     conn.execute_batch("PRAGMA foreign_keys = ON;")?;
     conn.execute_batch("PRAGMA synchronous = NORMAL;")?;
 
-    let current_version: i32 = conn
-        .pragma_query_value(None, "user_version", |row| row.get(0))?;
+    let current_version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
 
     if current_version == 0 {
         // Fresh database: create all tables with the full latest schema.
@@ -564,10 +563,7 @@ mod tests {
         let version: i64 = conn
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .unwrap();
-        assert_eq!(
-            version, 6,
-            "fresh database should be at latest version (6)"
-        );
+        assert_eq!(version, 6, "fresh database should be at latest version (6)");
     }
 
     #[test]
@@ -689,7 +685,8 @@ mod tests {
                 UNIQUE(node_a_id, node_b_id)
             );
             ",
-        ).unwrap();
+        )
+        .unwrap();
         // Set version to 4 (before superseded_by migration at v5)
         conn.pragma_update(None, "user_version", 4).unwrap();
 
@@ -713,11 +710,16 @@ mod tests {
         conn.execute(
             "UPDATE semantic_nodes SET superseded_by = NULL WHERE id = 1",
             [],
-        ).unwrap();
+        )
+        .unwrap();
 
         // Verify original data is intact
         let content: String = conn
-            .query_row("SELECT content FROM semantic_nodes WHERE id = 1", [], |row| row.get(0))
+            .query_row(
+                "SELECT content FROM semantic_nodes WHERE id = 1",
+                [],
+                |row| row.get(0),
+            )
             .unwrap();
         assert_eq!(content, "existing fact");
     }

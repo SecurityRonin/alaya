@@ -23,13 +23,9 @@ pub fn rrf_merge_weighted(
     let mut scores: HashMap<NodeRef, f64> = HashMap::new();
 
     for (set_idx, result_set) in result_sets.iter().enumerate() {
-        let weight = weights
-            .and_then(|w| w.get(set_idx))
-            .copied()
-            .unwrap_or(1.0) as f64;
+        let weight = weights.and_then(|w| w.get(set_idx)).copied().unwrap_or(1.0) as f64;
         for (rank, (node_ref, _original_score)) in result_set.iter().enumerate() {
-            *scores.entry(*node_ref).or_default() +=
-                weight / (k as f64 + rank as f64 + 1.0);
+            *scores.entry(*node_ref).or_default() += weight / (k as f64 + rank as f64 + 1.0);
         }
     }
 

@@ -77,8 +77,7 @@ impl Lifecycle<'_> {
                 "no extraction provider configured; call set_extraction_provider() first".into(),
             )
         })?;
-        let episodes =
-            store::episodic::get_unconsolidated_episodes(self.conn, batch_size)?;
+        let episodes = store::episodic::get_unconsolidated_episodes(self.conn, batch_size)?;
         if episodes.is_empty() {
             return Ok(ConsolidationReport::default());
         }

@@ -23,10 +23,7 @@ impl MemoryHooks for RecordingHooks {
             .push(report.nodes_created);
     }
     fn on_forgotten(&self, report: &ForgettingReport) {
-        self.forgettings
-            .lock()
-            .unwrap()
-            .push(report.nodes_archived);
+        self.forgettings.lock().unwrap().push(report.nodes_archived);
     }
 }
 
@@ -48,7 +45,10 @@ fn hooks_fire_on_episode_store() {
 
     let recorded = eps.lock().unwrap();
     assert_eq!(recorded.len(), 1, "hook should fire exactly once");
-    assert_eq!(recorded[0], id, "hook should receive the correct episode ID");
+    assert_eq!(
+        recorded[0], id,
+        "hook should receive the correct episode ID"
+    );
 }
 
 #[test]
@@ -225,5 +225,9 @@ fn multiple_episode_stores_fire_multiple_hooks() {
     }
 
     let recorded = eps.lock().unwrap();
-    assert_eq!(recorded.len(), 5, "hook should fire once per episode stored");
+    assert_eq!(
+        recorded.len(),
+        5,
+        "hook should fire once per episode stored"
+    );
 }
