@@ -1,6 +1,6 @@
 [package]
 name = "alaya"
-version = "0.4.6"
+version.workspace = true
 edition = "2021"
 rust-version = "1.85"
 authors = ["Albert Hui <albert@securityronin.com>"]
