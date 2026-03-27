@@ -3,7 +3,7 @@ requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "alaya"
+name = "alaya-memory"
 requires-python = ">=3.9"
 description = "A memory engine for conversational AI agents"
 license = {text = "MIT"}
