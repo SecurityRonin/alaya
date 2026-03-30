@@ -244,6 +244,10 @@ cd alaya
 cargo run --example demo
 ```
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/securityronin-alaya).
+
 ## Architecture
 
 Alaya is a library, not a framework. Your agent owns the conversation loop,
