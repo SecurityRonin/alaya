@@ -9,21 +9,23 @@ from static memory stores toward memory as a living process.
 
 \subsection{Principled Forgetting}
 
-The majority of surveyed systems implement no forgetting mechanism
-whatsoever, treating memory as an append-only store. Among those that
-do, most rely on single-curve decay models: MemoryBank and
-CortexGraph apply Ebbinghaus forgetting
-curves~\cite{ebbinghaus1885}, Mem0 uses exponential decay, and
-Generative Agents~\cite{park2023generative} weight memories by
-recency. SYNAPSE~\cite{jiang2026synapse} introduces temporal decay
-with lateral inhibition, providing competitive suppression beyond
-simple time-based fading. The most principled approach is the Bjork
+The forgetting landscape has shifted dramatically in 2025--2026. While
+a majority of surveyed systems still implement no forgetting mechanism,
+the fraction that do has grown substantially, and the design space has
+diversified beyond simple decay. Multiple production systems now
+implement Ebbinghaus-inspired single-curve decay---FadeMem (adaptive
+Ebbinghaus), Oblivion, SuperLocalMemory, Hippo Memory, and
+EverMemOS---alongside earlier entrants such as MemoryBank, CortexGraph,
+and Generative Agents~\cite{park2023generative}. MaRS offers six
+configurable privacy-aware forgetting policies, and
+SYNAPSE~\cite{jiang2026synapse} introduces temporal decay with lateral
+inhibition. The most cognitively principled approach remains the Bjork
 dual-strength model~\cite{bjork1992}, which distinguishes storage
 strength (how deeply encoded) from retrieval strength (how currently
 accessible), combined with retrieval-induced
 forgetting~\cite{anderson1994} in which retrieving one memory actively
-suppresses competitors sharing the same cues. Despite this diversity
-of approaches, no empirical
+suppresses competitors sharing the same cues. Despite this proliferation
+of forgetting implementations, no empirical
 comparison of forgetting models exists on standard agent benchmarks
 such as LoCoMo or LongMemEval. Three critical questions remain
 unanswered: whether principled forgetting improves downstream task

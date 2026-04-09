@@ -99,9 +99,48 @@ labeled relevance judgments are unavailable, which is the typical case for agent
 memory.
 
 Third, lifecycle operations remain the most underserved area. Forgetting is
-present in only 33.9\% of systems, and of those, the majority use simple
-mechanisms (window truncation, FIFO eviction, or single-curve exponential
-decay). Contradiction resolution (8.0\%) and transformation/reorganization
+present in only 33.9\% of systems, but the forgetting landscape has
+diversified dramatically in 2025--2026. The relevant distinction is no longer
+\emph{forgetting vs.\ no forgetting} but \emph{how principled is your
+forgetting?} We identify six categories along a spectrum from least to most
+cognitively grounded:
+
+\begin{enumerate}[leftmargin=*, nosep]
+  \item \textbf{Hard TTL/deletion:} Fixed time-to-live with no usage
+    adaptation. Copilot (28-day expiry), Mem0 (TTL with expiration).
+  \item \textbf{LLM-judgment curation:} The LLM decides what to keep or
+    discard at write time. Letta, LangMem, Augment.
+  \item \textbf{Capacity eviction:} Implicit pressure from fixed capacity
+    limits. ChatGPT (${\sim}$100 block cap).
+  \item \textbf{Single-curve decay:} Ebbinghaus-inspired or bio-inspired
+    decay on a single strength dimension. FadeMem (adaptive Ebbinghaus),
+    Oblivion (Ebbinghaus), SuperLocalMemory (Ebbinghaus), Hippo Memory,
+    EverMemOS, MemoryBank, CortexGraph.
+  \item \textbf{Policy-based forgetting:} Configurable policies that
+    account for privacy, context, or user role. MaRS (six privacy-aware
+    forgetting policies).
+  \item \textbf{Dual-strength + retrieval-induced forgetting (RIF):}
+    Separates storage strength from retrieval strength per the Bjork
+    dual-strength model~\cite{bjork1992}, combined with retrieval-induced
+    forgetting~\cite{anderson1994} in which retrieving one memory actively
+    suppresses competitors sharing the same cues. Alaya is currently the
+    only system implementing this model.
+\end{enumerate}
+
+\noindent
+The proliferation of single-curve decay systems (category~4) is the most
+notable trend: FadeMem, Oblivion, SuperLocalMemory, Hippo Memory, and
+EverMemOS all appeared or added Ebbinghaus-inspired decay in 2025--2026,
+demonstrating broad recognition that unbounded memory stores degrade
+retrieval quality. However, single-curve models conflate storage strength
+with retrieval strength---a memory that has not been retrieved recently is
+treated as unimportant regardless of how deeply it was originally encoded.
+The dual-strength model (category~6) addresses this by allowing memories to
+retain high storage strength while their retrieval strength decays, enabling
+principled resurrection of deeply encoded but temporarily inaccessible
+knowledge.
+
+Contradiction resolution (8.0\%) and transformation/reorganization
 (12.5\%) are rarer still. The field has invested heavily in memory
 \emph{formation} and \emph{retrieval} while largely neglecting memory
 \emph{management}---the processes that keep a memory store healthy as it grows.
@@ -143,8 +182,11 @@ Table~\ref{tab:temporal-trends} reveals two countervailing trends. Graph
 structure has seen steady adoption, rising from 11.1\% in 2023 to 39.1\% in
 2026---a trajectory consistent with the ``graph memory is table stakes''
 consensus that emerged in early 2026. Similarly, forgetting mechanisms have
-grown from 33.3\% to 47.8\%, driven both by Ebbinghaus-curve implementations in
-production systems and by RL-learned decay policies in academic work.
+grown from 33.3\% to 43.2\%, driven by the proliferation of
+Ebbinghaus-inspired single-curve decay in production systems (FadeMem,
+Oblivion, SuperLocalMemory, Hippo Memory, EverMemOS), policy-based
+approaches (MaRS), and RL-learned decay policies in academic work
+(Memory-R1, MemRL, AgeMem).
 
 In contrast, consolidation (episodic $\to$ semantic promotion) and
 zero-dependency deployment have remained effectively flat across all four
@@ -620,32 +662,45 @@ contradiction handling---capabilities that our feature prevalence
 analysis (\S\ref{sec:feature-prevalence}) identifies as the most
 underserved in the field.
 
-Table~\ref{tab:benchmark-landscape} summarizes how these six benchmarks
+Two additional benchmarks further expand coverage.
+\textbf{AMA-Bench}~\cite{amabench2026} evaluates long-horizon agentic
+memory with trajectory processing, requiring agents to maintain and
+utilize memory across extended multi-step task sequences---moving beyond
+the static-history paradigm of LoCoMo and LongMemEval. The
+\textbf{Agent Memory Benchmark} (AMB) from Hindsight/Vectorize extends
+LoCoMo and LongMemEval to agentic task settings where memory must inform
+action selection rather than only answer retrieval questions.
+
+Table~\ref{tab:benchmark-landscape} summarizes how these benchmarks
 collectively map to the lifecycle operations from our taxonomy.  The
 progression from LoCoMo (factual retrieval) through TReMu (temporal
-reasoning) to MAB (lifecycle competencies) mirrors the field's gradual
-recognition that memory evaluation must encompass management processes,
-not just retrieval accuracy.
+reasoning) to MAB (lifecycle competencies) and AMA-Bench (long-horizon
+agentic memory) mirrors the field's gradual recognition that memory
+evaluation must encompass management processes, not just retrieval
+accuracy.
 
 \begin{table}[!t]
 \centering
 \caption{Benchmark landscape for agent memory evaluation.  Columns
 indicate which memory competencies each benchmark tests.
 $\bullet$~=~primary focus; $\circ$~=~partial coverage.
-Only MAB explicitly evaluates forgetting and contradiction resolution.}
+Only MAB explicitly evaluates forgetting and contradiction resolution;
+AMA-Bench uniquely tests long-horizon trajectory processing.}
 \label{tab:benchmark-landscape}
 \scriptsize
 \setlength{\tabcolsep}{3pt}
-\begin{tabular}{@{}lcccccc@{}}
+\begin{tabular}{@{}lccccccc@{}}
 \toprule
-& \rotatebox{70}{\textbf{Factual}} & \rotatebox{70}{\textbf{Temporal}} & \rotatebox{70}{\textbf{Cognitive}} & \rotatebox{70}{\textbf{Learning}} & \rotatebox{70}{\textbf{Forgetting}} & \rotatebox{70}{\textbf{Understand.}} \\
+& \rotatebox{70}{\textbf{Factual}} & \rotatebox{70}{\textbf{Temporal}} & \rotatebox{70}{\textbf{Cognitive}} & \rotatebox{70}{\textbf{Learning}} & \rotatebox{70}{\textbf{Forgetting}} & \rotatebox{70}{\textbf{Understand.}} & \rotatebox{70}{\textbf{Agentic}} \\
 \midrule
-LoCoMo         & $\bullet$ & $\circ$ &           &           &           &           \\
-LongMemEval    & $\bullet$ & $\circ$ &           &           &           &           \\
-DMR            & $\bullet$ &         &           &           &           &           \\
-TReMu          &           & $\bullet$ &         &           &           &           \\
-LoCoMo-Plus    & $\bullet$ &         & $\bullet$ &           &           &           \\
-MAB            & $\bullet$ &         &           & $\bullet$ & $\bullet$ & $\bullet$ \\
+LoCoMo         & $\bullet$ & $\circ$ &           &           &           &           &           \\
+LongMemEval    & $\bullet$ & $\circ$ &           &           &           &           &           \\
+DMR            & $\bullet$ &         &           &           &           &           &           \\
+TReMu          &           & $\bullet$ &         &           &           &           &           \\
+LoCoMo-Plus    & $\bullet$ &         & $\bullet$ &           &           &           &           \\
+MAB            & $\bullet$ &         &           & $\bullet$ & $\bullet$ & $\bullet$ &           \\
+AMA-Bench      &           &         &           & $\bullet$ &           & $\bullet$ & $\bullet$ \\
+AMB            & $\bullet$ & $\circ$ &           &           &           &           & $\bullet$ \\
 \bottomrule
 \end{tabular}
 \end{table}

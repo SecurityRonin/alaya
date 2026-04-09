@@ -39,3 +39,42 @@ memory architectures but does not evaluate any specific system's
 end-to-end performance. Comparative evaluation of lifecycle operations
 (forgetting, consolidation, transformation) across systems remains
 future work.
+
+\textbf{Evolving benchmark landscape.} Since our evaluation cutoff,
+several benchmarks have appeared that address gaps we identify in
+\S\ref{sec:benchmark-landscape} and \S\ref{sec:open-problems}.
+AMA-Bench~\cite{amabench2026} evaluates long-horizon agentic memory
+with trajectory processing across extended interaction sequences, going
+beyond the static-history paradigm of LoCoMo and LongMemEval. The
+Agent Memory Benchmark (AMB) from Hindsight/Vectorize extends
+LoCoMo and LongMemEval to agentic task settings where memory must
+inform action selection, not just answer retrieval questions. These
+benchmarks, together with MemoryAgentBench~\cite{hu2025mab}, represent
+the field's shift toward evaluating memory as a \emph{process} rather
+than a \emph{store}. Future work should evaluate systems on this
+expanded benchmark suite.
+
+\textbf{Temporal reasoning remains catastrophic.} Our baseline
+experiments (\S\ref{sec:baseline-replication}) confirm that temporal
+reasoning accuracy ranges from 6.5\% to 29.3\% across all systems and
+benchmarks tested---well below random baselines on binary questions.
+TReMu~\cite{ge2025tremu} corroborates this finding. No surveyed
+production system addresses temporal reasoning as a first-class
+capability, and this remains the single largest accuracy gap in the
+field.
+
+\textbf{Memory staleness detection.} No surveyed system implements
+mechanisms to detect when high-strength memories become factually
+outdated. A memory encoded with high storage strength (e.g., ``user
+works at Company~X'') persists indefinitely even after the underlying
+fact changes. Staleness detection---identifying memories whose
+real-world referents have shifted---requires temporal grounding and
+external validation that current architectures do not provide.
+
+\textbf{Multi-agent memory coordination.} The market is moving toward
+multi-agent architectures (CrewAI, AutoGen, Agency Swarm), but most
+memory systems---including all those evaluated in this survey---assume a
+single-agent context. How multiple agents should share, partition, or
+synchronize a common memory store, and how forgetting and consolidation
+policies should interact across agents with different roles and
+information needs, are open problems with no published solutions.

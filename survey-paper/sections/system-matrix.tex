@@ -5,13 +5,13 @@
 \label{sec:system-matrix}
 
 Table~\ref{tab:system-matrix} presents per-feature classifications for
-90~systems with complete capability data across the eight discriminating
+104~systems with complete capability data across the eight discriminating
 features defined in \S\ref{sec:long-tail}.  Systems are grouped by category
 and sorted alphabetically within each group.
 
 \begin{table*}[!t]
 \centering
-\caption{Per-system capability matrix for 91 classified systems.
+\caption{Per-system capability matrix for 104 classified systems.
 $\bullet$~=~capability present.
 RAG tier: N~=~Naive, A~=~Advanced, M~=~Modular~\cite{gao2023rag}.
 An interactive visualization with filtering is available at
@@ -33,26 +33,25 @@ An interactive visualization with filtering is available at
   & \rotatebox{90}{\textbf{Contrad.}}
   & \rotatebox{90}{\textbf{Preference}} \\
 \midrule
-\multicolumn{10}{@{}l}{\textit{Dedicated Memory Systems (38)}} \\
+\multicolumn{10}{@{}l}{\textit{Dedicated Memory Systems (42)}} \\
 Backboard            & A & $\bullet$ & $\bullet$ &           &           &           &           &           &           \\
 ChatGPT Memory       & N & $\bullet$ &           &           &           &           & $\bullet$ &           & $\bullet$ \\
 Claude Memory Tool   & N & $\bullet$ &           &           &           &           &           &           &           \\
-Cognee               & A &           & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &           \\
+Cognee               & A & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &           &           \\
 Cortex-Mem           & N &           & $\bullet$ &           &           &           &           &           &           \\
 EmergenceMem         & A & $\bullet$ & $\bullet$ &           &           &           &           &           &           \\
-EverMemOS            & A & $\bullet$ & $\bullet$ &           & $\bullet$ & $\bullet$ & $\bullet$ &           &           \\
+EverMemOS            & A & $\bullet$ & $\bullet$ & $\bullet$ &           & $\bullet$ & $\bullet$ &           &           \\
 Gemini Memory        & N & $\bullet$ &           &           &           &           &           &           & $\bullet$ \\
 Grok Memory          & N & $\bullet$ &           &           &           &           &           &           & $\bullet$ \\
-Hindsight            & A & $\bullet$ & $\bullet$ &           & $\bullet$ &           & $\bullet$ & $\bullet$ & $\bullet$ \\
 Mastra Obs.\ Mem.    & A & $\bullet$ & $\bullet$ &           &           &           &           &           &           \\
 MCP Mem.\ Service    & A &           & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &           \\
 mcp-memory-svc        & A & $\bullet$ & $\bullet$ & $\bullet$ &           & $\bullet$ &           &           &           \\
-Mem0                 & A & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           & $\bullet$ & $\bullet$ & $\bullet$ \\
+Mem0                 & A & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ \\
 Memary               & A &           & $\bullet$ & $\bullet$ &           &           & $\bullet$ &           &           \\
 MemMachine           & A & $\bullet$ & $\bullet$ &           &           &           &           &           &           \\
 Memobase             & N &           &           &           &           &           &           &           & $\bullet$ \\
 memU                 & A & $\bullet$ & $\bullet$ &           & $\bullet$ &           & $\bullet$ &           & $\bullet$ \\
-MemOS                & A & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           & $\bullet$ \\
+MemOS                & A & $\bullet$ & $\bullet$ &           &           & $\bullet$ &           &           &           \\
 MemoryOS             & A & $\bullet$ & $\bullet$ &           & $\bullet$ &           & $\bullet$ &           & $\bullet$ \\
 Memonto              & N &           & $\bullet$ & $\bullet$ &           &           &           &           &           \\
 Memvid               & A & $\bullet$ &           &           & $\bullet$ &           &           &           &           \\
@@ -67,7 +66,7 @@ Papr Memory          & A & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &      
 Perplexity Memory    & A & $\bullet$ &           &           &           &           &           &           & $\bullet$ \\
 Redis Memory         & A &           & $\bullet$ &           & $\bullet$ &           &           &           &           \\
 ReMe                 & A & $\bullet$ & $\bullet$ &           & $\bullet$ & $\bullet$ & $\bullet$ &           & $\bullet$ \\
-Supermemory          & A & $\bullet$ & $\bullet$ & $\bullet$ &           &           & $\bullet$ &           & $\bullet$ \\
+Supermemory          & A & $\bullet$ & $\bullet$ &           &           & $\bullet$ & $\bullet$ & $\bullet$ &           \\
 TiMem                & A & $\bullet$ & $\bullet$ &           &           & $\bullet$ & $\bullet$ &           &           \\
 Vestige              & M & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           & $\bullet$ &           & $\bullet$ \\
 Zep/Graphiti         & M & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           \\
@@ -86,11 +85,13 @@ LlamaIndex           & N & $\bullet$ &           &           &           &      
 MS GraphRAG          & M &           & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &           \\
 Qwen-Agent           & N & $\bullet$ &           &           &           &           &           &           &           \\
 \midrule
-\multicolumn{10}{@{}l}{\textit{Coding Agent Memory (18)}} \\
+\multicolumn{10}{@{}l}{\textit{Coding Agent Memory (21)}} \\
+AgentMemory          & M & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           \\
 Augment Code         & A & $\bullet$ & $\bullet$ &           &           &           &           &           & $\bullet$ \\
 Basic Memory         & A &           & $\bullet$ & $\bullet$ &           &           &           &           &           \\
 claude-mem            & A & $\bullet$ & $\bullet$ &           &           & $\bullet$ &           &           &           \\
 Beads                & A & $\bullet$ & $\bullet$ & $\bullet$ &           & $\bullet$ & $\bullet$ &           &           \\
+Capy-Cortex          & A & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           \\
 Cipher (ByteRover)   & A & $\bullet$ & $\bullet$ &           &           &           & $\bullet$ &           &           \\
 Clawdbot-Next        & A & $\bullet$ &           &           & $\bullet$ &           &           &           &           \\
 ClaudeHistory Cloud  & N & $\bullet$ &           &           &           &           &           &           &           \\
@@ -99,6 +100,7 @@ Cursor Memory        & A & $\bullet$ &           &           &           &      
 Engram               & N & $\bullet$ &           &           &           &           &           &           &           \\
 episodic-memory       & A & $\bullet$ &           &           &           &           &           &           &           \\
 IronClaw             & A & $\bullet$ & $\bullet$ &           & $\bullet$ &           &           &           &           \\
+Mastra               & A & $\bullet$ & $\bullet$ &           &           &           &           &           &           \\
 MemoryMesh           & N & $\bullet$ &           &           &           &           &           &           &           \\
 Nanobot              & N & $\bullet$ &           &           &           &           &           &           &           \\
 OpenFang             & A & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           & $\bullet$ &           &           \\
@@ -108,21 +110,25 @@ QMD                  & M & $\bullet$ & $\bullet$ &           & $\bullet$ &      
 \midrule
 \multicolumn{10}{@{}l}{\textit{File-Based Memory (4)}} \\
 Claude Code          & N & $\bullet$ &           &           &           &           &           &           & $\bullet$ \\
-Claudesidian         & A & $\bullet$ &           & $\bullet$ &           &           & $\bullet$ &           &           \\
+Claudesidian         & A & $\bullet$ &           & $\bullet$ &           &           &           &           &           \\
 Cursor Rules         & N & $\bullet$ &           &           &           &           &           &           & $\bullet$ \\
 Windsurf Memory      & N & $\bullet$ &           &           &           &           &           &           & $\bullet$ \\
 \midrule
-\multicolumn{10}{@{}l}{\textit{Research Architectures (19)}} \\
+\multicolumn{10}{@{}l}{\textit{Research Architectures (25)}} \\
 A-MEM                & A &           & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &           \\
 AgeMem               & A & $\bullet$ &           &           &           &           & $\bullet$ &           &           \\
 AriadneMem           & M &           & $\bullet$ & $\bullet$ & $\bullet$ &           &           & $\bullet$ &           \\
+FadeMem              & A & $\bullet$ & $\bullet$ &           &           &           & $\bullet$ &           &           \\
 G-Memory             & A & $\bullet$ & $\bullet$ &           &           &           &           & $\bullet$ &           \\
 Generative Agents    & A & $\bullet$ & $\bullet$ &           & $\bullet$ & $\bullet$ & $\bullet$ &           & $\bullet$ \\
 HippoRAG             & M &           & $\bullet$ & $\bullet$ &           &           &           &           &           \\
 HippoRAG~2           & M & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &           \\
+Hindsight            & M & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           &           & $\bullet$ & $\bullet$ \\
 ID-RAG               & A & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &           & $\bullet$ \\
 LightMem             & A & $\bullet$ & $\bullet$ &           &           & $\bullet$ & $\bullet$ &           &           \\
 LightRAG             & M &           & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &           \\
+MAGMA                & M & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           \\
+MaRS                 & A & $\bullet$ & $\bullet$ &           &           &           & $\bullet$ &           &           \\
 Mem-alpha            & A & $\bullet$ & $\bullet$ &           &           &           & $\bullet$ &           &           \\
 MemAgent             & A & $\bullet$ &           &           &           &           & $\bullet$ &           &           \\
 MemoryBank           & A & $\bullet$ & $\bullet$ &           &           &           & $\bullet$ &           & $\bullet$ \\
@@ -130,8 +136,10 @@ MemoRAG              & A & $\bullet$ & $\bullet$ &           & $\bullet$ &      
 MemR3                & A & $\bullet$ & $\bullet$ &           &           &           &           &           &           \\
 MemRL                & A & $\bullet$ &           &           &           &           & $\bullet$ &           &           \\
 Memory-R1            & A & $\bullet$ &           &           &           &           & $\bullet$ &           &           \\
+Oblivion             & A & $\bullet$ &           &           &           &           & $\bullet$ &           &           \\
 PersonaRAG           & A & $\bullet$ & $\bullet$ &           &           &           &           &           & $\bullet$ \\
 SimpleMem            & A & $\bullet$ & $\bullet$ &           & $\bullet$ & $\bullet$ & $\bullet$ &           &           \\
+SuperLocalMemory     & M & $\bullet$ & $\bullet$ &           & $\bullet$ &           & $\bullet$ &           &           \\
 SYNAPSE              & M & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           &           \\
 \bottomrule
 \end{tabular}
@@ -160,7 +168,7 @@ consolidation and forgetting represents a notable exception.
     xlabel={Number of classified systems},
     symbolic y coords={File-Based, Coding Agent, Framework, Research, Dedicated},
     ytick=data,
-    xmin=0, xmax=44,
+    xmin=0, xmax=48,
     nodes near coords,
     nodes near coords style={font=\scriptsize, anchor=west},
     every node near coord/.append style={xshift=2pt},
@@ -171,10 +179,10 @@ consolidation and forgetting represents a notable exception.
 ]
 \addplot[fill=blue!40] coordinates {
     (4,File-Based)
-    (17,Coding Agent)
+    (21,Coding Agent)
     (12,Framework)
-    (19,Research)
-    (38,Dedicated)
+    (25,Research)
+    (42,Dedicated)
 };
 \end{axis}
 \end{tikzpicture}
@@ -210,7 +218,7 @@ No system achieves the maximum on both axes simultaneously.
     xlabel={Structure Breadth (Episodic + Semantic + Graph + Fusion)},
     ylabel={Lifecycle Depth (Consolid.\ + Forgetting + Contrad.\ + Preference)},
     xmin=-0.5, xmax=4.8,
-    ymin=-0.5, ymax=4.2,
+    ymin=-0.5, ymax=4.5,
     xtick={0,1,2,3,4},
     ytick={0,1,2,3,4},
     grid=major,
@@ -222,12 +230,12 @@ No system achieves the maximum on both axes simultaneously.
     clip=false,
 ]
 % Quadrant labels
-\node[font=\scriptsize\itshape, gray] at (axis cs:0.5,3.8) {Lifecycle-focused};
-\node[font=\scriptsize\itshape, gray] at (axis cs:3.5,3.8) {Full-stack};
+\node[font=\scriptsize\itshape, gray] at (axis cs:0.5,4.2) {Lifecycle-focused};
+\node[font=\scriptsize\itshape, gray] at (axis cs:3.5,4.2) {Full-stack};
 \node[font=\scriptsize\itshape, gray] at (axis cs:0.5,-0.3) {Basic};
 \node[font=\scriptsize\itshape, gray] at (axis cs:3.5,-0.3) {Retrieval-focused};
 % Quadrant dividers
-\draw[gray, dashed] (axis cs:2,-0.5) -- (axis cs:2,4.2);
+\draw[gray, dashed] (axis cs:2,-0.5) -- (axis cs:2,4.5);
 \draw[gray, dashed] (axis cs:-0.5,2) -- (axis cs:4.8,2);
 
 % --- Dedicated Memory Systems (filled circles) ---
@@ -241,14 +249,13 @@ No system achieves the maximum on both axes simultaneously.
     (3,2)      % EverMemOS
     (1,1)      % Gemini Memory
     (1,1.1)    % Grok Memory (jitter)
-    (3,3)      % Hindsight
     (2,0.2)    % Mastra (jitter)
     (3,0.1)    % MCP Mem Service (jitter)
-    (4,3)      % Mem0
+    (4,4)      % Mem0
     (2,1)      % Memary
     (2,0.3)    % MemMachine (jitter)
     (0,1)      % Memobase
-    (4,3.15)   % MemOS (jitter)
+    (2,1.15)   % MemOS (jitter)
     (3,2.15)   % MemoryOS (jitter)
     (2,0.05)   % Memonto (jitter)
     (2,0.15)   % Memvid (jitter)
@@ -261,7 +268,7 @@ No system achieves the maximum on both axes simultaneously.
     (4,0.35)   % Papr (jitter)
     (1,0.9)    % Perplexity Memory (jitter)
     (2,0.25)   % Redis Memory (jitter)
-    (3,2.3)    % Supermemory (jitter)
+    (2,3)      % Supermemory (jitter)
     (2,2.2)    % TiMem (jitter)
     (4,2.15)   % Vestige (jitter)
     (4,3.3)    % Zep/Graphiti (jitter)
@@ -307,12 +314,15 @@ No system achieves the maximum on both axes simultaneously.
     (2,0.7)    % Augment Code (jitter)
     (1,0.35)   % episodic-memory (jitter)
     (2,1.6)    % claude-mem (jitter)
+    (4,3.1)    % AgentMemory (jitter)
+    (4,1)      % Capy-Cortex (jitter)
+    (2,0.08)   % Mastra (jitter)
 };
 
 % --- File-Based Memory (diamonds) ---
 \addplot[only marks, mark=diamond*, orange!80, mark size=3pt] coordinates {
     (1,1.15)   % Claude Code (jitter)
-    (2,1.2)    % Claudesidian (jitter)
+    (2,0.1)    % Claudesidian (jitter)
     (1,1.25)   % Cursor Rules (jitter)
     (1,1.35)   % Windsurf Memory (jitter)
 };
@@ -339,15 +349,20 @@ No system achieves the maximum on both axes simultaneously.
     (2,1.35)   % MemR3 (jitter)
     (2,1.45)   % PersonaRAG (jitter)
     (3,2.25)   % SimpleMem (jitter)
+    (2,1.0)    % FadeMem (jitter)
+    (4,2.05)   % Hindsight (jitter)
+    (4,1.1)    % MAGMA (jitter)
+    (2,1.1)    % MaRS (jitter)
+    (1,1.0)    % Oblivion (jitter)
+    (3,1.0)    % SuperLocalMemory (jitter)
 };
 
 \legend{Dedicated, Framework, Coding Agent, File-Based, Research}
 
 % Labels for notable systems
 \node[font=\tiny, anchor=south west] at (axis cs:4.05,3.35) {Zep};
-\node[font=\tiny, anchor=south west] at (axis cs:4.05,3) {Mem0};
-\node[font=\tiny, anchor=south east] at (axis cs:3.95,3.15) {MemOS};
-\node[font=\tiny, anchor=south west] at (axis cs:3.05,3) {Hindsight};
+\node[font=\tiny, anchor=south west] at (axis cs:4.05,4) {Mem0};
+\node[font=\tiny, anchor=south west] at (axis cs:4.05,2.05) {Hindsight};
 \node[font=\tiny, anchor=south west] at (axis cs:3.05,3.15) {Gen.\ Agents};
 \node[font=\tiny, anchor=south west] at (axis cs:2.05,3) {Letta};
 \node[font=\tiny, anchor=south west] at (axis cs:4.05,2.3) {SYNAPSE};
