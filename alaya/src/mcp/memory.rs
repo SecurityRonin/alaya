@@ -130,6 +130,7 @@ pub fn handle_recall(server: &super::AlayaMcp, params: RecallParams) -> String {
         embedding: None,
         context: crate::QueryContext::default(),
         max_results: params.max_results.unwrap_or(5),
+        category_id: params.category_id,
         boost_categories: params.boost_category.map(|c| vec![c.to_string()]),
         boost_weights: None,
     };

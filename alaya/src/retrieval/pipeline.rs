@@ -121,6 +121,10 @@ pub fn execute_query(conn: &Connection, query: &Query) -> Result<Vec<ScoredMemor
                 NodeRef::Semantic(nid) => crate::store::semantic::get_semantic_node(conn, nid)
                     .ok()
                     .filter(|node| node.confidence > 0.0) // superseded nodes have confidence 0.0
+                    .filter(|node| match query.category_id {
+                        Some(cat) => node.category_id == Some(cat),
+                        None => true,
+                    })
                     .map(|node| {
                         (
                             node_ref,
@@ -263,6 +267,7 @@ mod tests {
                     ..Default::default()
                 },
                 max_results: 5,
+                category_id: None,
                 boost_categories: None,
                 boost_weights: None,
             },
@@ -291,6 +296,7 @@ mod tests {
                     ..Default::default()
                 },
                 max_results: 5,
+                category_id: None,
                 boost_categories: None,
                 boost_weights: None,
             },
@@ -335,6 +341,7 @@ mod tests {
                     ..Default::default()
                 },
                 max_results: 5,
+                category_id: None,
                 boost_categories: None,
                 boost_weights: None,
             },
@@ -382,6 +389,7 @@ mod tests {
                     ..Default::default()
                 },
                 max_results: 3,
+                category_id: None,
                 boost_categories: None,
                 boost_weights: None,
             },
@@ -415,6 +423,7 @@ mod tests {
                     ..Default::default()
                 },
                 max_results: 1,
+                category_id: None,
                 boost_categories: None,
                 boost_weights: None,
             },
@@ -462,6 +471,7 @@ mod tests {
                     ..Default::default()
                 },
                 max_results: 10,
+                category_id: None,
                 boost_categories: None,
                 boost_weights: None,
             },
@@ -495,6 +505,7 @@ mod tests {
                     ..Default::default()
                 },
                 max_results: 5,
+                category_id: None,
                 boost_categories: None,
                 boost_weights: None,
             },
@@ -552,6 +563,7 @@ mod tests {
                     ..Default::default()
                 },
                 max_results: 10,
+                category_id: None,
                 boost_categories: None,
                 boost_weights: None,
             },
@@ -608,6 +620,7 @@ mod tests {
                     ..Default::default()
                 },
                 max_results: 10,
+                category_id: None,
                 boost_categories: None,
                 boost_weights: None,
             },
@@ -671,6 +684,7 @@ mod tests {
                     ..Default::default()
                 },
                 max_results: 10,
+                category_id: None,
                 boost_categories: None,
                 boost_weights: None,
             },
@@ -724,6 +738,7 @@ mod tests {
                     ..Default::default()
                 },
                 max_results: 1,
+                category_id: None,
                 boost_categories: None,
                 boost_weights: None,
             },
@@ -821,6 +836,7 @@ mod tests {
                     ..Default::default()
                 },
                 max_results: 5,
+                category_id: None,
                 boost_categories: None,
                 boost_weights: None,
             },
@@ -867,6 +883,7 @@ mod tests {
                     ..Default::default()
                 },
                 max_results: 5,
+                category_id: None,
                 boost_categories: None,
                 boost_weights: None,
             },
@@ -916,6 +933,7 @@ mod tests {
                     ..Default::default()
                 },
                 max_results: 5,
+                category_id: None,
                 boost_categories: None,
                 boost_weights: None,
             },
@@ -976,6 +994,7 @@ mod tests {
                     ..Default::default()
                 },
                 max_results: 5,
+                category_id: None,
                 boost_categories: None,
                 boost_weights: None,
             },
@@ -1034,6 +1053,7 @@ mod tests {
                     ..Default::default()
                 },
                 max_results: 10,
+                category_id: None,
                 boost_categories: None,
                 boost_weights: None,
             },
@@ -1092,6 +1112,7 @@ mod tests {
                     ..Default::default()
                 },
                 max_results: 1, // Only retrieve 1
+                category_id: None,
                 boost_categories: None,
                 boost_weights: None,
             },
@@ -1178,6 +1199,7 @@ mod tests {
                     ..Default::default()
                 },
                 max_results: 10,
+                category_id: None,
                 boost_categories: None,
                 boost_weights: None,
             },
@@ -1238,6 +1260,7 @@ mod tests {
                     ..Default::default()
                 },
                 max_results: 10,
+                category_id: None,
                 boost_categories: None,
                 boost_weights: None,
             },
@@ -1513,6 +1536,7 @@ mod tests {
                     ..Default::default()
                 },
                 max_results: 10,
+                category_id: None,
                 boost_categories: None,
                 boost_weights: None,
             },
@@ -1554,6 +1578,7 @@ mod tests {
                     ..Default::default()
                 },
                 max_results: 5,
+                category_id: None,
                 boost_categories: None,
                 boost_weights: None,
             },

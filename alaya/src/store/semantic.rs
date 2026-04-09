@@ -23,7 +23,7 @@ pub fn store_semantic_node(conn: &Connection, node: &NewSemanticNode) -> Result<
 pub fn get_semantic_node(conn: &Connection, id: NodeId) -> Result<SemanticNode> {
     conn.query_row(
         "SELECT id, content, node_type, confidence, source_episodes_json,
-                created_at, last_corroborated, corroboration_count
+                created_at, last_corroborated, corroboration_count, category_id
          FROM semantic_nodes WHERE id = ?1",
         [id.0],
         |row| {
@@ -38,6 +38,7 @@ pub fn get_semantic_node(conn: &Connection, id: NodeId) -> Result<SemanticNode> 
                 created_at: row.get(5)?,
                 last_corroborated: row.get(6)?,
                 corroboration_count: row.get(7)?,
+                category_id: row.get(8)?,
             })
         },
     )
@@ -66,7 +67,7 @@ pub fn find_by_type(
 ) -> Result<Vec<SemanticNode>> {
     let mut stmt = conn.prepare(
         "SELECT id, content, node_type, confidence, source_episodes_json,
-                created_at, last_corroborated, corroboration_count
+                created_at, last_corroborated, corroboration_count, category_id
          FROM semantic_nodes WHERE node_type = ?1 AND superseded_by IS NULL
          ORDER BY confidence DESC LIMIT ?2",
     )?;
@@ -82,6 +83,7 @@ pub fn find_by_type(
             created_at: row.get(5)?,
             last_corroborated: row.get(6)?,
             corroboration_count: row.get(7)?,
+            category_id: row.get(8)?,
         })
     })?;
     Ok(rows.filter_map(|r| r.ok()).collect())

@@ -225,6 +225,7 @@ mod tests {
             created_at: 1000,
             last_corroborated: 1000,
             corroboration_count: 1,
+            category_id: None,
         };
         let b = SemanticNode {
             id: NodeId(2),
@@ -235,6 +236,7 @@ mod tests {
             created_at: 2000,
             last_corroborated: 2000,
             corroboration_count: 1,
+            category_id: None,
         };
         let result = provider.detect_contradiction(&a, &b).unwrap();
         assert!(
@@ -351,6 +353,7 @@ mod tests {
             created_at: 0,
             last_corroborated: 0,
             corroboration_count: 1,
+            category_id: None,
         };
         let b = SemanticNode {
             id: NodeId(2),
@@ -361,6 +364,7 @@ mod tests {
             created_at: 0,
             last_corroborated: 0,
             corroboration_count: 1,
+            category_id: None,
         };
         assert!(!provider.detect_contradiction(&a, &b).unwrap());
     }

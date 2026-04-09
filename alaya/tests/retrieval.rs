@@ -308,6 +308,7 @@ fn test_temporal_filter_after() {
                 ..Default::default()
             },
             max_results: 10,
+            category_id: None,
             boost_categories: None,
             boost_weights: None,
         })
@@ -358,6 +359,7 @@ fn test_temporal_filter_before() {
                 ..Default::default()
             },
             max_results: 10,
+            category_id: None,
             boost_categories: None,
             boost_weights: None,
         })
@@ -404,6 +406,7 @@ fn test_session_filter() {
                 ..Default::default()
             },
             max_results: 10,
+            category_id: None,
             boost_categories: None,
             boost_weights: None,
         })
@@ -451,6 +454,7 @@ fn test_exclude_terms() {
                 ..Default::default()
             },
             max_results: 10,
+            category_id: None,
             boost_categories: None,
             boost_weights: None,
         })

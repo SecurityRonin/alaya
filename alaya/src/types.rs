@@ -277,6 +277,7 @@ pub struct SemanticNode {
     pub created_at: i64,
     pub last_corroborated: i64,
     pub corroboration_count: u32,
+    pub category_id: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -394,6 +395,7 @@ pub struct Query {
     pub embedding: Option<Vec<f32>>,
     pub context: QueryContext,
     pub max_results: usize,
+    pub category_id: Option<i64>,
     pub boost_categories: Option<Vec<String>>,
     pub boost_weights: Option<BoostWeights>,
 }
@@ -413,6 +415,7 @@ impl Query {
             embedding: None,
             context: QueryContext::default(),
             max_results: 5,
+            category_id: None,
             boost_categories: None,
             boost_weights: None,
         }

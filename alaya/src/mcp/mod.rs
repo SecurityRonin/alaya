@@ -66,6 +66,12 @@ pub struct RecallParams {
         description = "Category ID to boost in ranking (memories in this category score higher)"
     )]
     pub boost_category: Option<i64>,
+
+    /// Restrict results to a specific category (palace-style scoping)
+    #[schemars(
+        description = "Only return semantic nodes belonging to this category ID (strict filter)"
+    )]
+    pub category_id: Option<i64>,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]

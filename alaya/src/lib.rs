@@ -341,6 +341,7 @@ mod tests {
             embedding: None,
             context: QueryContext::default(),
             max_results: 5,
+            category_id: None,
             boost_categories: None,
             boost_weights: None,
         });
@@ -359,6 +360,7 @@ mod tests {
             embedding: None,
             context: QueryContext::default(),
             max_results: 0,
+            category_id: None,
             boost_categories: None,
             boost_weights: None,
         });
