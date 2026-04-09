@@ -11,7 +11,7 @@ and sorted alphabetically within each group.
 
 \begin{table*}[!t]
 \centering
-\caption{Per-system capability matrix for 90 classified systems.
+\caption{Per-system capability matrix for 91 classified systems.
 $\bullet$~=~capability present.
 RAG tier: N~=~Naive, A~=~Advanced, M~=~Modular~\cite{gao2023rag}.
 An interactive visualization with filtering is available at
@@ -86,7 +86,7 @@ LlamaIndex           & N & $\bullet$ &           &           &           &      
 MS GraphRAG          & M &           & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &           \\
 Qwen-Agent           & N & $\bullet$ &           &           &           &           &           &           &           \\
 \midrule
-\multicolumn{10}{@{}l}{\textit{Coding Agent Memory (17)}} \\
+\multicolumn{10}{@{}l}{\textit{Coding Agent Memory (18)}} \\
 Augment Code         & A & $\bullet$ & $\bullet$ &           &           &           &           &           & $\bullet$ \\
 Basic Memory         & A &           & $\bullet$ & $\bullet$ &           &           &           &           &           \\
 claude-mem            & A & $\bullet$ & $\bullet$ &           &           & $\bullet$ &           &           &           \\
@@ -103,6 +103,7 @@ MemoryMesh           & N & $\bullet$ &           &           &           &      
 Nanobot              & N & $\bullet$ &           &           &           &           &           &           &           \\
 OpenFang             & A & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           & $\bullet$ &           &           \\
 Memsearch            & A & $\bullet$ &           &           &           &           & $\bullet$ &           &           \\
+MemPalace            & A & $\bullet$ &           & $\bullet$ &           &           &           &           &           \\
 QMD                  & M & $\bullet$ & $\bullet$ &           & $\bullet$ &           &           &           &           \\
 \midrule
 \multicolumn{10}{@{}l}{\textit{File-Based Memory (4)}} \\
@@ -296,6 +297,7 @@ No system achieves the maximum on both axes simultaneously.
     (1,0.3)    % Engram (jitter)
     (1,0.5)    % MemoryMesh (jitter)
     (1,1.4)    % Memsearch (jitter)
+    (2,0.15)   % MemPalace (jitter)
     (3,0.05)   % QMD (jitter)
     (2,1.5)    % Copilot Memory (jitter)
     (1,0.85)   % Cursor Memory (jitter)

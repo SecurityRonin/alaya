@@ -462,6 +462,25 @@ extended sessions, automatically managing context pressure through
 adaptive summarization.  With over 28{,}000 GitHub stars, claude-mem is
 among the most widely deployed agent memory systems.
 
+\textbf{MemPalace}~\cite{mempalace2026} (Jovovich \& Sigman, Python)
+challenges the consolidation-first consensus with a deliberately
+anti-extractive architecture: raw verbatim transcripts are stored in
+ChromaDB without summarization, and a hierarchical \emph{palace}
+structure---wings (projects), halls (memory types), rooms
+(topics)---scopes retrieval before embedding similarity is applied.
+This spatial narrowing yields a 34\% retrieval improvement over flat
+search on 22{,}000+ real memories.  On LongMemEval the raw mode scores
+96.6\% R@5 without any LLM involvement, and a hybrid mode with Haiku
+reranking reaches 100\% (500/500)---the highest published score on this
+benchmark.  An experimental compression dialect (AAAK, $\sim$30$\times$
+token reduction) is under development but currently regresses retrieval
+to 84.2\%.  MemPalace implements no consolidation, forgetting, or
+contradiction resolution, making it the purest test of the hypothesis
+that raw episodic storage with structured retrieval can outperform
+systems that invest in semantic extraction.  With over 27{,}000 GitHub
+stars within days of release, it has become one of the most visible
+entrants in the space.
+
 Despite their retrieval sophistication, no IDE-integrated memory system
 implements consolidation or automated forgetting.  Copilot's 28-day
 expiry is the closest approximation, but it is a fixed TTL rather than
