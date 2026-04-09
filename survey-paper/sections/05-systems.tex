@@ -380,55 +380,123 @@ curves~\cite{ebbinghaus1885} and retrieval-induced
 forgetting~\cite{anderson1994}---to manage memory decay.
 
 \paragraph{FadeMem.}
-\textbf{FadeMem}~\cite{fademem2026} (Wei et al.) implements
-biologically inspired dual-layer forgetting via adaptive exponential
-decay functions modulated by three signals: semantic relevance, access
-frequency, and temporal patterns.  The dual-layer hierarchy separates
-active working memory from consolidated long-term storage, with
-differential decay rates across layers.  Experiments on Multi-Session
-Chat, LoCoMo, and LTI-Bench demonstrate 45\% storage reduction while
-retaining 82.1\% of critical facts---the most favorable
+\textbf{FadeMem}~\cite{fademem2026} (Wei et al., Alibaba \& Peking
+University) implements biologically inspired dual-layer forgetting via
+adaptive exponential decay functions modulated by three signals: semantic
+relevance, access frequency, and temporal patterns.  The architecture
+separates a \emph{Short-term Memory Layer} (SML) for transient context
+that fades quickly from a \emph{Long-term Memory Layer} (LML) for
+high-importance facts such as user preferences and long-standing goals
+that decay slowly.  An LLM-guided conflict resolution module detects
+contradictions between incoming facts and existing memories, and a memory
+fusion stage consolidates redundant entries while enforcing temporal
+consistency.  Experiments span three benchmarks: on LTI-Bench (conflict
+resolution), FadeMem achieves 68.9\% macro-averaged accuracy and 80.4\%
+macro-averaged consistency; on LoCoMo, it attains a multi-hop F1 of
+29.43 (vs.\ Mem0's 28.37 and MemGPT's 9.46); and after 30 days of
+continuous interaction on the synthetic LTI-Bench dataset, it retains
+82.1\% of critical facts while using only 55\% of the storage---compared
+to Mem0's 78.4\% retention at 100\% storage.  This 45\% storage reduction
+with superior retention represents the most favorable
 storage-vs-retention tradeoff among forgetting-aware systems.  FadeMem
-does not implement graph structure or contradiction resolution.
+uses in-memory storage with no external database dependencies, making it
+lightweight but unsuitable for persistent multi-session deployments
+without additional infrastructure.  It does not implement graph
+structure, preference learning, or structured retrieval beyond vector
+similarity, placing it in the Naive RAG category despite its
+sophisticated lifecycle management.
 
 \paragraph{Oblivion.}
-\textbf{Oblivion}~\cite{oblivion2026} (NEC Laboratories Europe)
-decouples memory control into separate read and write paths.  The
-\emph{read path} uses uncertainty-gating: the agent consults memory only
-when its own uncertainty exceeds a threshold, avoiding unnecessary
-retrieval on questions the model can answer from parametric knowledge
-alone.  The \emph{write path} reinforces memories that contributed to
-successful responses, strengthening useful associations over time.
-Forgetting follows an Ebbinghaus-inspired decay model where memories
-lose accessibility gradually without explicit deletion---a design that
-preserves recoverability while reducing retrieval noise.  The
+\textbf{Oblivion}~\cite{oblivion2026} (Rana, Hung et al., NEC
+Laboratories Europe \& Georg-August-Universit\"at G\"ottingen) reframes
+long-horizon agent memory as a \emph{control problem} rather than a
+storage problem, decoupling memory into separate read and write paths.
+The \emph{read path} uses uncertainty-gating: a Decayer computes
+Ebbinghaus-inspired retention scores for each memory trace, and an
+Activator triggers targeted retrieval only when the agent's uncertainty
+exceeds a threshold and the working memory buffer is insufficient---
+avoiding the ``always-on'' retrieval that plagues flat memory systems.
+The \emph{write path} selectively reinforces memories that contributed to
+forming the response, strengthening useful associations while allowing
+unreinforced traces to fade in accessibility without explicit deletion.
+The architecture separates transient \emph{Working Memory} from a
+\emph{Persistent Store} organized hierarchically, maintaining high-level
+strategies persistently while dynamically loading details as needed.
+Oblivion is evaluated on LongMemEval (${\approx}$100K-token contexts)
+and GoodAILTM (${\approx}$120K-token dynamic interactions) across four
+LLM backbones (Phi-4-mini-instruct-4B, Qwen3-30B-A3B, GPT-4o-mini,
+GPT-4.1-mini), consistently outperforming both direct and
+memory-augmented baselines on both static and dynamic benchmarks.  The
 read-path uncertainty gate is architecturally unique among the surveyed
-systems.
+systems.  However, Oblivion uses the same LLM for memory extraction,
+uncertainty estimation, and response generation; smaller models with
+weaker capability degrade retrieval-dependent tasks, and the framework
+has not been evaluated on multilingual, multimodal, or domain-specific
+settings.  Oblivion implements no graph structure, no consolidation
+beyond reinforcement, and no preference learning.
 
 \paragraph{MaRS.}
-\textbf{MaRS}~\cite{mars2026} (Alqithami) introduces privacy-aware
-memory management with six theoretically grounded forgetting policies:
-FIFO, LRU, Priority Decay, Reflection-Summary, Random-Drop, and a
-Hybrid variant.  Each policy is analyzed for computational complexity
-and sensitivity-aware retention, with optional $(\varepsilon,
-\delta)$-differential privacy guarantees.  The Hybrid policy achieves a
-0.911 composite score balancing performance, privacy, and efficiency on
-the accompanying FiFA benchmark.  MaRS is the only surveyed system that
+\textbf{MaRS}~\cite{mars2026} (Alqithami, Albaha University) introduces
+privacy-aware memory management with six theoretically grounded
+forgetting policies: FIFO, LRU, Priority Decay, Reflection-Summary,
+Random-Drop, and a Hybrid variant.  The underlying \emph{Memory-Aware
+Retention Schema} organizes four typed memory stores---episodic,
+semantic, social, and task---as provenance-tracked nodes in a
+graph-structured store, where edges encode temporal, causal, semantic,
+and social relations.  Each node carries content, timestamps, token-cost
+weights, sensitivity scores, and provenance fields recording how the item
+entered memory, enabling agents to justify retention or deletion relative
+to source reliability and consent status.  Retention is formulated as a
+resource-allocation problem under explicit token budgets: forgetting
+policies jointly consider access statistics, semantic centrality, task
+relevance, and privacy sensitivity.  Each policy is analyzed for
+computational complexity and sensitivity-aware retention, with optional
+$(\varepsilon, \delta)$-differential privacy guarantees via calibrated
+noise injection.  The accompanying \emph{FiFA benchmark} (Forgetful but
+Faithful Agent) evaluates 300 runs across multiple memory budgets and
+agent configurations on five dimensions: narrative coherence, goal
+completion, social recall accuracy, privacy preservation, and cost
+efficiency.  The Hybrid policy achieves a 0.911 composite score,
+consistently preserving coherence and social recall while keeping
+leakage low and costs tractable.  MaRS is the only surveyed system that
 formalizes forgetting as a privacy mechanism with provable guarantees
-rather than treating it solely as a storage optimization.
+rather than treating it solely as a storage optimization.  Its
+limitation is the absence of a vector retrieval component or embedding-
+based similarity search---retrieval relies on the typed graph indices
+and policy-driven filtering, which may underperform on open-ended
+semantic queries compared to hybrid retrieval systems.
 
 \paragraph{SuperLocalMemory V3.3.}
-\textbf{SuperLocalMemory V3.3}~\cite{superlocalmemory2026} (Bhardwaj)
-implements 7-channel cognitive retrieval combining multiple signal types
-(semantic, lexical, temporal, frequency, entity, graph, and contextual)
-with Ebbinghaus-inspired forgetting curves.  The system's defining
-constraint is \emph{zero-LLM operation}: all memory management,
-retrieval, and forgetting run without any LLM calls, using only local
-models and classical algorithms.  This achieves 70.4\% on LoCoMo without
-cloud dependencies---the highest score among systems that operate
-entirely without LLM involvement.  The zero-LLM constraint makes
-SuperLocalMemory suitable for privacy-sensitive and offline deployments
-where no data can leave the local machine.
+\textbf{SuperLocalMemory V3.3}~\cite{superlocalmemory2026} (Bhardwaj,
+independent researcher) implements 7-channel cognitive retrieval
+combining semantic, keyword, entity graph, temporal, spreading
+activation, consolidation, and Hopfield associative channels with
+Ebbinghaus-inspired adaptive forgetting curves coupled to progressive
+embedding compression.  The system builds on the information-geometric
+foundations of V3.0: Fisher-Rao geodesic
+distance for quantization-aware similarity (via the novel FRQAD metric,
+achieving 100\% precision at preferring high-fidelity embeddings over
+quantized ones, vs.\ 85.6\% for cosine similarity), cellular sheaf
+cohomology for contradiction detection, and Riemannian Langevin dynamics
+for stochastic lifecycle management.  V3.3 adds \emph{long-term implicit
+memory} via soft prompts that parameterize learned patterns, and a
+zero-friction auto-cognitive pipeline that implements the complete memory
+lifecycle---recall, observe, save, consolidate, forget,
+parameterize---through seven Claude Code hooks with zero configuration.
+The system's defining constraint is \emph{zero-LLM operation} (Mode~A):
+all memory management, retrieval, and forgetting run without any LLM
+calls, using only local models (SQLite with sqlite-vec, local ONNX
+embeddings) and classical algorithms.  This achieves 70.4\% on LoCoMo
+without cloud dependencies---the highest score among systems that operate
+entirely without LLM involvement.  An optional Mode~C with LLM
+assistance reaches 87.7\%.  The system ships as a single
+\texttt{npm install -g superlocalmemory} package compatible with 17+
+AI tools (Claude Code, Cursor, Windsurf, Copilot, Gemini CLI, etc.).
+The zero-LLM constraint makes SuperLocalMemory suitable for
+privacy-sensitive and offline deployments, but the system lacks
+multi-user support, has no graph dynamics beyond the static entity graph,
+and the mathematical sophistication (information geometry, sheaf theory)
+may impede community adoption and extension.
 
 %% ===============================================================
 \subsection{Framework-Level Memory}
@@ -612,27 +680,61 @@ entrants in the space.
 
 \textbf{AgentMemory}~\cite{agentmemory2026} (Jordan McCann, Python)
 implements a complete memory operating system with a knowledge graph,
-a multi-stage consolidation pipeline (near-duplicate merging,
-working-to-episodic-to-semantic promotion), contradiction detection, and
-confidence decay.  The consolidation pipeline is the most comprehensive
-among coding agent memory systems: memories are progressively abstracted
-from raw observations through episodic summaries to semantic knowledge,
-with contradictions detected and resolved at each promotion stage.
-AgentMemory achieves 96.2\% on LongMemEval, placing it among the highest
-scores on this benchmark.  Built by a solo developer in 16 days and
-released as open source, it demonstrates that a single-developer effort
-can match or exceed the benchmark performance of team-built production
-systems.
+a multi-stage consolidation pipeline, contradiction detection, and
+confidence decay.  The storage backend uses SQLite by default (with
+PostgreSQL available for multi-process deployments), and the retrieval
+engine combines six weighted signals via a custom fusion pipeline:
+semantic similarity (0.30), lexical/BM25 (0.12), spreading activation
+(0.18), graph traversal (0.18), importance scoring (0.10), and temporal
+grounding (0.12).  A deterministic HNSW index (using SHA-256 vector
+hashing for content-based level assignment) provides reproducible nearest
+neighbor search, and a cross-encoder reranker refines the final ranking.
+The consolidation pipeline is the most comprehensive among coding agent
+memory systems: memories are progressively abstracted from raw
+observations through episodic summaries to semantic knowledge, with
+near-duplicate merging and contradiction detection at each promotion
+stage.  AgentMemory achieves 96.2\% (481/500) on LongMemEval in a single
+deterministic run (\texttt{PYTHONHASHSEED=42}, no ensembling, no oracle
+access), placing it among the highest single-pass scores on this
+benchmark---surpassing Mastra (93.27\%), Supermemory single-pass
+(85.86\%), and Zep.  The system exposes both a FastAPI REST server and an
+MCP server for native tool use in Claude Desktop and compatible hosts.
+Built by a solo developer in 16 days on a mid-range gaming PC (Intel
+Core i3-12100F) for approximately \$1{,}000 in API costs, it
+demonstrates that a single-developer effort can match or exceed the
+benchmark performance of team-built production systems.  AgentMemory does
+not implement principled forgetting beyond confidence decay, and its
+six-signal retrieval requires careful weight tuning that may not
+generalize across domains.
 
-\textbf{Capy-Cortex}~\cite{capycortex2026} provides autonomous memory
-for coding agents with a triple fusion retrieval pipeline combining FTS5
-full-text search, TF-IDF scoring, and entity graph traversal.
-Quality-gated storage filters incoming memories before persistence,
-rejecting low-value or redundant entries.  A self-curating consolidation
-process periodically merges related memories and prunes stale entries.
-The combination of quality gating at write time and self-curation at
-maintenance time makes Capy-Cortex one of the few coding agent memory
-systems with both ingestion filtering and lifecycle management.
+\textbf{Capy-Cortex}~\cite{capycortex2026} (Python) provides autonomous
+memory for coding agents with a triple fusion retrieval pipeline
+combining FTS5 full-text search, TF-IDF embeddings, and entity graph
+traversal, merged via Reciprocal Rank Fusion (RRF) with sub-10ms
+retrieval latency.  Storage uses SQLite with FTS5, and the entity
+knowledge graph tracks relationships between tools, libraries, errors,
+and concepts with temporal version chains recording how knowledge
+evolves.  The system's distinguishing feature is \emph{quality-gated
+storage}: every extracted insight is scored 0--4 on four dimensions
+(actionable, specific, novel, durable) by a fast LLM, with a threshold
+of 2/4---anything below is discarded, preventing the noise accumulation
+that plagues most learning systems.  A dual-model architecture uses a
+capable model (e.g., GPT-4o, Claude Sonnet) for causal analysis of
+failures and a fast model (e.g., GPT-4o-mini, Haiku) for quality
+scoring.  Seven lifecycle hooks capture agent events automatically: on
+tool failure, the smart model performs root cause analysis and generates
+a rule; on tool success, helpful rules receive a confidence boost; at
+session end, learnings are extracted and stored.  A self-curating
+consolidation process (every 10 sessions) clusters related memories,
+merges near-duplicates (cosine similarity threshold 0.85), and
+synthesizes abstract principles, while unreinforced rules undergo
+confidence decay with a 90-day half-life.  The combination of quality
+gating at write time, success-based reinforcement during interaction, and
+periodic consolidation makes Capy-Cortex one of the few coding agent
+memory systems with both ingestion filtering and lifecycle management.
+The system does not publish benchmark results on standard evaluations
+(LoCoMo, LongMemEval), and its effectiveness depends heavily on the
+quality of the underlying LLM pair for causal analysis and scoring.
 
 Despite their retrieval sophistication, no IDE-integrated memory system
 implements consolidation or automated forgetting.  Copilot's 28-day
@@ -816,31 +918,63 @@ addresses a failure mode (persona drift) that no other surveyed system
 explicitly targets.
 
 \paragraph{MAGMA.}
-MAGMA~\cite{magma2026} (Jiang et al.) introduces a multi-graph
-architecture that maintains four parallel graph views: semantic
-(conceptual relationships), temporal (time-ordered event sequences),
-causal (cause-effect chains), and entity (typed entities and
-attributes).  An intent-aware routing layer analyzes incoming queries
-and dispatches them to the relevant graph view(s), avoiding the
-one-size-fits-all retrieval that characterizes most graph-based systems.
-The multi-graph decomposition yields +45.5\% reasoning accuracy over
-single-graph baselines and 95\% token reduction versus full-context
-approaches.  MAGMA's architectural insight---that different query types
+MAGMA~\cite{magma2026} (Jiang et al., UT Dallas \& University of
+Florida) introduces a multi-graph architecture that represents each
+memory item across four orthogonal graph views: semantic (conceptual
+relationships), temporal (time-ordered event sequences with resolved
+relative dates), causal (cause-effect chains), and entity (typed entities
+and attributes).  An \emph{Adaptive Traversal Policy} formulates
+retrieval as heuristic beam search over these relational views: the
+policy assigns intent-specific weights to edge types (e.g., high weight
+on causal edges for ``why'' queries, temporal edges for ``when''
+queries), combining structural graph traversal scores with embedding
+similarity at each step to retain the top-$k$ most relevant nodes.  A
+\emph{dual-stream memory evolution} mechanism decouples latency-sensitive
+event ingestion from asynchronous structural consolidation, preserving
+responsiveness while refining relational structure in the background.
+On LoCoMo, MAGMA achieves an overall LLM-as-Judge score of 0.70
+(vs.\ 0.48 for A-MEM and 0.58 for Nemori), with the largest gains on
+single-hop retrieval (0.551~F1) and temporal reasoning (0.509~F1).  On
+LongMemEval, MAGMA reaches 61.2\% average accuracy while reducing token
+consumption by 95\% relative to full-context approaches and achieving
+query latency of 1.47s (40\% faster than the next best baseline).  The
+system is implemented as in-memory Python research code with open-source
+availability.  MAGMA's architectural insight---that different query types
 benefit from different graph structures---is complementary to systems
 like SYNAPSE (which uses spreading activation on a unified graph) and
-HippoRAG (which uses Personalized PageRank on a single knowledge
-graph).
+HippoRAG (which uses Personalized PageRank on a single knowledge graph).
+However, MAGMA does not implement forgetting, preference learning, or
+lifecycle management beyond the asynchronous consolidation stream, and
+its four-graph representation requires higher memory overhead than
+single-graph approaches.
 
 \paragraph{Mastra Observational Memory.}
-Mastra's Observational Memory~\cite{mastra2026} extracts structured
-\emph{observations} from agent interactions and stores them as
-first-class memory objects rather than raw conversation transcripts.
-The key finding is that observations outperform raw oracle data:
-retrieving curated observations yields higher accuracy than retrieving
-the original source material, suggesting that the extraction process
-itself adds value through denoising and abstraction.  With Gemini as the
-backbone, Mastra achieves 93.27\% on LongMemEval.  The system is
-integrated with the Mastra agent framework, providing memory as a
-built-in capability rather than a standalone service.  Mastra implements
-no forgetting, graph structure, or consolidation beyond the initial
-observation extraction.
+Mastra's Observational Memory~\cite{mastra2026} replaces traditional
+retrieval-augmented memory with a continuous compression architecture
+using two background agents.  An \emph{Observer} agent monitors growing
+message history and converts raw conversations into dense, timestamped
+observations prioritized by a three-tier scheme (red~=~critical,
+yellow~=~important, green~=~informational); the original messages
+are then dropped and replaced with these observations.  When observations
+themselves exceed a configurable threshold (40{,}000 tokens by default),
+a \emph{Reflector} agent condenses them further, combining related
+entries and dropping stale information---a two-stage compression pipeline
+that achieves up to 40$\times$ token reduction.  Crucially, the main
+agent never directly reads from or writes to memory; memory formation is
+fully autonomous via the background agents.  The resulting context window
+is predictable, low-latency, and fully prompt-cacheable---no per-turn
+dynamic retrieval, no vector database, no graph store.  This text-only
+architecture is compatible with prompt caching from Anthropic and OpenAI,
+yielding up to 10$\times$ cost reduction in production deployments.  The
+key finding is that observations outperform raw oracle data: retrieving
+curated observations yields higher accuracy than retrieving the original
+source material, suggesting that the extraction process itself adds value
+through denoising and abstraction.  On LongMemEval, Mastra achieves
+84.23\% with GPT-4o, 93.27\% with Gemini-3-pro-preview, and 94.87\%
+with GPT-5-mini---the latter exceeding the oracle baseline.  The system
+ships as part of Mastra~1.0 with plug-ins for LangChain, Vercel AI~SDK,
+and other frameworks.  Mastra implements no forgetting, graph structure,
+or consolidation beyond the Observer/Reflector pipeline, and its
+effectiveness scales with the quality of the underlying LLM: the 10-point
+gap between GPT-4o and GPT-5-mini scores demonstrates strong model
+dependence.
