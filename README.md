@@ -16,7 +16,7 @@
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub-ea4aaa?logo=github)](https://github.com/sponsors/h4x0r)
 [![CI](https://github.com/SecurityRonin/alaya/actions/workflows/ci.yml/badge.svg)](https://github.com/SecurityRonin/alaya/actions)
 
-A memory engine for AI agents that remembers, forgets, and learns.
+The only memory engine with neuroscience-grounded memory dynamics — Bjork dual-strength forgetting, retrieval-induced suppression, and Hebbian co-activation — in a zero-dependency embeddable Rust library.
 
 **Alaya** (Sanskrit: *alaya-vijnana*, "storehouse consciousness") is an
 embeddable Rust library. One SQLite file. No external services. Your agent
@@ -69,10 +69,10 @@ by text similarity but cannot connect them
 |---|---|---|
 | **Token waste** | Full-context injection (~35K tokens/message) | Ranked retrieval returns only top-k relevant memories |
 | **No structure** | Everything in one file (users invent `decision.md` workarounds) | Three typed stores: episodes, knowledge, preferences |
-| **No forgetting** | Files grow until you manually curate | Bjork dual-strength decay: weak memories fade, strong ones persist |
-| **No associations** | Flat files, no links between memories | Hebbian graph strengthens through co-retrieval; spreading activation finds indirect connections |
-| **Brittle preferences** | Agent-authored summary, easily drifts | Preferences emerge from accumulated impressions, crystallize at threshold |
-| **LLM required** | Can't function without one | Optional. No embeddings? BM25-only. No LLM? Episodes accumulate. Every feature works independently |
+| **No forgetting** | Files grow until you manually curate | Bjork dual-strength decay separates storage strength from retrieval strength; retrieval-induced forgetting (RIF) actively suppresses competing memories |
+| **No associations** | Flat files, no links between memories | Hebbian co-retrieval strengthening (LTP/LTD): memories retrieved together strengthen connections; spreading activation finds indirect associations |
+| **Brittle preferences** | Agent-authored summary, easily drifts | Implicit preferences emerge from accumulated impressions via vasana (perfuming), no LLM required; crystallize at threshold |
+| **LLM required** | Can't function without one | Graceful degradation at every level. No embeddings? BM25-only. No LLM? Episodes accumulate. Each capability independently optional |
 
 ## Getting Started
 
@@ -461,11 +461,14 @@ impl Admin<'_> {
 1. **Memory is a process, not a database.** Every retrieval changes what is
    remembered. The graph reshapes through use.
 
-2. **Forgetting is a feature.** Strategic decay and suppression improve
-   retrieval quality over time.
+2. **Forgetting is a feature.** Bjork dual-strength decay separates storage
+   strength from retrieval strength. Retrieval-induced forgetting (RIF)
+   actively suppresses competing memories. Both improve retrieval quality
+   over time.
 
 3. **Preferences emerge, they are not declared.** Behavioral patterns
-   crystallize from accumulated observations.
+   crystallize from accumulated impressions via vasana (perfuming), no LLM
+   required.
 
 4. **The agent owns identity.** Alaya stores seeds. The agent decides which
    seeds matter and how to present them.
@@ -527,20 +530,24 @@ graph LR
     RESEARCH -.->|ideas| FW
 ```
 
-Alaya is a **dedicated memory engine** with lifecycle management, hybrid
-retrieval, and graph dynamics. Closest peers: **Vestige** (Rust, FSRS-6,
-spreading activation) and **SYNAPSE** (unified episodic-semantic graph,
-lateral inhibition).
+Alaya is a **dedicated memory engine** with neuroscience-grounded memory
+dynamics. What differentiates it from every other system: Bjork dual-strength
+forgetting (separating storage from retrieval strength), retrieval-induced
+forgetting (retrieving A suppresses competing B and C), Hebbian co-retrieval
+strengthening (LTP/LTD), and implicit preference emergence without an LLM --
+all in a single embeddable Rust + SQLite library. Closest peers: **Vestige**
+(Rust, FSRS-6, spreading activation) and **SYNAPSE** (unified
+episodic-semantic graph, lateral inhibition).
 
 ### Why Alaya over...
 
 | Alternative | What it does well | What Alaya adds |
 |---|---|---|
-| **MEMORY.md** | Zero setup | Ranked retrieval (not full-context injection), typed stores, automatic decay |
-| **mem0** | Managed cloud memory with auto-extraction | Local-only (single SQLite file), no API keys, Hebbian graph dynamics |
-| **Zep** | Production-ready with cloud/self-hosted options | No external services, association graph, preference crystallization |
-| **Vestige** | Rust, FSRS-6 spaced repetition | Three-store architecture, Hebbian co-retrieval, spreading activation |
-| **LangChain Memory** | Framework-integrated, many backends | Framework-agnostic, lifecycle management, works without an LLM |
+| **MEMORY.md** | Zero setup | Ranked retrieval (not full-context injection), typed stores, Bjork dual-strength decay |
+| **mem0** | Managed cloud memory with auto-extraction | Local-only (single SQLite file), no API keys, Hebbian graph dynamics, RIF suppression |
+| **Zep** | Production-ready with cloud/self-hosted options | No external services, Hebbian co-retrieval graph, implicit preference emergence without LLM |
+| **Vestige** | Rust, FSRS-6 spaced repetition | Bjork dual-strength (not FSRS), RIF, Hebbian LTP/LTD, vasana preference crystallization |
+| **LangChain Memory** | Framework-integrated, many backends | Framework-agnostic, seven lifecycle operations, graceful degradation to BM25-only |
 
 - [Full comparison: 90+ systems](docs/related-work.md), grounded in the CoALA taxonomy (Sumers et al., 2024)
 - [Interactive landscape](https://SecurityRonin.github.io/alaya/docs/memory-landscape.html) (D3.js force-directed graph)

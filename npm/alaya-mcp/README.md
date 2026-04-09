@@ -1,6 +1,8 @@
 # alaya-mcp
 
-A local memory engine for AI agents. Stores conversation episodes, consolidates knowledge through a neuroscience-inspired lifecycle, and builds a personal knowledge graph — all in a local SQLite database.
+The only memory engine with neuroscience-grounded memory dynamics — Bjork dual-strength forgetting, retrieval-induced suppression, and Hebbian co-activation — in a zero-dependency embeddable Rust library.
+
+Stores conversation episodes, consolidates knowledge through a cognitive lifecycle, and builds a personal knowledge graph — all in a local SQLite database.
 
 ## Install
 
@@ -60,9 +62,10 @@ The `ALAYA_LLM_*` env vars are optional — they enable automatic knowledge extr
 
 1. **Remember** — store conversation episodes as they happen
 2. **Consolidate** — extract facts, relationships, and concepts from episodes
-3. **Strengthen** — frequently accessed memories grow stronger (Bjork model)
+3. **Strengthen** — co-retrieved memories strengthen their connections (Hebbian LTP); retrieving memory A actively suppresses competing memories B and C (retrieval-induced forgetting)
 4. **Categorize** — emergent categories form automatically from your knowledge
-5. **Forget** — weak, unused memories fade naturally over time
+5. **Forget** — Bjork dual-strength decay separates storage strength (how well-encoded) from retrieval strength (how easily found); weak memories fade, strong ones persist
+6. **Crystallize** — implicit preferences emerge from accumulated impressions (vasana), no LLM required
 
 All data stays on your machine in `~/.alaya/memory.db`.
 

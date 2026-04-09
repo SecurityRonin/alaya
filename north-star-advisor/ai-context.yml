@@ -14,7 +14,7 @@ project:
   version: "0.1.0"
   target_users: "Agent developers building privacy-first, relationship-heavy agents"
   core_problem: "No memory system combines complete cognitive lifecycle with zero external dependencies. No system learns implicit preference tradeoffs from observed behavior."
-  differentiator: "Implicit preference emergence with contextual tradeoff resolution. Hebbian graph that reshapes through use. Bjork dual-strength forgetting. Zero dependencies (single SQLite file, Rust). LLM-agnostic with graceful degradation."
+  differentiator: "Neuroscience-grounded memory dynamics: Bjork dual-strength forgetting (storage vs retrieval strength), retrieval-induced forgetting (RIF suppresses competing memories), Hebbian co-retrieval strengthening (LTP/LTD), and implicit preference emergence (vasana) without LLM. Zero dependencies (single SQLite file, Rust). Graceful degradation from full three-signal fusion to BM25-only."
   success_metric: "Agent developer ships product on Alaya with noticeable user impact. Benchmark results beating alternatives. OpenClaw or similar adoption."
   tech_stack: "Rust, SQLite, zero external dependencies, optional LLM via traits"
 
@@ -43,7 +43,7 @@ northstar:
     - name: "v0.3 Growth"
       focus: "Python bindings, community, DEF CON"
       duration: "3-6 months after v0.2"
-  positioning: "For agent developers who need conversational memory with privacy guarantees, Alaya is the embeddable Rust memory engine that provides a complete cognitive lifecycle in a single SQLite file with zero external dependencies."
+  positioning: "For agent developers who need conversational memory with privacy guarantees, Alaya is the only memory engine with neuroscience-grounded memory dynamics — Bjork dual-strength forgetting, retrieval-induced suppression, and Hebbian co-activation — in a zero-dependency embeddable Rust library."
 
 strategy:
   axioms:
@@ -176,12 +176,13 @@ market:
     - name: "Engram"
       weakness: "Flat key-value store, no vector search/graph/forgetting/consolidation"
   differentiation:
-    - "Only system with implicit preference emergence without LLM (vasana/perfuming)"
-    - "Only dual-strength forgetting model (Bjork) in any shipping system"
-    - "Only dynamic Hebbian graph (LTP/LTD) without LLM involvement"
-    - "Only system combining complete cognitive lifecycle with zero external dependencies"
-    - "Graceful degradation: every feature works independently"
-    - "Rust + single SQLite file + FFI: embeddable in any language"
+    - "Bjork dual-strength forgetting: separates storage strength (how well-encoded) from retrieval strength (how easily found). No other shipping system implements this model."
+    - "Retrieval-induced forgetting (RIF): retrieving memory A actively suppresses competing memories B and C from the same context. Zero other systems implement this."
+    - "Hebbian co-retrieval strengthening (LTP/LTD): memories retrieved together strengthen their connections. Only ~3.6% of surveyed systems have usage-adaptive graphs."
+    - "Implicit preference emergence (vasana): crystallizes preferences from accumulated impressions without LLM involvement."
+    - "Graceful degradation: works at every level from BM25-only to full three-signal fusion. Each capability independently optional."
+    - "Rust + single SQLite file + embeddable: only memory engine embeddable in mobile/edge/Rust/C++ with zero deps."
+    - "Yogacara cognitive framework: grounded in Buddhist psychology of mind, unique theoretical foundation."
   whitespace: "High cognitive completeness + high operational simplicity (unoccupied quadrant)"
   timing_windows:
     - "OpenClaw ecosystem (now - Q3 2026)"
