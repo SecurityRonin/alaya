@@ -1262,6 +1262,209 @@ mod tests {
         }
     }
 
+    // ---------------------------------------------------------------------------
+    // Category-scoped retrieval — semantic nodes outside the requested category
+    // are excluded from results (inspired by MemPalace's palace scoping)
+    // ---------------------------------------------------------------------------
+    #[test]
+    fn test_category_scoped_query_excludes_other_categories() {
+        let conn = open_memory_db().unwrap();
+        use crate::store::{categories, embeddings, semantic, strengths};
+
+        // Create two semantic nodes in different categories
+        let node_rust = semantic::store_semantic_node(
+            &conn,
+            &NewSemanticNode {
+                content: "Rust has zero-cost abstractions".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.9,
+                source_episodes: vec![],
+                embedding: None,
+            },
+        )
+        .unwrap();
+        embeddings::store_embedding(&conn, "semantic", node_rust.0, &[1.0, 0.0, 0.0], "").unwrap();
+        strengths::init_strength(&conn, NodeRef::Semantic(node_rust)).unwrap();
+
+        let node_python = semantic::store_semantic_node(
+            &conn,
+            &NewSemanticNode {
+                content: "Python has dynamic typing with zero-cost abstractions mindset".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.9,
+                source_episodes: vec![],
+                embedding: None,
+            },
+        )
+        .unwrap();
+        embeddings::store_embedding(&conn, "semantic", node_python.0, &[0.9, 0.1, 0.0], "")
+            .unwrap();
+        strengths::init_strength(&conn, NodeRef::Semantic(node_python)).unwrap();
+
+        // Create categories and assign nodes
+        let cat_rust =
+            categories::store_category(&conn, "rust-lang", node_rust, None, None).unwrap();
+        categories::assign_node_to_category(&conn, node_rust, cat_rust).unwrap();
+
+        let cat_python =
+            categories::store_category(&conn, "python", node_python, None, None).unwrap();
+        categories::assign_node_to_category(&conn, node_python, cat_python).unwrap();
+
+        // Query scoped to rust-lang category
+        let results = execute_query(
+            &conn,
+            &Query {
+                text: "zero-cost abstractions".to_string(),
+                embedding: Some(vec![0.95, 0.05, 0.0]),
+                context: QueryContext {
+                    current_timestamp: Some(5000),
+                    ..Default::default()
+                },
+                max_results: 10,
+                category_id: Some(cat_rust.0),
+                boost_categories: None,
+                boost_weights: None,
+            },
+        )
+        .unwrap();
+
+        // Only the rust node should appear — python node filtered out
+        let semantic_nodes: Vec<_> = results
+            .iter()
+            .filter(|r| matches!(r.node, NodeRef::Semantic(_)))
+            .collect();
+        assert!(
+            !semantic_nodes.is_empty(),
+            "should find the rust semantic node"
+        );
+        for r in &semantic_nodes {
+            assert_eq!(
+                r.node,
+                NodeRef::Semantic(node_rust),
+                "only rust-category nodes should appear; got {:?}",
+                r.node
+            );
+        }
+    }
+
+    #[test]
+    fn test_category_scoped_query_none_returns_all() {
+        let conn = open_memory_db().unwrap();
+        use crate::store::{categories, embeddings, semantic, strengths};
+
+        // Create two semantic nodes
+        let node_a = semantic::store_semantic_node(
+            &conn,
+            &NewSemanticNode {
+                content: "Rust ownership model explained".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.9,
+                source_episodes: vec![],
+                embedding: None,
+            },
+        )
+        .unwrap();
+        embeddings::store_embedding(&conn, "semantic", node_a.0, &[1.0, 0.0, 0.0], "").unwrap();
+        strengths::init_strength(&conn, NodeRef::Semantic(node_a)).unwrap();
+
+        let node_b = semantic::store_semantic_node(
+            &conn,
+            &NewSemanticNode {
+                content: "Rust borrow checker ownership rules".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.9,
+                source_episodes: vec![],
+                embedding: None,
+            },
+        )
+        .unwrap();
+        embeddings::store_embedding(&conn, "semantic", node_b.0, &[0.9, 0.1, 0.0], "").unwrap();
+        strengths::init_strength(&conn, NodeRef::Semantic(node_b)).unwrap();
+
+        // Assign to different categories
+        let cat_a = categories::store_category(&conn, "cat-a", node_a, None, None).unwrap();
+        categories::assign_node_to_category(&conn, node_a, cat_a).unwrap();
+        let cat_b = categories::store_category(&conn, "cat-b", node_b, None, None).unwrap();
+        categories::assign_node_to_category(&conn, node_b, cat_b).unwrap();
+
+        // Query with category_id: None — should return both
+        let results = execute_query(
+            &conn,
+            &Query {
+                text: "Rust ownership".to_string(),
+                embedding: Some(vec![0.95, 0.05, 0.0]),
+                context: QueryContext {
+                    current_timestamp: Some(5000),
+                    ..Default::default()
+                },
+                max_results: 10,
+                category_id: None,
+                boost_categories: None,
+                boost_weights: None,
+            },
+        )
+        .unwrap();
+
+        let semantic_nodes: Vec<_> = results
+            .iter()
+            .filter(|r| matches!(r.node, NodeRef::Semantic(_)))
+            .collect();
+        assert!(
+            semantic_nodes.len() >= 2,
+            "with no category filter, both semantic nodes should appear; got {}",
+            semantic_nodes.len()
+        );
+    }
+
+    #[test]
+    fn test_category_scoped_query_does_not_filter_episodes() {
+        let conn = open_memory_db().unwrap();
+        use crate::store::{categories, semantic};
+
+        // Create a semantic node and category
+        let node = semantic::store_semantic_node(
+            &conn,
+            &NewSemanticNode {
+                content: "prototype".to_string(),
+                node_type: SemanticType::Fact,
+                confidence: 0.9,
+                source_episodes: vec![],
+                embedding: None,
+            },
+        )
+        .unwrap();
+        let cat = categories::store_category(&conn, "scoped-cat", node, None, None).unwrap();
+
+        // Store an episode (episodes have no category)
+        episodic::store_episode(&conn, &ep("Rust async programming patterns", "s1", 1000)).unwrap();
+
+        // Query scoped to the category — episodes should still appear
+        let results = execute_query(
+            &conn,
+            &Query {
+                text: "Rust async programming".to_string(),
+                embedding: None,
+                context: QueryContext {
+                    current_timestamp: Some(5000),
+                    ..Default::default()
+                },
+                max_results: 10,
+                category_id: Some(cat.0),
+                boost_categories: None,
+                boost_weights: None,
+            },
+        )
+        .unwrap();
+
+        let has_episodes = results
+            .iter()
+            .any(|r| matches!(r.node, NodeRef::Episode(_)));
+        assert!(
+            has_episodes,
+            "category scoping should not filter out episodes"
+        );
+    }
+
     #[test]
     fn test_category_node_filtered_out_of_results() {
         // Covers line 119: _ => None for Category nodes in the filter_map
