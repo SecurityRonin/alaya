@@ -5,9 +5,18 @@ build-backend = "maturin"
 [project]
 name = "alaya-memory"
 requires-python = ">=3.9"
-description = "A memory engine for conversational AI agents"
+description = "A persistent memory engine for conversational AI agents"
+readme = "README.md"
 license = {text = "MIT"}
-keywords = ["memory", "ai-agent", "knowledge-graph", "sqlite"]
+keywords = ["memory", "ai-agent", "knowledge-graph", "sqlite", "mcp"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 
 [tool.maturin]
 features = ["pyo3/abi3-py39"]
