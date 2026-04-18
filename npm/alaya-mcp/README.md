@@ -69,11 +69,23 @@ The `ALAYA_LLM_*` env vars are optional — they enable automatic knowledge extr
 
 All data stays on your machine in `~/.alaya/memory.db`.
 
+## Why Alaya
+
+| Problem | File-based memory | Alaya |
+|---|---|---|
+| **Token waste** | Full-context injection (~35K tokens/msg) | Ranked retrieval — only top-k relevant memories |
+| **No structure** | Everything in one file | Three typed stores: episodes, knowledge, preferences |
+| **No forgetting** | Files grow until manually curated | Bjork dual-strength decay + retrieval-induced forgetting |
+| **No associations** | Flat files, no links | Hebbian co-retrieval graph (LTP/LTD) |
+| **Brittle preferences** | Agent-authored summary, drifts | Implicit preferences emerge from impressions (vasana) |
+| **LLM required** | Can't function without one | Graceful degradation: no embeddings → BM25-only |
+
 ## Links
 
 - [GitHub](https://github.com/SecurityRonin/alaya)
 - [Documentation](https://docs.rs/alaya)
 - [crates.io](https://crates.io/crates/alaya) (Rust library)
+- [PyPI](https://pypi.org/project/alaya-memory/) (Python bindings)
 
 ## License
 

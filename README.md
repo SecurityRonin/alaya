@@ -10,6 +10,7 @@
 [![crates.io](https://img.shields.io/crates/v/alaya.svg)](https://crates.io/crates/alaya)
 [![docs.rs](https://docs.rs/alaya/badge.svg)](https://docs.rs/alaya)
 [![npm](https://img.shields.io/npm/v/alaya-mcp.svg)](https://www.npmjs.com/package/alaya-mcp)
+[![PyPI](https://img.shields.io/pypi/v/alaya-memory.svg)](https://pypi.org/project/alaya-memory/)
 [![MCP](https://img.shields.io/badge/MCP-compatible-green.svg)](https://modelcontextprotocol.io/)
 [![alaya MCP server](https://glama.ai/mcp/servers/SecurityRonin/alaya/badges/score.svg)](https://glama.ai/mcp/servers/SecurityRonin/alaya)
 [![GitHub stars](https://img.shields.io/github/stars/SecurityRonin/alaya?style=social)](https://github.com/SecurityRonin/alaya)
@@ -190,6 +191,14 @@ Alaya: Memory Status:
 | `ALAYA_LLM_API_KEY` | *(none)* | API key for auto-consolidation (enables `ExtractionProvider`). Requires `llm` feature. |
 | `ALAYA_LLM_API_URL` | `https://api.openai.com/v1/chat/completions` | OpenAI-compatible chat completions endpoint |
 | `ALAYA_LLM_MODEL` | `gpt-4o-mini` | Model name. Any small/fast model works (GPT-4o-mini, Haiku, Gemini Flash, etc.) |
+
+### Python Bindings
+
+```bash
+pip install alaya-memory
+```
+
+See [alaya-py/README.md](alaya-py/README.md) for the full Python API.
 
 ### Rust Library
 
@@ -554,7 +563,7 @@ episodic-semantic graph, lateral inhibition).
 - [Theoretical foundations](docs/theoretical-foundations.md) (neuroscience and Buddhist psychology)
 - [The MEMORY.md problem](docs/related-work.md#the-memorymd-problem-why-file-based-memory-breaks-at-scale) (community workarounds and how Alaya addresses each)
 
-## What's In v0.2.0
+## What's In v0.4
 
 - **Three-store architecture** (episodic/semantic/implicit) + Hebbian graph overlay
 - **7 lifecycle operations:** consolidate, transform, forget, perfume, emergent ontology, RIF, purge
