@@ -648,6 +648,7 @@ fn chapter_7_enriched_retrieval(store: &Alaya) {
             ..Default::default()
         },
         max_results: 10,
+        category_id: None,
         boost_categories: None,
         boost_weights: None,
     };
