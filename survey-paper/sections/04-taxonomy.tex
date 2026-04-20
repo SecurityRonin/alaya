@@ -122,17 +122,38 @@ Hu~\etal~\cite{hu2025memory}:
 
 \subsection{Axis 4: Preference Emergence}
 
-We propose this as a new axis not covered by existing surveys:
+We propose this as a new axis not covered by existing surveys. The
+distinguishing criterion is \emph{whether a per-interaction LLM call is
+required to capture behavioral patterns}: extraction methods require one;
+emergent methods do not.
 
 \begin{itemize}[leftmargin=*, nosep]
-    \item \textbf{No preferences:} Most systems.
-    \item \textbf{LLM-extracted profiles:} Mem0, Supermemory, Memobase.
-    One-shot extraction, brittle.
-    \item \textbf{Explicit opinion tracking:} Hindsight. Confidence-scored
-    beliefs that evolve.
-    \item \textbf{Emergent crystallization:} Preferences crystallize
-    from accumulated impressions without per-interaction LLM involvement.
-    Rare; only 4.5\% of surveyed systems.
+    \item \textbf{None} (coded ``N''): The system maintains no representation
+    of user preferences or behavioral patterns. Classification applies when
+    documentation makes no mention of personalization.
+
+    \item \textbf{LLM-extracted} (coded ``E''): On each interaction (or
+    on a fixed schedule), the system invokes an LLM to identify and store
+    explicit preference statements (\eg, ``user prefers Python over Java'').
+    Storage is declarative and legible. Examples: Mem0, Supermemory,
+    Memobase. Limitation: preferences implied by behavior rather than
+    stated explicitly are systematically missed.
+
+    \item \textbf{Confidence-tracked} (coded ``T''): Preferences are stored
+    as belief objects with explicit confidence scores that evolve over
+    interactions---increasing when evidence accumulates, decreasing on
+    contradictory evidence. Requires LLM at write time but adds temporal
+    evolution. Example: Hindsight's opinion memory.
+
+    \item \textbf{Emergent} (coded ``M''): Behavioral patterns crystallize
+    from accumulated retrieval or reinforcement signals without any
+    per-interaction LLM call. A preference is said to have emerged when
+    its encoded weight or retrieval frequency passes a system-defined
+    threshold. Examples: vasana-style accumulation (Alaya), usage-weighted
+    impressions, Hebbian retrieval strengthening. Coded ``M'' only when
+    the system explicitly implements a threshold or crystallization
+    mechanism; Hebbian co-retrieval alone (without a preference
+    representation) is classified under Graph Structure.
 \end{itemize}
 
 \medskip
