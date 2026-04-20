@@ -368,6 +368,30 @@ fine-grained multi-tenant deployments.  MemOS is open source and targets
 production scenarios where multiple agents must share learned knowledge
 without cross-contamination.
 
+\paragraph{OMEGA.}
+\textbf{OMEGA}~\cite{omega2026} (omega-memory, Python) is a local-first
+memory system for coding agents designed for zero-cloud operation: all
+data, embeddings, and retrieval execute on the user's machine with no
+external API calls required.  Storage uses a single SQLite database in
+WAL mode extended with sqlite-vec for approximate nearest-neighbor search
+and FTS5 for full-text keyword matching; embeddings are computed locally
+via ONNX Runtime (\texttt{bge-small-en-v1.5} on CPU), eliminating
+latency and privacy exposure from hosted embedding APIs.  The system
+exposes 25 MCP tools covering working, episodic, and semantic memory
+types, with automatic hook-based capture of decisions, error patterns,
+and lessons during agent sessions.  Retrieval combines semantic vector
+similarity, FTS5 keyword matching, and contextual priority scoring
+with a reported 50\,ms latency.  A dynamic decay-curve forgetting
+mechanism---rather than fixed TTLs---ages memories over time, and a
+compression pass consolidates redundant facts.  OMEGA integrates
+natively with Claude Code, Cursor, Windsurf, and Zed.  The developer
+reports 95.4\% accuracy on LongMemEval, among the highest published
+scores on that benchmark~\cite{omega2026}.  The design's primary
+constraint is complete data locality---no telemetry, no cloud
+calls, fully offline---differentiating it from hosted systems such
+as Mem0 and Zep.  The system does not implement preference learning,
+graph-overlay retrieval, or consolidation beyond compression.
+
 %% ===============================================================
 \subsection{Forgetting-Aware Systems}
 \label{sec:forgetting-systems}
@@ -736,6 +760,96 @@ The system does not publish benchmark results on standard evaluations
 (LoCoMo, LongMemEval), and its effectiveness depends heavily on the
 quality of the underlying LLM pair for causal analysis and scoring.
 
+\paragraph{chum-mem.}
+\textbf{chum-mem}~\cite{chummem2026} (sly-codechum, TypeScript/Rust)
+implements a provenance-aware memory platform for coding agents
+structured around the \emph{Proof-Carrying Knowledge Compiler} (PCKC)
+model.  Sessions are segmented into episodes (conversation,
+implementation, debugging), from which atomic \emph{claims} of eight
+types---fact, decision, task, constraint, bug, fix, implementation
+detail, open question---are extracted with \emph{authority
+classifications}: tool-verified, user-confirmed, repository-derived,
+session-derived, or model-inferred.  Each claim is attached to a
+structured \emph{proof}---a verifiable chain of evidence linking the
+assertion to its source events---enabling the system to distinguish
+what was directly observed from what was inferred.  A \emph{belief gate}
+hard-rejects model-generated prose and unverified agent reasoning at
+write time: only claims carrying a non-model-inferred authority class
+enter the knowledge store.  A contradiction engine and supersession
+engine manage conflicts: when two claims disagree, the newer supersedes
+the older and both are retained with explicit \texttt{superseded} status,
+preserving full reasoning history.  Leiden community detection organizes
+the resulting graph into coherent topic clusters.  Retrieval scores
+candidates on eight signals (lexical, semantic, session relevance, graph
+proximity, recency, importance, confidence, freshness/supersession
+penalties) and assembles a \emph{compiled context}: a token-budgeted
+minimal proof set rather than a top-$k$ similarity list.  The backend
+uses Rust/Axum with PostgreSQL (pgvector, FTS, row-level security for
+multi-tenancy) and optional ChromaDB for typed embedding partitions.
+chum-mem is architecturally notable for treating memory correctness as a
+formal property: claims require proof provenance before admission, and
+query answers are verified deductions from stored evidence rather than
+plausibility rankings.  The system does not yet publish results on
+standard benchmarks (LoCoMo, LongMemEval).
+
+\paragraph{bellamem.}
+\textbf{bellamem}~\cite{bellamem2026} (immartian, TypeScript v0.3)
+implements a persistent \emph{belief-graph forest} for coding agents,
+grounding memory in Bayesian mass accumulation rather than similarity
+search.  Every concept accumulates \emph{R1 mass} via a frozen
+Jaynes log-odds formula: the first citation from a new voice contributes
+$+0.5$ log-odds; repeat citations from the same speaker contribute only
+$+0.1$, rewarding consensus over repetition.  Mass values are
+$\sigma$-squashed into $[10^{-6},\,1-10^{-6}]$ to prevent saturation,
+and every delta is traceable to the specific turn that caused it.
+Concepts carry a dual-axis classification: \emph{class}---invariant,
+decision, observation, ephemeral---captures temporal profile;
+\emph{nature}---factual, normative, metaphysical---captures epistemic
+type.  The two axes enable precise retrieval: an invariant-factual
+entry (``Python 3.11 removed module X'') and a decision-normative entry
+(``we decided to skip Python 3.11'') are indexed and filtered
+independently.  The graph supports seven typed edge kinds; crucially,
+\emph{dispute} and \emph{retract} edges are first-class.  A dispute
+edge is created when two sources contradict each other on the same
+concept---it is preserved permanently rather than resolved, recording
+the conflict as a durable artifact.  A retract edge is created when a
+speaker withdraws a prior claim, marking that concept
+\texttt{retracted} without erasing the record.  Retrieval executes an
+\emph{expand} operation: seed concepts are scored by
+$\max(\text{substring match, cosine}) \times \text{mass}$, then a
+1-hop edge walk collects neighbors grouped by edge type---disputes
+first, then causes, support, elaborate, retract---returning structural
+explanations rather than isolated similarity hits.  An R5 sweep ages
+open ephemerals to \texttt{stale} after seven days of inactivity.
+bellamem is architecturally notable for treating disagreement as
+information: contested beliefs and withdrawn claims are preserved and
+surfaced during retrieval, enabling agents to reason about the
+provenance and confidence of their own knowledge.  No benchmark results
+on standard evaluations have been published.
+
+\paragraph{Memori.}
+\textbf{Memori}~\cite{memori2026} (Memori Labs, multi-framework) adopts
+a \emph{memory-from-execution} paradigm: rather than extracting
+knowledge from conversation text alone, the system captures agent tool
+calls, decisions, outcomes, and execution state transitions as
+first-class memory artifacts.  The storage backend uses a SQL-native
+relational schema (Postgres or MySQL) with normalized tables for facts,
+entities, events, preferences, and policies---replacing unstructured
+text blobs with explicit typed columns, foreign-key relationships, and
+auditable provenance.  Retrieval reconstructs context by joining these
+normalized tables with schema-level constraints rather than semantic
+similarity, which the authors report reduces hallucination risk and
+inference cost: Memori achieves 81.95\% on LoCoMo using approximately
+1{,}294 tokens per query, approximately 5\% of the full-context token
+budget.  Multi-agent coordination handles read-time conflict management
+and iterative revision.  Memori's execution-trace paradigm is
+architecturally complementary to episode-level systems: where episodic
+memory records \emph{what was said}, Memori records \emph{what was done
+and what happened}---tool call results, state changes, and observable
+outcomes with explicit timestamps.  The system does not implement
+forgetting, graph traversal, or preference learning beyond execution
+traces.
+
 Despite their retrieval sophistication, no IDE-integrated memory system
 implements consolidation or automated forgetting.  Copilot's 28-day
 expiry is the closest approximation, but it is a fixed TTL rather than
@@ -978,3 +1092,79 @@ or consolidation beyond the Observer/Reflector pipeline, and its
 effectiveness scales with the quality of the underlying LLM: the 10-point
 gap between GPT-4o and GPT-5-mini scores demonstrates strong model
 dependence.
+
+\paragraph{GAM.}
+\textbf{GAM} (Hierarchical Graph-based Agentic Memory)~\cite{gam2026}
+(Wu et al.) introduces a two-tier hierarchical graph architecture that
+explicitly decouples memory encoding from consolidation.  An
+\emph{event progression graph} accumulates ongoing dialogue with low
+latency, capturing transient incremental context.  A
+\emph{topic associative network} receives triggered consolidation bursts:
+when semantic drift is detected in the event progression graph, a
+consolidation cycle distills accumulated episodes into persistent topic
+nodes and associative edges.  This sleep-inspired cycle mirrors
+hippocampal--neocortical consolidation: rapid encoding in a
+high-plasticity episodic buffer followed by asynchronous integration
+into a stable semantic store.  The decoupling resolves the fundamental
+tension between rapid context perception---which stream-based systems
+handle well but suffer from noise accumulation over time---and stable
+long-term retention---which discrete consolidation architectures
+provide but at the cost of narrative flexibility.  Retrieval applies a
+graph-guided multi-factor scoring strategy that traverses both tiers,
+weighting candidates by recency, semantic relevance, and inter-topic
+association strength.  GAM outperforms baselines on LoCoMo and
+LongDialQA in both reasoning accuracy and retrieval efficiency.  The
+system is implemented as Python research code.
+
+\paragraph{Kumiho.}
+\textbf{Kumiho}~\cite{kumiho2026} (Park) presents the first agent memory
+system grounded in formal \emph{AGM belief revision semantics}
+(Alch\'{o}urron, G\"{a}rdenfors, and Makinson~\cite{agm1985}), proving
+that its versioned graph architecture satisfies the K*2--K*6 revision
+postulates and both Hansson Relevance and Core-Retainment postulates for
+safe contraction.  The dual-store design pairs Redis working memory with
+a Neo4j long-term graph.  Graph primitives are immutable revisions with
+mutable tag pointers: nodes are never overwritten; instead, a new
+revision is linked to its predecessor and tag pointers advance forward,
+providing a complete temporal audit trail.  Typed epistemic dependency
+edges capture causal, logical, and provenance relationships.  Three
+retrieval enhancements are introduced: (1) \emph{prospective indexing}
+generates LLM-predicted future-scenario implications at write time,
+indexing anticipated consequences alongside recorded facts; (2)
+\emph{event extraction} preserves structured causal events rather than
+compressing them away during summarization; and (3)
+\emph{client-side LLM reranking} re-scores retrieved candidates with
+query context before final selection.  On LoCoMo, Kumiho achieves
+0.565~F1 ($n=1{,}986$) with 97.5\% adversarial refusal; on LoCoMo-Plus,
+it achieves 93.3\% judge accuracy ($n=401$) versus a Gemini~2.5 Pro
+baseline of 45.7\%.  By grounding its versioning scheme in formal belief
+revision theory, Kumiho provides correctness guarantees absent from
+ad hoc contradiction-resolution strategies employed in systems such as
+Mem0 and AgentMemory.
+
+\paragraph{A-MEM.}
+\textbf{A-MEM} (Agentic Memory)~\cite{amem2025} (Xu et al.,
+NeurIPS~2025) adapts the Zettelkasten note-taking methodology to agent
+memory, treating each stored memory as an evolving \emph{note} in a
+dynamic, self-organizing network.  When a new memory is inserted, the
+agent autonomously generates a comprehensive note comprising a contextual
+description, keywords, and tags; the system then analyzes the existing
+memory network to identify relevant historical connections and
+establishes typed links between the new note and related prior memories.
+Critically, insertion can trigger \emph{retroactive evolution}: existing
+memory attributes and context representations are updated when new
+information changes their relevance or interpretation, allowing the
+network to refine its structure continuously rather than treating
+memories as immutable once stored.  Retrieval exploits the link
+structure, following chains of association from seed memories to
+contextually related nodes rather than performing independent per-memory
+scoring.  A-MEM was evaluated across six foundation models and
+demonstrated superior performance over state-of-the-art baselines;
+it has been adopted as a standard comparative baseline in subsequent
+systems (MAGMA reports an A-MEM LLM-as-Judge score of 0.48 on
+LoCoMo vs.\ its own 0.70).  The architecture's key contribution is
+combining structured organization with agent-driven adaptability:
+prior systems either imposed fixed schemas or relied on pure similarity
+search; A-MEM's evolving link network provides dynamic structure without
+manual curation.  The system does not implement forgetting curves or
+preference learning.
