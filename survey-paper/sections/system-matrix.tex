@@ -5,7 +5,7 @@
 \label{sec:system-matrix}
 
 Table~\ref{tab:system-matrix} presents per-feature classifications for
-110~systems with complete capability data across the eight discriminating
+138~systems with complete capability data across the eight discriminating
 features defined in \S\ref{sec:long-tail}.  Systems are grouped by category
 and sorted alphabetically within each group.
 
@@ -33,7 +33,7 @@ An interactive visualization with filtering is available at
   & \rotatebox{90}{\textbf{Contrad.}}
   & \rotatebox{90}{\textbf{Preference}} \\
 \midrule
-\multicolumn{10}{@{}l}{\textit{Dedicated Memory Systems (43)}} \\
+\multicolumn{10}{@{}l}{\textit{Dedicated Memory Systems (45)}} \\
 Backboard            & A & $\bullet$ & $\bullet$ &           &           &           &           &           &           \\
 ChatGPT Memory       & N & $\bullet$ &           &           &           &           & $\bullet$ &           & $\bullet$ \\
 Claude Memory Tool   & N & $\bullet$ &           &           &           &           &           &           &           \\
@@ -63,6 +63,7 @@ OpenClaw Redis       & A & $\bullet$ & $\bullet$ &           &           &      
 OpenMemory           & A & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           & $\bullet$ &           & $\bullet$ \\
 OpenViking           & N & $\bullet$ &           &           &           &           &           &           &           \\
 MIRIX                & M & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &           \\
+Memoria              & A & $\bullet$ & $\bullet$ &           &           & $\bullet$ &           &           & $\bullet$ \\
 Papr Memory          & A & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &           \\
 Perplexity Memory    & A & $\bullet$ &           &           &           &           &           &           & $\bullet$ \\
 Redis Memory         & A &           & $\bullet$ &           & $\bullet$ &           &           &           &           \\
@@ -70,6 +71,7 @@ ReMe                 & A & $\bullet$ & $\bullet$ &           & $\bullet$ & $\bul
 Supermemory          & A & $\bullet$ & $\bullet$ &           &           & $\bullet$ & $\bullet$ & $\bullet$ &           \\
 TiMem                & A & $\bullet$ & $\bullet$ &           &           & $\bullet$ & $\bullet$ &           &           \\
 Vestige              & M & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           & $\bullet$ &           & $\bullet$ \\
+RecallM              & A &           & $\bullet$ & $\bullet$ &           &           &           & $\bullet$ &           \\
 Zep/Graphiti         & M & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           \\
 \midrule
 \multicolumn{10}{@{}l}{\textit{Framework Memory Modules (12)}} \\
@@ -86,7 +88,7 @@ LlamaIndex           & N & $\bullet$ &           &           &           &      
 MS GraphRAG          & M &           & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &           \\
 Qwen-Agent           & N & $\bullet$ &           &           &           &           &           &           &           \\
 \midrule
-\multicolumn{10}{@{}l}{\textit{Coding Agent Memory (24)}} \\
+\multicolumn{10}{@{}l}{\textit{Coding Agent Memory (25)}} \\
 AgentMemory          & M & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           \\
 Augment Code         & A & $\bullet$ & $\bullet$ &           &           &           &           &           & $\bullet$ \\
 Basic Memory         & A &           & $\bullet$ & $\bullet$ &           &           &           &           &           \\
@@ -102,6 +104,7 @@ Copilot Memory       & A & $\bullet$ & $\bullet$ &           &           &      
 Cursor Memory        & A & $\bullet$ &           &           &           &           &           &           & $\bullet$ \\
 Engram               & N & $\bullet$ &           &           &           &           &           &           &           \\
 episodic-memory       & A & $\bullet$ &           &           &           &           &           &           &           \\
+Focus                & A & $\bullet$ &           &           &           & $\bullet$ &           &           &           \\
 IronClaw             & A & $\bullet$ & $\bullet$ &           & $\bullet$ &           &           &           &           \\
 Mastra               & A & $\bullet$ & $\bullet$ &           &           &           &           &           &           \\
 Memori               & A & $\bullet$ & $\bullet$ &           &           & $\bullet$ &           &           &           \\
@@ -118,7 +121,7 @@ Claudesidian         & A & $\bullet$ &           & $\bullet$ &           &      
 Cursor Rules         & N & $\bullet$ &           &           &           &           &           &           & $\bullet$ \\
 Windsurf Memory      & N & $\bullet$ &           &           &           &           &           &           & $\bullet$ \\
 \midrule
-\multicolumn{10}{@{}l}{\textit{Research Architectures (27)}} \\
+\multicolumn{10}{@{}l}{\textit{Research Architectures (42)}} \\
 A-MEM                & A &           & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &           \\
 AgeMem               & A & $\bullet$ &           &           &           &           & $\bullet$ &           &           \\
 AriadneMem           & M &           & $\bullet$ & $\bullet$ & $\bullet$ &           &           & $\bullet$ &           \\
@@ -147,6 +150,37 @@ PersonaRAG           & A & $\bullet$ & $\bullet$ &           &           &      
 SimpleMem            & A & $\bullet$ & $\bullet$ &           & $\bullet$ & $\bullet$ & $\bullet$ &           &           \\
 SuperLocalMemory     & M & $\bullet$ & $\bullet$ &           & $\bullet$ &           & $\bullet$ &           &           \\
 SYNAPSE              & M & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           &           \\
+APEX-MEM             & M & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           & $\bullet$ &           \\
+FLEX                 & A & $\bullet$ & $\bullet$ &           &           & $\bullet$ &           &           &           \\
+FOREVER              & A & $\bullet$ &           &           &           &           & $\bullet$ &           &           \\
+H-EPM                & M & $\bullet$ & $\bullet$ & $\bullet$ &           & $\bullet$ &           &           &           \\
+MemEvolve            & M & $\bullet$ & $\bullet$ &           & $\bullet$ & $\bullet$ &           &           &           \\
+MemoBrain            & A & $\bullet$ &           &           &           & $\bullet$ &           &           &           \\
+Memory Worth         & A & $\bullet$ &           &           &           &           & $\bullet$ &           &           \\
+MemP                 & A & $\bullet$ &           &           &           & $\bullet$ &           &           &           \\
+Nemori               & A & $\bullet$ & $\bullet$ & $\bullet$ &           & $\bullet$ &           &           &           \\
+ReasoningBank        & A & $\bullet$ & $\bullet$ &           &           & $\bullet$ &           &           &           \\
+RMM                  & A & $\bullet$ & $\bullet$ &           &           & $\bullet$ &           &           &           \\
+Sophia               & M & $\bullet$ & $\bullet$ &           &           & $\bullet$ &           &           &           \\
+SSGM                 & A & $\bullet$ &           &           &           &           &           & $\bullet$ &           \\
+TSM                  & A & $\bullet$ & $\bullet$ & $\bullet$ &           & $\bullet$ &           &           &           \\
+U-Mem                & A & $\bullet$ & $\bullet$ &           &           & $\bullet$ &           &           &           \\
+\midrule
+\multicolumn{10}{@{}l}{\textit{Reinforcement-Learned Memory (3)}} \\
+AtomMem              & M & $\bullet$ &           &           &           & $\bullet$ & $\bullet$ &           &           \\
+MEM1                 & M & $\bullet$ &           &           &           & $\bullet$ & $\bullet$ &           &           \\
+MemSearcher          & M & $\bullet$ & $\bullet$ &           & $\bullet$ & $\bullet$ &           &           &           \\
+\midrule
+\multicolumn{10}{@{}l}{\textit{Multi-Agent Memory (4)}} \\
+Collaborative Mem.   & M & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &           &           \\
+Intrinsic Mem.\ Ag.  & A & $\bullet$ & $\bullet$ &           &           & $\bullet$ &           &           &           \\
+LEGOMem              & A & $\bullet$ &           &           &           & $\bullet$ &           &           &           \\
+LLMA-Mem             & M & $\bullet$ & $\bullet$ &           &           & $\bullet$ &           &           &           \\
+\midrule
+\multicolumn{10}{@{}l}{\textit{Embodied and Multimodal Memory (3)}} \\
+3DLLM-Mem            & M & $\bullet$ & $\bullet$ &           & $\bullet$ &           &           &           &           \\
+MemVerse             & M & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           & $\bullet$ \\
+RoboMemory           & M & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &           &           \\
 \bottomrule
 \end{tabular}
 \end{table*}

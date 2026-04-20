@@ -392,6 +392,31 @@ calls, fully offline---differentiating it from hosted systems such
 as Mem0 and Zep.  The system does not implement preference learning,
 graph-overlay retrieval, or consolidation beyond compression.
 
+\paragraph{RecallM.}
+\textbf{RecallM}~\cite{recallm2023} (Mathurs et al.) constructs a
+persistent temporal knowledge graph as a side-effect of normal
+operation rather than through an explicit ETL pipeline.  As the agent
+interacts, RecallM continuously identifies entities and relationships,
+inserts them into the graph, and tracks temporal ordering to handle
+belief updating: when a new fact contradicts a prior claim, temporal
+ordering determines which supersedes which---no explicit conflict
+resolution step is required.  On knowledge-updating tasks, RecallM is
+reported to be 4$\times$ more effective than vector database baselines.
+The passive-construction model lowers adoption friction relative to
+systems that require explicit consolidation triggers or scheduled
+maintenance jobs.
+
+\paragraph{Memoria.}
+\textbf{Memoria}~\cite{memoria2024} (distinct from Memori, \S\ref{sec:coding}) is a modular
+standalone framework combining dynamic session-level summarization with
+a weighted knowledge graph user modeling engine.  The knowledge graph
+incrementally captures user traits, preferences, and behavioral
+patterns as structured entity nodes; edges carry confidence weights
+updated after each interaction.  Unlike preference systems that extract
+preferences on demand, Memoria constructs user models continuously as a
+background process, enabling ranked preference retrieval independent of
+current session context.
+
 %% ===============================================================
 \subsection{Forgetting-Aware Systems}
 \label{sec:forgetting-systems}
@@ -521,6 +546,33 @@ privacy-sensitive and offline deployments, but the system lacks
 multi-user support, has no graph dynamics beyond the static entity graph,
 and the mathematical sophistication (information geometry, sheaf theory)
 may impede community adoption and extension.
+
+\paragraph{Memory Worth.}
+\textbf{Memory Worth}~\cite{memoryworth2026} (MW) introduces a
+principled outcome-based forgetting signal: each memory entry
+accumulates two counters tracking co-occurrences with successful
+vs.\ failed task outcomes.  The MW score is derived from this
+success/failure ratio with formal convergence guarantees.  Overhead
+is two scalar integers per memory---negligible compared to
+embedding-based relevance scores.  MW is architecturally complementary
+to recency and access-frequency forgetting: it captures empirical
+utility rather than recency, enabling the system to retain
+seldom-accessed but highly predictive memories while discarding
+frequently accessed but outcome-neutral ones.
+
+\paragraph{FOREVER.}
+\textbf{FOREVER}~\cite{forever2026} aligns Ebbinghaus forgetting-curve
+replay intervals with \emph{model-centric time}---defined as the
+accumulated magnitude of parameter updates since a memory was last
+consolidated---rather than wall-clock time.  The insight is that a
+model changes faster during active fine-tuning than during idle
+periods; wall-clock replay therefore over-replays during idle periods
+and under-replays during active learning, yielding suboptimal
+retention.  FOREVER jointly determines when to replay and how strongly
+to regularize at each replay event.  Consistent improvements are
+demonstrated on three continual learning benchmarks across 0.6B--13B
+parameter models, establishing model-centric time as a superior basis
+for forgetting curve alignment.
 
 %% ===============================================================
 \subsection{Framework-Level Memory}
@@ -850,6 +902,21 @@ outcomes with explicit timestamps.  The system does not implement
 forgetting, graph traversal, or preference learning beyond execution
 traces.
 
+\paragraph{Focus.}
+\textbf{Focus}~\cite{focus2026} applies bio-inspired autonomous context
+compression to software engineering agents.  Drawing from
+\emph{Physarum polycephalum} (slime mold) network dynamics, Focus
+agents decide when to consolidate key learnings from raw interaction
+history into a persistent structured ``Knowledge'' block, then
+actively prune redundant raw history.  Two operations compose the
+cycle: \emph{consolidate} (extract durable facts into structured
+knowledge entries) and \emph{prune} (discard raw context whose content
+has been captured).  The consolidation trigger is learned from task
+context rather than fixed time intervals.  Focus achieves 22.7\%
+token reduction while maintaining task performance, requiring no
+external infrastructure---a notably low deployment overhead for
+a system with adaptive context management.
+
 Despite their retrieval sophistication, no IDE-integrated memory system
 implements consolidation or automated forgetting.  Copilot's 28-day
 expiry is the closest approximation, but it is a fixed TTL rather than
@@ -1168,3 +1235,373 @@ prior systems either imposed fixed schemas or relied on pure similarity
 search; A-MEM's evolving link network provides dynamic structure without
 manual curation.  The system does not implement forgetting curves or
 preference learning.
+
+\paragraph{APEX-MEM.}
+\textbf{APEX-MEM}~\cite{apexmem2026} introduces an
+\emph{append-only temporal property graph} for persistent agent memory.
+Conversations are modeled as temporally grounded events in an
+entity-centric framework using a domain-agnostic ontology:
+every fact is anchored to the event that produced it and the time at
+which it became true.  Storage is strictly append-only---nodes are
+never overwritten---preserving the complete temporal evolution of every
+entity's attribute history.  Conflicts are not resolved at write time
+but deferred to a \emph{multi-tool retrieval agent} that resolves
+them at query time by examining temporal ordering and provenance.
+This design eliminates destructive update semantics and makes memory
+evolution fully auditable.  On LoCoMo, APEX-MEM achieves 88.88\%
+QA accuracy; on LongMemEval, it achieves 86.2\%, exceeding MIRIX by
+3.5 percentage points and placing it among the top published results
+on both benchmarks.  The system implements no forgetting, preference
+learning, or graph community structure.
+
+\paragraph{MemEvolve.}
+\textbf{MemEvolve}~\cite{memevolve2025} introduces meta-evolution at
+the architecture level: rather than evolving the \emph{contents} of a
+fixed memory system, it jointly evolves agents' experiential knowledge
+AND their memory architecture itself.  The framework introduces
+\emph{EvolveLab}, a modular design space with four customizable
+components---encode, store, retrieve, manage---distilling design
+patterns from 12 representative memory systems.  A meta-evolutionary
+algorithm searches the product space of component configurations and
+memory contents, discovering configurations not anticipated by any
+individual system's designers.  On SmolAgent and Flash-Searcher
+benchmarks, MemEvolve achieves up to 17\% gains over fixed
+architectures.  MemEvolve addresses a blind spot shared by all other
+systems in this survey: they optimize memory \emph{contents} within a
+fixed architecture, leaving the architectural choice to human designers.
+MemEvolve treats architecture as a first-class degree of freedom.
+
+\paragraph{SSGM.}
+\textbf{SSGM} (Stability and Safety Governed
+Memory)~\cite{ssgm2026} is the first formal framework treating memory
+trustworthiness as a first-class concern.  The framework identifies
+three critical failure modes in the memory pipeline: (1) \emph{Memory
+Poisoning}---adversarial or erroneous content injected at
+ingestion; (2) \emph{Semantic Drift}---gradual corruption during
+consolidation as summaries diverge from source meaning over repeated
+abstraction passes; and (3) \emph{Conflict/Hallucination}---
+contradictory or fabricated content surfaced at retrieval.  Three
+corresponding governance mechanisms are introduced: consistency
+verification prior to consolidation, temporal decay modeling that
+tracks how memory reliability degrades over time, and dynamic access
+control that restricts retrieval of low-confidence or potentially
+corrupted entries.  The framework decouples memory evolution from
+execution, allowing governance checks to proceed asynchronously without
+blocking the main agent loop, and is architecture-agnostic.  SSGM
+provides the first formal vocabulary for memory failure modes; its
+three-stage taxonomy maps directly onto the write, consolidation, and
+retrieval stages common to all systems in this survey, making it a
+cross-cutting analytical lens rather than a standalone architecture.
+
+\paragraph{MemP.}
+\textbf{MemP}~\cite{memp2025} (Procedural Memory) conducts the first
+systematic study of the procedural memory lifecycle for LLM agents,
+addressing how to build, retrieve, and update step-by-step instructions
+extracted from past trajectories.  The \emph{build} phase distills
+trajectories into fine-grained procedural instructions and higher-level
+script-like abstractions.  The \emph{update} phase introduces dynamic
+correction (revising incorrect procedures) and deprecation (retiring
+obsolete ones).  A key empirical finding is that procedural memory
+built from stronger models transfers successfully to weaker models,
+establishing cross-agent procedural distillation as a practical
+deployment pattern.  MemP is architecturally distinct from episodic
+and semantic memory systems: it targets not what happened but how to
+act---directly encoding executable behavioral policies.
+
+\paragraph{FLEX.}
+\textbf{FLEX} (Forward Learning with
+Experience)~\cite{flex2025} enables gradient-free agent evolution
+through a structured experience library built by continuous reflection
+on successes and failures.  Unlike RL-based approaches requiring
+differentiable reward signals, FLEX operates entirely through inference:
+the agent reflects on outcomes, distills generalizable lessons into the
+experience library, and retrieves relevant experiences before future
+decisions.  The framework identifies a \emph{scaling law of experiential
+growth}---performance improves log-linearly with library size---and
+demonstrates \emph{cross-agent inheritance}: experiences built by one
+agent transfer to others. FLEX achieves +23\% on AIME25 and
++10\% on USPTO50k, establishing experience libraries as a
+cost-effective alternative to parameter updates for capability
+improvement.
+
+\paragraph{ReasoningBank.}
+\textbf{ReasoningBank}~\cite{reasoningbank2025} (Google Cloud AI
+Research) introduces memory that captures \emph{how to think} rather
+than \emph{what happened}, distilling generalizable reasoning strategies
+from self-judged successful and failed experiences.  Rather than storing
+facts or episodes, ReasoningBank stores reasoning patterns: structured
+representations of problem-solving approaches effective in prior tasks.
+The framework introduces \emph{memory-aware test-time scaling}
+(MaTTS), where retrieved reasoning strategies guide exploration, and
+successful explorations enrich the strategy bank---creating a positive
+feedback loop between memory and test-time compute.  This interplay
+represents a qualitatively different dimension of memory utility:
+procedural strategies for reasoning rather than declarative records of
+events.
+
+\paragraph{Sophia.}
+\textbf{Sophia}~\cite{sophia2025} introduces \emph{System~3}---a
+persistent meta-layer presiding over System~1 (perception/reflex)
+and System~2 (deliberate reasoning) in a three-level cognitive
+architecture.  System~3 maintains a \emph{narrative identity}: a
+persistent self-model encoding goals, values, and accumulated expertise
+that persists across sessions and tasks.  The agent uses this identity
+to self-generate learning goals, curate personalized skill curricula,
+and sustain autonomous self-adaptation without external supervision.
+System~3 memory is qualitatively distinct from episodic or semantic
+memory: it encodes not what happened or what is true, but who the
+agent is and what it is trying to become---a persistent motivational
+and identity layer.  On recurring operations, Sophia achieves an
+80\% reduction in reasoning steps as the identity layer accumulates
+domain-specific strategies.
+
+\paragraph{H-EPM.}
+\textbf{H-EPM} (Hybrid Episodic-Procedural
+Memory)~\cite{hepm2025} constructs a \emph{tool graph} from accumulated
+agent trajectories where directed edges capture recurring tool-to-tool
+dependencies across past experiences.  Individual episodes are
+compressed into compact summaries retained alongside the structural
+graph.  Retrieval queries both tiers: the graph for procedural
+tool-use patterns, and the episodic summaries for contextual examples,
+combining structural and episodic signals in a single ranked response.
+H-EPM extends to memory-guided RL training where the evolving memory
+base progressively improves exploration efficiency, creating a feedback
+loop between accumulated experience and future policy learning.
+
+\paragraph{U-Mem.}
+\textbf{U-Mem}~\cite{umem2026} introduces \emph{autonomous memory
+agents} that actively acquire, validate, and curate knowledge at
+minimum cost, rather than passively storing observed content.
+A cost-aware acquisition cascade escalates through four tiers: internal
+signals, teacher LLM feedback, tool-verified external research, and
+human expert correction---each invoked only when cheaper sources prove
+insufficient.  Exploration of knowledge gaps uses
+\emph{semantic-aware Thompson sampling} to balance acquiring new
+knowledge against exploiting existing knowledge.  U-Mem achieves
+$+14.6$ on HotpotQA and $+7.33$ on AIME25.  The active-acquisition
+paradigm is complementary to passive-ingestion systems: rather than
+managing what to remember from observed events, U-Mem decides what to
+proactively seek out and learn.
+
+\paragraph{TSM.}
+\textbf{TSM} (Temporal Semantic
+Memory)~\cite{tsm2026} builds a semantic timeline via a temporal
+knowledge graph, aligning storage with \emph{when events occurred} and
+\emph{how long states persisted}.  Rather than treating all facts as
+timeless assertions, TSM consolidates temporally continuous mentions
+into durative summaries (e.g., ``user lived in Seoul from March through
+July''), distinguishing persistent states from point-wise events.
+On LongMemEval, TSM achieves $+12.2\%$ absolute improvement over
+baselines.  This durative modeling is architecturally complementary to
+systems that only store event-based facts, and addresses a structural
+gap in temporal reasoning evaluations.
+
+\paragraph{Nemori.}
+\textbf{Nemori}~\cite{nemori2025} introduces two cognitive-science-grounded
+principles for episodic memory organization: a \emph{Two-Step
+Alignment Principle} separating what was perceived from what was
+inferred, and a \emph{Predict-Calibrate Principle} that proactively
+restructures memory around anticipated future query needs rather than
+only optimizing for past retrieval patterns.  On LoCoMo, Nemori
+achieves an LLM-as-Judge score of 0.58 (vs.\ MAGMA's 0.70), making
+it a common comparative reference.  The predict-calibrate mechanism
+addresses the reactive limitation shared by most systems: they organize
+information only after queries reveal what was needed.
+
+\paragraph{MemoBrain.}
+\textbf{MemoBrain}~\cite{memobraın2026} targets the \emph{working memory
+of reasoning agents} rather than episodic or semantic content,
+asynchronously abstracting transient reasoning sessions into compact,
+dependency-aware memory units.  When a reasoning trace exceeds budget,
+MemoBrain applies fold (compress while preserving causal dependencies)
+or flush (discard low-utility reasoning steps).  The resulting executive
+memory captures decision rationale---why certain reasoning paths were
+taken---rather than facts.  On BrowseComp-Plus, GAIA, and WebWalker,
+MemoBrain improves task success rates.  This reasoning-memory paradigm
+is architecturally distinct from all episode/fact-based systems.
+
+\paragraph{RMM.}
+\textbf{RMM} (Reflective Memory
+Management)~\cite{rmm2025} introduces bidirectional reflection for
+adaptive memory granularity.  \emph{Prospective Reflection} generates
+anticipated future retrieval needs at write time and adjusts memory
+granularity accordingly; \emph{Retrospective Reflection} revises
+existing memory structure based on observed retrieval failures.  This
+dual-direction adaptation resolves the rigid pre-defined granularity
+limitation of systems that apply uniform chunking or summarization
+regardless of query patterns.  RMM was accepted at ACL~2025 and
+demonstrates consistent improvements on LoCoMo and LongMemEval.
+
+%% ===============================================================
+\subsection{Reinforcement-Learned Memory}
+\label{sec:rl-memory}
+
+A distinct paradigm has emerged in which memory management
+policy---the decisions of what to store, retrieve, update, and
+forget---is itself learned end-to-end via reinforcement learning rather
+than hand-engineered.  This paradigm treats memory management as a
+sequential decision problem with task-performance reward, enabling the
+system to discover non-obvious strategies that fixed pipelines cannot
+represent.
+
+\paragraph{AtomMem.}
+\textbf{AtomMem}~\cite{atommem2026} reframes memory management as a
+sequential decision-making problem, training an end-to-end RL policy
+over four \emph{atomic memory operations}: Create, Read, Update, and
+Delete.  Rather than encoding a fixed pipeline for when to perform
+each operation, AtomMem learns a policy that dynamically selects which
+CRUD operation to execute at each step based on task demands and the
+current memory state.  The decomposition into four primitive operations
+provides a minimal complete action space: any memory management strategy
+expressible as a sequence of CRUD operations is in principle learnable.
+The learned policy significantly outperforms fixed heuristic baselines;
+ablating both scratchpad and external memory causes a greater than
+40-point performance degradation.  This work occupies a qualitatively
+different point in the design space than all other systems reviewed:
+rather than designing which memory operations to use, AtomMem learns
+that design from task performance signals.
+
+\paragraph{MEM1.}
+\textbf{MEM1}~\cite{mem12026} introduces an RL framework that maintains
+a compact \emph{shared internal state} jointly used for memory
+consolidation and reasoning.  Unlike systems that separate memory
+storage from reasoning chains, MEM1 maintains a single latent state
+that evolves each turn by integrating new observations and discarding
+irrelevant prior content, operating with constant memory regardless of
+conversation length.  The policy is trained end-to-end via RL, learning
+to balance retention and forgetting implicitly rather than through
+explicit threshold rules.  On long multi-turn tasks, MEM1 achieves
+3.5$\times$ performance improvement while using 3.7$\times$ less memory
+than larger models---demonstrating that a principled learned
+consolidation policy can substitute for raw model capacity.  The
+unified memory-reasoning state is architecturally distinct from all
+retrieval-based systems: there is no explicit store-and-retrieve cycle;
+the memory is the reasoning state.
+
+\paragraph{MemSearcher.}
+\textbf{MemSearcher}~\cite{memsearcher2025} trains an agent to
+simultaneously maintain compact memory, reason from it, search external
+sources, and update memory---all within a single RL training objective.
+Training uses \emph{multi-context GRPO} (Group Relative Policy
+Optimization), jointly rewarding accurate reasoning, effective search,
+and coherent memory updates.  Rather than treating memory maintenance
+as a separate module called by a reasoning agent, MemSearcher fuses
+memory operations directly into the reasoning-search loop.  The trained
+agent achieves $+11$--$12\%$ relative gains over strong baselines
+across 7 diverse benchmarks.  The architectural insight is that memory,
+search, and reasoning are not cleanly separable: the optimal strategy
+for what to retain depends on what can be searched, and vice versa.
+Jointly optimizing all three yields qualitatively different behavior
+from pipelines that treat them as independent modules.
+
+%% ===============================================================
+\subsection{Multi-Agent Memory}
+\label{sec:multiagent-memory}
+
+The vast majority of reviewed systems assume a single-agent setting.
+The following systems address the structural challenges that arise when
+multiple agents share, coordinate over, or maintain independent memories
+in collaborative deployments.
+
+\paragraph{LEGOMem.}
+\textbf{LEGOMem}~\cite{legomem2025} (AAMAS~2026) addresses the
+\emph{placement problem} for procedural memory in multi-agent systems:
+which agent should hold which memories, and how retrieval should be
+coordinated across agent boundaries.  The framework decomposes past
+task trajectories into modular, reusable memory units and empirically
+studies three allocation strategies: centralized (orchestrator holds
+all memory), distributed (each task agent holds its own), and hybrid.
+Memory placement critically affects task performance, with different
+strategies optimal for different task structures.  LEGOMem is the
+first work to treat memory placement as a first-class architectural
+decision rather than an implementation detail in multi-agent LLM
+systems.
+
+\paragraph{Collaborative Memory.}
+\textbf{Collaborative Memory}~\cite{collaborativemem2025} addresses
+the multi-user, multi-agent setting where memory access is asymmetric
+and dynamically controlled.  Access permissions are encoded as bipartite
+graphs linking users, agents, and memory resources, with edges carrying
+time-evolving authorization policies.  When access permissions
+change---a user departs, a project scope shifts---the graph is updated
+and all future retrievals automatically respect the new topology.  This
+architecture provides formal dynamic access control semantics absent
+from all other reviewed systems, which treat memory access as either
+fully shared or fully isolated.
+
+\paragraph{LLMA-Mem.}
+\textbf{LLMA-Mem}~\cite{llmamem2026} introduces a lifelong memory
+framework for multi-agent systems with three formally separated stores:
+\emph{episodic} memory (past interactions and outcomes),
+\emph{procedural} memory (cross-task reusable action sequences), and
+\emph{transactive} memory (team-level coordination modeling---tracking
+which agent knows what).  The transactive memory component is
+architecturally novel: it enables agents to route queries to the agent
+most likely to have relevant knowledge rather than broadcasting searches
+across all agents' stores.  Three topology variants are studied:
+shared, private, and hybrid.  LLMA-Mem is the first work to formally
+model \emph{transactive memory} (a construct from organizational
+psychology) in LLM multi-agent systems.
+
+\paragraph{Intrinsic Memory Agents.}
+\textbf{Intrinsic Memory Agents}~\cite{intrinsicmem2025} address a
+failure mode specific to heterogeneous multi-agent systems: when agents
+share a common memory store, specialized agents lose their domain
+expertise as memories homogenize toward the mean.  The framework
+introduces agent-specific intrinsic memories that evolve with each
+agent's own outputs, maintaining role-aligned perspectives.  An
+orchestrator with general knowledge and a specialist with domain
+expertise will accumulate different memory representations of the same
+events, preserving complementary viewpoints.  This is particularly
+relevant for coding agent teams where agents with distinct roles
+(architecture, testing, security review) must maintain separate
+knowledge perspectives.
+
+%% ===============================================================
+\subsection{Embodied and Multimodal Memory}
+\label{sec:embodied-memory}
+
+A growing set of systems extends agent memory beyond text to physical
+environments, spatial representations, and multimodal inputs.  These
+systems address modalities and grounding constraints absent from
+text-only memory architectures.
+
+\paragraph{RoboMemory.}
+\textbf{RoboMemory}~\cite{robomemory2025} introduces a brain-inspired
+memory framework for embodied agents unifying four parallel memory
+types: \emph{Spatial} (dynamic knowledge graph of the physical
+environment), \emph{Temporal} (time-ordered event sequences),
+\emph{Episodic} (past action-observation pairs), and \emph{Semantic}
+(factual world knowledge).  A closed-loop planner with critic module
+selects which memory type to consult at each planning step.
+On EmbodiedBench, RoboMemory achieves a 26.5 percentage-point
+improvement over prior methods, surpassing Claude-3.5-Sonnet on
+embodied task execution.  The four-way parallel architecture mirrors
+the neuropsychological dissociation of memory systems in biological
+agents navigating physical environments.
+
+\paragraph{3DLLM-Mem.}
+\textbf{3DLLM-Mem}~\cite{threedllmmem2025} equips embodied LLMs with
+dense \emph{3D spatial representations} as memory, addressing the
+fundamental gap in text-based memory systems: they cannot represent the
+spatial structure of physical environments.  The dual-memory system
+pairs limited-capacity working memory for active scene perception with
+expandable episodic memory stored as dense 3D feature maps from prior
+observations.  A memory fusion module integrates both tiers based on
+task relevance, enabling the agent to recall the spatial layout of
+previously visited locations without re-observing them.  3DLLM-Mem
+is the first system to use 3D scene representations---rather than
+textual or graph abstractions---as the primary memory modality.
+
+\paragraph{MemVerse.}
+\textbf{MemVerse}~\cite{memverse2025} provides a model-agnostic
+multimodal lifelong memory framework with a hierarchical three-tier
+design: \emph{core memory} (user-specific beliefs and preferences),
+\emph{episodic memory} (time-ordered multimodal experiences), and
+\emph{semantic memory} (entity-centric knowledge graphs encoding
+relationships across visual, textual, and factual knowledge).  A
+dual-path architecture bridges fast parametric recall (from model
+weights) with explicit retrieval-based storage.  On ScienceQA with
+GPT-4o-mini, MemVerse achieves 85.48\%.  MemVerse treats multimodal
+memory as a first-class concern rather than adapting text-only
+architectures to handle image inputs as a secondary modality.

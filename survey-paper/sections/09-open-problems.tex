@@ -120,22 +120,26 @@ production deployments increasingly involve multiple agents
 collaborating on shared tasks. G-Memory~\cite{zhang2025gmemory}
 introduces a three-tier hierarchy---agent-local, team-shared, and
 global memory---with explicit ownership tracking and conflict
-resolution protocols, representing the most structured approach to
-date. However, several fundamental problems remain unresolved. Memory
-ownership semantics are unclear: when Agent~A consolidates an episode
-from a conversation that Agent~B also participated in, which agent
-owns the resulting semantic node? Conflict resolution across agents
-with different memory backends (e.g., one using a vector store,
-another a knowledge graph) requires alignment mechanisms that no
-current system provides. Privacy boundaries introduce additional
-complexity: in multi-tenant deployments, agents serving different
-users must maintain strict memory isolation while potentially sharing
-task-relevant procedural knowledge. Federated memory architectures,
-in which agents share consolidated knowledge without exposing raw
-episodic data, represent a promising but entirely unexplored research
-direction that would bridge the gap between single-agent memory
-systems and the collaborative agent ecosystems that production
-environments demand.
+resolution protocols. Recent work in \S\ref{sec:multiagent-memory}
+has begun directly addressing these challenges:
+LEGOMem~\cite{legomem2025} treats memory placement as a first-class
+architectural decision; Collaborative Memory~\cite{collaborativemem2025}
+provides dynamic bipartite-graph access control across users and
+agents; and LLMA-Mem~\cite{llmamem2026} formally introduces
+\emph{transactive memory}---tracking which agent knows what---to
+LLM multi-agent systems.  Despite this progress, several fundamental
+problems remain unresolved. Memory ownership semantics are unclear:
+when Agent~A consolidates an episode from a conversation that
+Agent~B also participated in, which agent owns the resulting semantic
+node? Conflict resolution across agents with different memory backends
+(e.g., one using a vector store, another a knowledge graph) requires
+alignment mechanisms that no current system provides. Privacy
+boundaries introduce additional complexity: in multi-tenant
+deployments, agents serving different users must maintain strict memory
+isolation while potentially sharing task-relevant procedural knowledge.
+Federated memory architectures, in which agents share consolidated
+knowledge without exposing raw episodic data, remain a substantially
+open research direction.
 
 \subsection{Evaluation Methodology}
 
@@ -152,7 +156,17 @@ LoCoMo-Plus~\cite{li2026locomoplus} evaluates cognitive memory under
 cue--trigger semantic disconnect, and
 MemoryAgentBench~\cite{hu2025mab} explicitly tests selective forgetting
 and conflict resolution alongside retrieval and learning
-(\S\ref{sec:benchmark-landscape}).  Yet even collectively, these
+(\S\ref{sec:benchmark-landscape}).  A second wave of benchmarks
+addresses more structural limitations:
+MemoryArena~\cite{memoryarena2026} exposes the gap between passive
+recall and decision-relevant memory by embedding causal dependencies
+across sessions (systems near-perfect on LoCoMo drop to 40--60\%);
+Mem2ActBench~\cite{mem2actbench2026} evaluates memory-to-action
+grounding for tool-based execution; AgentLongBench~\cite{agentlongbench2026}
+stresses dynamic information synthesis via lateral-thinking puzzle
+trajectories of 32K--4M tokens; and
+MEMTRACK~\cite{memtrack2025} specifically targets contradictory memory
+management and live context switches.  Yet even collectively, these
 benchmarks leave critical dimensions untested: no existing benchmark
 measures consolidation quality (are semantic nodes more useful for
 downstream tasks than the raw episodes they replace?), preference
