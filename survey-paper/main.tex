@@ -42,6 +42,14 @@
 \newcommand{\etal}{\emph{et~al.}}
 \newcommand{\todo}[1]{\textcolor{red}{\textbf{TODO:} #1}}
 
+% ---- Evidence-level markers for commercial / closed-source systems ----
+% [D] Official documentation  [S] Source code inspected
+% [V] Vendor-reported          [I] Inferred from behavior
+\newcommand{\evD}{{\footnotesize\textsuperscript{\textsc{[D]}}}}
+\newcommand{\evS}{{\footnotesize\textsuperscript{\textsc{[S]}}}}
+\newcommand{\evV}{{\footnotesize\textsuperscript{\textsc{[V]}}}}
+\newcommand{\evI}{{\footnotesize\textsuperscript{\textsc{[I]}}}}
+
 % ---- Column type for fixed-width ----
 \newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 \newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
@@ -75,7 +83,7 @@
 
 \begin{abstract}
 Large language model (LLM) agents increasingly require persistent memory
-that goes beyond context-window chat history. Over 116 memory systems have
+that goes beyond context-window chat history. Over 138 memory systems have
 emerged since 2023, ranging from flat-file approaches (MEMORY.md) through
 knowledge-graph engines (Zep/Graphiti, HippoRAG) to cognitively inspired
 architectures (SYNAPSE~\cite{jiang2026synapse}, LightMem~\cite{fang2025lightmem}). Yet no unified taxonomy captures the full
@@ -87,12 +95,11 @@ the RAG taxonomy; (3) memory \emph{lifecycle} (formation, consolidation,
 forgetting, transformation); and (4) \emph{preference emergence} (how
 behavioral patterns crystallize from interaction). We ground this taxonomy
 in cognitive neuroscience (Hebbian learning, complementary learning
-systems, Bjork dual-strength forgetting) and identify five convergent
-design principles that the practitioner community has independently
-rediscovered from memory research decades earlier. We catalog critical
-gaps (principled forgetting, preference emergence, adaptive retrieval)
-and propose a research agenda for the next generation of agent memory
-systems.
+systems, Bjork dual-strength forgetting) and document five recurring
+design patterns observed across independently developed systems that
+parallel principles from memory research. We catalog critical gaps
+(principled forgetting, preference emergence, adaptive retrieval) and
+propose a research agenda for the next generation of agent memory systems.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -112,6 +119,7 @@ fusion, complementary learning systems
 \input{sections/09-open-problems}
 \input{sections/10-limitations}
 \input{sections/11-conclusion}
+\input{sections/12-appendix}
 
 % ---- References ----
 % Prevent any remaining floats from drifting past the bibliography

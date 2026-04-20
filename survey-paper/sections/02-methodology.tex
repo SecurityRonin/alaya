@@ -34,10 +34,82 @@ sources. After deduplication, 387 unique systems were screened by title
 and abstract. Of these, 249 proceeded to full-text review; 111 were
 excluded at this stage (58 out-of-scope, 29 insufficient documentation,
 24 duplicates of already-included systems). The final corpus comprises
-138 systems. Table~\ref{tab:excluded} lists deliberate exclusions for
-systems that required full-text review before exclusion. The complete
-system list with per-system coding labels is in the system matrix
+138 systems. Figure~\ref{fig:prisma} visualizes the screening flow.
+Table~\ref{tab:excluded} lists deliberate exclusions for systems that
+required full-text review before exclusion. The complete system list
+with per-system coding labels is in the system matrix
 (Table~\ref{tab:system-matrix}).
+
+\begin{figure*}[!t]
+\centering
+\begin{tikzpicture}[
+  node distance=0.65cm and 2.0cm,
+  mainbox/.style={rectangle, draw=black, thick, text width=5.8cm,
+                  minimum height=1.5cm, align=center, font=\small},
+  exclbox/.style={rectangle, draw=black!65, thick, text width=4.8cm,
+                  minimum height=1.2cm, align=center, font=\footnotesize,
+                  fill=gray!8},
+  arr/.style={-{Stealth[length=3mm]}, thick},
+  darr/.style={-{Stealth[length=3mm]}, thick, dashed, draw=black!60},
+]
+\node[mainbox] (id) {
+  \textbf{Identification}\\[3pt]
+  Records from 5 sources\\
+  (arXiv/Semantic Scholar, conf.\ proceedings,\\
+   GitHub, practitioner sources, snowball)\\[2pt]
+  $n \approx 520$
+};
+\node[mainbox, below=of id] (screen) {
+  \textbf{Screening}\\[3pt]
+  Unique records after deduplication\\[2pt]
+  $n = 387$
+};
+\node[mainbox, below=of screen] (elig) {
+  \textbf{Eligibility}\\[3pt]
+  Full-text assessed for inclusion\\[2pt]
+  $n = 249$
+};
+\node[mainbox, below=of elig] (incl) {
+  \textbf{Included}\\[3pt]
+  Systems in final synthesis\\[2pt]
+  $n = 138$
+};
+\node[exclbox, right=of screen] (screxcl) {
+  Excluded at title/abstract screening\\
+  (not LLM agent memory)\\
+  $n = 138$\textsuperscript{$\dagger$}
+};
+\node[exclbox, right=of elig] (eligexcl) {
+  Excluded after full-text review\\
+  $n = 111$\\[3pt]
+  \textit{Out of scope:}\ \ 58\\
+  \textit{Insufficient docs:}\ 29\\
+  \textit{Duplicate system:}\ 24
+};
+\draw[arr] (id) -- (screen);
+\draw[arr] (screen) -- (elig);
+\draw[arr] (elig) -- (incl);
+\draw[darr] (screen.east) -- (screxcl.west);
+\draw[darr] (elig.east) -- (eligexcl.west);
+\end{tikzpicture}
+\caption{PRISMA 2020 screening flow~\cite{page2021prisma}. Five sources were
+searched; records were deduplicated, screened by title and abstract, then
+assessed by full text.
+\textsuperscript{$\dagger$}The coincidence $n = 138$ for both records
+excluded at abstract screening ($387 - 249 = 138$) and systems included
+in synthesis ($249 - 111 = 138$) is arithmetically exact but incidental.}
+\label{fig:prisma}
+\end{figure*}
+
+\paragraph{Evidence-level markers.}
+For commercial and closed-source systems where architectural details
+cannot be independently verified from source code, claims in
+\S\ref{sec:production} are annotated with evidence-quality superscripts:
+\evD~official documentation, \evS~source code inspected,
+\evV~vendor-reported (blog/press release),
+\evI~inferred from behavior.
+The full legend, assignment protocol, and reproducibility record are in
+\Cref{sec:appendix-evidence}.
 
 \subsection{Inclusion and Exclusion Criteria}
 

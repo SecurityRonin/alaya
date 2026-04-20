@@ -1,0 +1,94 @@
+% 12-appendix.tex — Reproducibility and Evidence-Level Coding
+% Included via \input{sections/12-appendix} in main.tex (after 11-conclusion)
+
+\appendix
+
+\section{Reproducibility and Evidence-Level Coding}
+\label{sec:appendix-evidence}
+
+\subsection{Evidence-Level Legend}
+\label{sec:appendix-legend}
+
+Claims about commercial and closed-source systems throughout
+\S\ref{sec:systems} are annotated with evidence-quality markers that
+indicate the epistemic basis for each architectural assertion.  The four
+levels, printed as small superscripts in the text, are:
+
+\begin{description}[leftmargin=2em, labelwidth=1.6em, nosep, font=\normalfont]
+  \item[\texttt{[D]}] \textbf{Official documentation.}
+    Claim is directly supported by the vendor's published API
+    documentation, technical report, model card, or developer guide.
+    This is the strongest evidence class for a closed-source system.
+
+  \item[\texttt{[S]}] \textbf{Source code inspected.}
+    Claim is verified by direct inspection of a publicly available
+    repository (GitHub, PyPI source distribution, etc.).  Applicable
+    primarily to open-source and developer-tool systems.
+
+  \item[\texttt{[V]}] \textbf{Vendor-reported.}
+    Claim originates from a blog post, press release, product
+    changelog, or marketing material published by the vendor.
+    Vendor-reported claims are reproducible via the cited URL but are
+    not independently verified and may reflect marketing rather than
+    precise engineering description.
+
+  \item[\texttt{[I]}] \textbf{Inferred from behavior.}
+    Claim is derived from observable system behavior during testing,
+    community reverse-engineering reports, or logical inference from
+    observable inputs and outputs.  No official confirmation exists.
+    This is the weakest evidence class; such claims should be treated
+    as informed hypotheses rather than established facts.
+\end{description}
+
+\subsection{Evidence Assignment Protocol}
+\label{sec:appendix-protocol}
+
+Evidence levels were assigned according to the following protocol.
+Where multiple sources support a claim, the highest-quality level is
+reported: \texttt{[S]} $>$ \texttt{[D]} $>$ \texttt{[V]} $>$ \texttt{[I]}.
+
+\begin{enumerate}[leftmargin=*, nosep]
+  \item \textbf{Open-source systems} (Mem0, Zep/Graphiti, Letta,
+    HippoRAG, SYNAPSE, LightMem, and all systems with public
+    repositories) receive \texttt{[S]} by default, as architectural
+    claims are verifiable against source code.  These systems are not
+    annotated inline since the evidence basis is uniform.
+
+  \item \textbf{Commercial consumer platforms} (ChatGPT Memory, Gemini
+    Memory, Grok Memory, Meta AI Memory) receive \texttt{[D]} when
+    official API or help-center documentation exists, \texttt{[V]} for
+    blog and changelog claims, and \texttt{[I]} for behavioral
+    observations without official confirmation.
+
+  \item \textbf{Developer tools with partial source availability}
+    (Claude API Memory Tool, Claude Code auto-memory) receive
+    \texttt{[S]} where the relevant code is inspectable and \texttt{[D]}
+    for documented API behavior.
+
+  \item Claims whose evidence basis changed between drafts retain the
+    evidence level of the most recent source consulted.  The survey
+    cutoff is April 2026.
+\end{enumerate}
+
+\subsection{Per-System Coding Record}
+\label{sec:appendix-matrix}
+
+The authoritative per-system record of taxonomy classifications is the
+system matrix (Table~\ref{tab:system-matrix}).  The matrix encodes each
+system's position on all four taxonomy axes (Structure, Retrieval,
+Lifecycle, Preference Emergence) using the coding scheme defined in
+\S\ref{sec:coding}.  Evidence-level annotations for commercial systems
+appear inline in \S\ref{sec:production} of the main text; they are not
+reproduced in the matrix because the matrix encodes architectural
+features, not evidence quality.
+
+\subsection{Benchmark Evaluation Code and Data}
+\label{sec:appendix-code}
+
+All baseline evaluation code (LoCoMo, LongMemEval\_S, and MAB
+replications), raw per-question results, judge logs, and the complete
+system coding spreadsheet are available in the project
+repository~\cite{alaya2026}.  The repository includes a
+\texttt{README} with exact reproduction steps, dependency versions, and
+the \texttt{all-MiniLM-L6-v2} model checkpoint hash used for na\"ive
+RAG embeddings.

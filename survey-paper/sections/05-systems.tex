@@ -125,10 +125,10 @@ architectures, but Hindsight lacks a graph overlay and does not
 implement principled forgetting beyond confidence evolution.
 
 \paragraph{ChatGPT Memory (OpenAI).}
-OpenAI's built-in memory for ChatGPT~\cite{openai2024memoryfaq}
+OpenAI's built-in memory for ChatGPT~\cite{openai2024memoryfaq}\evD
 represents the largest-scale deployment of persistent agent memory,
 available to hundreds of millions of users since early 2024. The
-architecture implements a two-tier system: \emph{saved memories}
+architecture implements a two-tier system\evD: \emph{saved memories}
 (explicit facts the user asks ChatGPT to remember, persisted
 indefinitely until deleted) and \emph{reference chat history} (implicit
 recall from past conversations, where details change over time as the
@@ -140,11 +140,11 @@ conversations.
 
 Notably, ChatGPT Plus and Pro users have access to automatic memory
 management that prioritizes memories based on recency and frequency of
-mention, deprioritizing less-relevant memories to the
+mention\evV, deprioritizing less-relevant memories to the
 ``background''---effectively a rudimentary forgetting mechanism based on
-single-curve decay. The system also enforces a capacity limit (a
-``memory full'' state), creating implicit pressure toward concise,
-high-value memories. However, there is no structured retrieval:
+single-curve decay\evI. The system also enforces a capacity limit (a
+``memory full'' state)\evV, creating implicit pressure toward concise,
+high-value memories. However, there is no structured retrieval\evI:
 memories are injected as context without ranking, no graph structure
 links related memories, and no consolidation promotes episodic
 interactions into semantic knowledge. Mem0 reports a 26\% accuracy
@@ -156,72 +156,72 @@ no graph, no consolidation, and no hybrid retrieval.
 
 \paragraph{Claude Memory (Anthropic).}
 Anthropic provides two distinct memory mechanisms. The \emph{Claude API
-Memory Tool}~\cite{anthropic2026memorytool} enables developers to give
+Memory Tool}~\cite{anthropic2026memorytool}\evD enables developers to give
 Claude persistent memory across conversations through a file-based
 storage directory. Claude autonomously decides when to save, update, or
 delete memories, storing them as structured Markdown documents organized
 by topic. The tool exposes three operations---create, update, and
-delete---and memories are injected as context at the start of each
+delete\evD---and memories are injected as context at the start of each
 conversation. This is architecturally simpler than Mem0 or Zep: no
 vector retrieval, no graph traversal, no scoring---every saved memory
-is included in full.
+is included in full\evD.
 
 At the product level, \emph{Claude Code}'s auto-memory
-system~\cite{gurgone2026claudememory} maintains a
+system~\cite{gurgone2026claudememory}\evV maintains a
 \texttt{MEMORY.md} file per project
 (\texttt{\~{}/.claude/\allowbreak{}projects/\allowbreak{}<path>/\allowbreak{}memory/\allowbreak{}MEMORY.md}), injected into
 the system prompt at session start. A hard 200-line limit constrains
-the file; beyond this, only the first 200 lines are loaded with a
+the file\evS; beyond this, only the first 200 lines are loaded with a
 warning nudging users toward a hub-and-spoke pattern where
 \texttt{MEMORY.md} serves as an index and details live in separate
 topic files (this topic-file loading is behind a feature flag and not
-yet active by default). Custom agents have a three-scope memory
+yet active by default)\evS. Custom agents have a three-scope memory
 system: project-level (git-committable, team-shared), local
-(machine-only), and user-level (global across projects). Both the API
-tool and Claude Code's system are canonical examples of the
+(machine-only), and user-level (global across projects)\evS. Both the
+API tool and Claude Code's system are canonical examples of the
 MEMORY.md problem analyzed in \S\ref{sec:memorymd}: full-context
 injection with no retrieval, no lifecycle management, and a linear
 scaling cost in memory size.
 
 \paragraph{Gemini Memory (Google).}
-Google's Gemini~\cite{gemini2026memory} deploys persistent memory across
+Google's Gemini~\cite{gemini2026memory}\evV deploys persistent memory across
 its consumer assistant and Workspace applications (Gmail, Docs, Sheets,
 Slides, Drive).  The architecture uses vector embeddings to store
 ``important user facts'' extracted from conversations, injected as
-context in subsequent sessions.  A ``Recent chats'' panel (rolled out
+context in subsequent sessions\evV.  A ``Recent chats'' panel (rolled out
 March 2026) enables users to revisit and continue prior conversations
-with full context preservation across Workspace apps.  Notably, Gemini
-adopts an \emph{opt-out} privacy model---memory is enabled by default,
+with full context preservation across Workspace apps\evV.  Notably, Gemini
+adopts an \emph{opt-out} privacy model\evV---memory is enabled by default,
 the opposite of ChatGPT's opt-in approach.  Memory management is
 currently all-or-nothing: users can disable memory entirely or clear
 all memories, but selective deletion of individual memories was not
-yet available during testing.  Despite Gemini's industry-leading 1M-token
-context window, the memory system remains Naive RAG: stored facts are
+yet available during testing\evI.  Despite Gemini's industry-leading 1M-token
+context window, the memory system remains Naive RAG\evI: stored facts are
 injected without ranking, graph structure, or lifecycle operations.
 
 \paragraph{Grok Memory (xAI).}
-xAI introduced memory for Grok in April 2025~\cite{grok2025memory},
+xAI introduced memory for Grok in April 2025~\cite{grok2025memory}\evV,
 enabling the chatbot to retain user preferences, names, and topical
 interests across conversations on X (formerly Twitter), Grok.com, and
-mobile apps.  The implementation follows the ChatGPT pattern: the model
+mobile apps\evV.  The implementation follows the ChatGPT pattern: the model
 decides what to remember, stored memories are transparent and
 individually deletable, and a ``Personalize with Memories'' toggle
-provides user control.  Architecturally, Grok Memory is Naive RAG with
+provides user control\evV.  Architecturally, Grok Memory is Naive RAG with
 implicit preference storage---no retrieval ranking, no graph, no
-forgetting mechanism.  Its primary distinguishing feature is integration
+forgetting mechanism\evI.  Its primary distinguishing feature is integration
 with the X social platform, providing conversational context that other
 assistants lack.
 
 \paragraph{Meta AI Memory.}
 Meta deploys memory across WhatsApp, Instagram, Messenger, and
-meta.ai~\cite{meta2025aimemory}, potentially reaching the largest user
+meta.ai~\cite{meta2025aimemory}\evV, potentially reaching the largest user
 base of any platform memory system.  Memory stores names, preferences,
 and recent topics across 1:1 chats, injected at runtime into the
-model's context window.  Crucially, memory content \emph{consumes}
-active context tokens---unlike systems that maintain a separate memory
+model's context window\evV.  Crucially, memory content \emph{consumes}
+active context tokens\evI---unlike systems that maintain a separate memory
 store, Meta AI's injected memories reduce the available window for
 conversation, creating implicit pressure toward concise memory as
-histories grow.  The system provides no retrieval: all stored memories
+histories grow.  The system provides no retrieval\evI: all stored memories
 are injected regardless of relevance, placing it firmly in the Naive
 RAG category.
 
