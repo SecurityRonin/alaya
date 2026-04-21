@@ -205,7 +205,7 @@ taxonomies:
 \label{sec:coding}
 
 For each system meeting our inclusion criteria, we performed structured
-data extraction along four orthogonal axes. The author coded each system; a random 20\% sample was independently
+data extraction along four orthogonal axes. The author coded each system; a random 20\% sample ($n = 28$ systems) was independently
 verified by a second coder (graduate research assistant), yielding
 Cohen's $\kappa > 0.85$ on all axes. The four coding axes are:
 
@@ -244,15 +244,18 @@ Cohen's $\kappa > 0.85$ on all axes. The four coding axes are:
 
     \item \textbf{Preference.} We assessed the mechanism, if any, by
     which user preferences and behavioral patterns emerge from accumulated
-    memory. We distinguished three levels: \emph{none} (no preference
-    modeling), \emph{LLM-extracted} (the system explicitly prompts an LLM
-    to summarize or extract preferences from stored interactions), and
-    \emph{emergent} (preferences arise implicitly through retrieval
-    frequency, Hebbian-style strengthening, or reinforcement signals
-    without an explicit extraction step). This axis extends beyond existing
-    survey taxonomies and reflects the gap identified by
-    Hu~\etal~\cite{hu2025memory} between static knowledge stores and
-    adaptive personalization.
+    memory. We distinguished four levels: \emph{none} (coded~N, no
+    preference modeling); \emph{LLM-extracted} (coded~E, the system
+    explicitly prompts an LLM to summarize or extract preferences from
+    stored interactions); \emph{confidence-tracked} (coded~T, preferences
+    are stored as belief objects with explicit confidence scores that
+    evolve over interactions, requiring an LLM call at write time); and
+    \emph{emergent} (coded~M, preferences arise implicitly through
+    retrieval frequency, Hebbian-style strengthening, or reinforcement
+    signals without any per-interaction extraction step). This axis
+    extends beyond existing survey taxonomies and reflects the gap
+    identified by Hu~\etal~\cite{hu2025memory} between static knowledge
+    stores and adaptive personalization.
 \end{enumerate}
 
 This four-axis coding scheme is designed to be both comprehensive and

@@ -126,7 +126,7 @@ implement principled forgetting beyond confidence evolution.
 
 \paragraph{ChatGPT Memory (OpenAI).}
 OpenAI's built-in memory for ChatGPT~\cite{openai2024memoryfaq}\evD
-represents the largest-scale deployment of persistent agent memory,
+represents one of the largest-scale deployments of persistent agent memory,
 available to hundreds of millions of users since early 2024. The
 architecture implements a two-tier system\evD: \emph{saved memories}
 (explicit facts the user asks ChatGPT to remember, persisted
@@ -226,36 +226,36 @@ are injected regardless of relevance, placing it firmly in the Naive
 RAG category.
 
 \paragraph{Perplexity Memory.}
-Perplexity~\cite{perplexity2025memory} stands apart from the other
+Perplexity~\cite{perplexity2025memory}\evV stands apart from the other
 platform memory systems with two distinctive features.  First,
 \emph{cross-model portability}: memory persists across every model
 Perplexity offers (Claude, GPT, Gemini, and others), allowing users
 to switch models between questions while retaining their full context
-history---unique among all platforms surveyed.  Second,
+history---unique among all platforms surveyed\evV.  Second,
 \emph{citation-based transparency}: when memory influences a response,
 Perplexity explicitly shows which memories contributed alongside
-traditional web sources, making memory's impact auditable.  The
+traditional web sources, making memory's impact auditable\evV.  The
 underlying architecture retrieves relevant context from a user's memory
-store rather than injecting all memories, placing Perplexity in the
+store rather than injecting all memories\evI, placing Perplexity in the
 Advanced RAG category---the only consumer platform to exceed Naive RAG
 for memory retrieval.  Like its peers, Perplexity lacks graph structure,
-consolidation, and principled forgetting.
+consolidation, and principled forgetting\evI.
 
 \paragraph{memU (NevaMind).}
-memU~\cite{memu2026} is an agentic memory framework designed for 24/7
+memU~\cite{memu2026}\evV is an agentic memory framework designed for 24/7
 proactive agents.  Its distinguishing contribution is a hierarchical
 file-system metaphor: raw interactions are transformed into structured,
 searchable intelligence organized as a virtual file system, supporting
-both embedding-based (RAG) and non-embedding (LLM) retrieval.  memU
+both embedding-based (RAG) and non-embedding (LLM) retrieval\evV.  memU
 receives multimodal inputs (conversations, documents, images) and
 organizes them into daily notes, long-term memory, and extracted user
-profiles.  A fourth ``intention layer'' (in development) analyzes
-accumulated memories to predict user needs before they are expressed,
+profiles\evV.  A fourth ``intention layer'' (in development) analyzes
+accumulated memories to predict user needs before they are expressed\evV,
 representing the most ambitious proactive memory capability in the
 surveyed systems.  The framework claims approximately 10$\times$ token
-reduction versus comparable usage patterns.  memU Bot extends the
+reduction versus comparable usage patterns\evV.  memU Bot extends the
 framework into an enterprise-ready OpenClaw alternative with persistent
-cross-session memory and team-scale deployment.
+cross-session memory and team-scale deployment\evV.
 
 \paragraph{ReMe (MemoryScope).}
 ReMe~\cite{reme2025} (formerly MemoryScope, ModelScope) provides a dual

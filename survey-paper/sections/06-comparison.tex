@@ -179,8 +179,8 @@ graph structure, forgetting, consolidation, and zero-dependency deployment.
 
 Table~\ref{tab:temporal-trends} reveals two countervailing trends. Graph
 structure has seen steady adoption, rising from 11.1\% in 2023 to 40.5\% in
-2026---a trajectory consistent with the ``graph memory is table stakes''
-consensus that emerged in early 2026. Similarly, forgetting mechanisms have
+2026---a trajectory consistent with the emerging consensus that graph structure
+is becoming standard infrastructure for production memory systems. Similarly, forgetting mechanisms have
 grown from 33.3\% to 43.2\%, driven by the proliferation of
 Ebbinghaus-inspired single-curve decay in production systems (FadeMem,
 Oblivion, SuperLocalMemory, Hippo Memory, EverMemOS), policy-based
@@ -256,7 +256,7 @@ RAG taxonomy of Gao et al.~\cite{gao2023rag}: Naive RAG (single retrieval
 signal, no fusion), Advanced RAG (multiple signals or sophisticated
 scoring, but fixed pipeline), and Modular RAG (composable retrieval
 components with principled fusion and post-retrieval processing).  The
-expansion of the coding agent category from 9 to 17 classified systems
+expansion of the coding agent category from 9 to 25 classified systems
 in early 2026---driven by OpenClaw alternatives (OpenFang, IronClaw,
 Nanobot) and IDE-integrated memory (Copilot, Cursor, Windsurf,
 Augment Code)---has
@@ -266,26 +266,26 @@ injection.
 
 \begin{table}[!t]
 \centering
-\caption{Distribution of systems across the RAG taxonomy \cite{gao2023rag}. Classification is based on the retrieval pipeline as documented; systems that delegate retrieval entirely to an LLM (e.g., Letta's agent-driven tool calls) are classified as Naive with an agent-augmented qualifier.}
+\caption{Distribution of 134 systems across the RAG taxonomy \cite{gao2023rag} (4~File-Based systems omitted as non-RAG). Classification is based on the retrieval pipeline as documented; systems that delegate retrieval entirely to an LLM (e.g., Letta's agent-driven tool calls) are classified as Naive with an agent-augmented qualifier.}
 \label{tab:rag-distribution}
 \small
 \begin{tabular}{@{}lrrp{4.0cm}@{}}
 \toprule
 \textbf{RAG Type} & \textbf{Count} & \textbf{\%} & \textbf{Representative Systems} \\
 \midrule
-Naive RAG       & 48 & 42.9 & LangChain, LlamaIndex, Engram, Agency Swarm \\
-Advanced RAG    & 44 & 39.3 & Mem0, Generative Agents, Hindsight, A-MEM \\
-Modular RAG     & 20 & 17.9 & Zep/Graphiti, SYNAPSE, HippoRAG, QMD \\
+Naive RAG       & 57 & 42.5 & LangChain, LlamaIndex, Engram, Agency Swarm \\
+Advanced RAG    & 53 & 39.6 & Mem0, Generative Agents, Hindsight, A-MEM \\
+Modular RAG     & 24 & 17.9 & Zep/Graphiti, SYNAPSE, HippoRAG, QMD \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-A plurality (42.9\%) of memory systems use Naive RAG---typically a single
+A plurality (42.5\%) of memory systems use Naive RAG---typically a single
 vector similarity query or direct context injection with no fusion or
 reranking. This is especially common in framework memory modules (LangChain,
 LlamaIndex, Haystack, Agency Swarm) and coding agent tools (Engram,
 MemoryMesh, ClaudeHistory Cloud), where memory is a secondary concern appended
-to a larger orchestration framework. Advanced RAG systems (39.3\%) add
+to a larger orchestration framework. Advanced RAG systems (39.6\%) add
 multi-signal scoring (e.g., Generative Agents' recency $\times$ importance
 $\times$ relevance formula) or sophisticated single-signal pipelines (e.g.,
 Memvid's Tantivy FTS + HNSW with chronological reranking). Modular RAG
@@ -799,7 +799,7 @@ is near chance for both baselines (50.0\% vs.\ 41.0\%), confirming that
 \emph{neither} full-context injection \emph{nor} retrieval provides a
 mechanism for resolving contradictions between earlier and later
 information.  This result directly validates the gap identified in
-Table~\ref{tab:feature-prevalence}: only 8.0\% of surveyed systems
+Table~\ref{tab:feature-prevalence}: only 10.1\% of surveyed systems
 implement contradiction resolution, and the CR baseline results show why
 this capability cannot emerge from retrieval alone---it requires explicit
 lifecycle management that identifies and resolves conflicting facts.
@@ -864,7 +864,7 @@ Table~\ref{tab:capability-distribution} shows the distribution.
 \toprule
 \textbf{Count} & \textbf{Sys.} & \textbf{\%} & \textbf{Examples} \\
 \midrule
-0--1 & 33 & 23.9 & Agency Swarm, Qwen-Agent, AutoGPT, Nanobot \\
+0--1 & 43 & 31.2 & Agency Swarm, Qwen-Agent, AutoGPT, Nanobot \\
 2--3 & 48 & 34.8 & LangChain, Engram, Memvid, HippoRAG, CAMEL \\
 4--5 & 30 & 21.7 & Mem0, Hindsight, SYNAPSE, LightMem, memU \\
 6--7 & 14 & 10.1 & Zep/Graphiti, EverMemOS, MemOS, Vestige, ReMe \\
@@ -873,7 +873,7 @@ Table~\ref{tab:capability-distribution} shows the distribution.
 \end{tabular}
 \end{table}
 
-The distribution is sharply skewed: 58.7\% of systems implement three or
+The distribution is sharply skewed: 66.0\% of systems implement three or
 fewer of the eight capabilities. Only 12.3\% implement six or more. This concentration has three implications for the
 field.
 
@@ -887,15 +887,15 @@ processes) and what practitioners ship (single-store vector retrieval) remains
 substantial.
 
 Second, capabilities cluster rather than distribute uniformly. Systems that
-implement consolidation almost always also implement forgetting (17 of 19, or
-89.5\%), but the reverse is not true---many systems with forgetting (38 total)
-lack consolidation. Similarly, graph structure strongly predicts hybrid
-retrieval fusion: 16 of 19 systems with fusion also have graph traversal.
-These correlations suggest that certain capabilities are architecturally
-co-dependent: consolidation requires a semantic store to consolidate
-\emph{into}, which in turn motivates forgetting to manage the growing semantic
-store; graph traversal provides a third retrieval signal that motivates
-principled fusion to combine it with sparse and dense signals.
+implement consolidation tend to also implement forgetting---the two capabilities
+are architecturally co-dependent, since managing a growing semantic store
+motivates principled decay. But the reverse is not symmetric: of the 42 systems
+with forgetting, roughly half lack consolidation, implementing decay as a
+capacity-management strategy rather than as part of a full lifecycle. Similarly,
+graph structure and hybrid retrieval fusion tend to co-occur: graph traversal
+provides a third retrieval signal that naturally motivates principled fusion to
+combine it with sparse and dense signals, and 29 of the 40 fusion systems
+(72.5\%) also implement graph traversal.
 
 Third, the long tail creates an \textbf{evaluation gap}. Benchmarks like
 LoCoMo and LongMemEval evaluate memory recall and factual accuracy, but they
