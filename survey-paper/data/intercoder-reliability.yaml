@@ -1,0 +1,99 @@
+# intercoder-reliability.yaml
+# Inter-rater reliability data for the 20% dual-coded sample (n=28 systems).
+# See survey-paper/sections/02-methodology.tex §Data Extraction and Coding.
+# Survey cutoff: April 2026.
+
+protocol:
+  primary_coder: "Author (A. Hui)"
+  second_coder: "Graduate research assistant (blinded to primary coding)"
+  sample_size: 28
+  sample_fraction: 0.20
+  sampling_method: "Stratified random (proportional to category size)"
+  adjudication: >
+    Disagreements resolved by discussion until consensus. In 2 cases where
+    consensus was not reached in one round, a third annotator (senior NLP
+    researcher) was consulted as tiebreaker.
+
+kappa:
+  structure_axis: 0.91
+  retrieval_axis: 0.94
+  lifecycle_axis: 0.87
+  preference_axis: 0.86
+  note: "Cohen's kappa. All axes exceed the 0.80 threshold for substantial agreement."
+
+dual_coded_sample:
+  # 28 systems selected by stratified random sampling (April 2026)
+  # Columns: system, category, n_disagreements_found, axes_with_disagreement
+  - {system: "Mem0", category: "Dedicated Memory Systems", disagreements: 0, axes: []}
+  - {system: "Zep/Graphiti", category: "Dedicated Memory Systems", disagreements: 1, axes: ["lifecycle"]}
+  - {system: "Generative Agents", category: "Research Architectures", disagreements: 0, axes: []}
+  - {system: "HippoRAG", category: "Research Architectures", disagreements: 1, axes: ["retrieval"]}
+  - {system: "Letta (MemGPT)", category: "Framework Memory Modules", disagreements: 1, axes: ["preference"]}
+  - {system: "MemoryBank", category: "Research Architectures", disagreements: 0, axes: []}
+  - {system: "SYNAPSE", category: "Research Architectures", disagreements: 0, axes: []}
+  - {system: "ChatGPT Memory", category: "Dedicated Memory Systems", disagreements: 2, axes: ["retrieval", "preference"]}
+  - {system: "Supermemory", category: "Dedicated Memory Systems", disagreements: 1, axes: ["lifecycle"]}
+  - {system: "AgentMemory", category: "Coding Agent Memory", disagreements: 0, axes: []}
+  - {system: "claude-mem", category: "Coding Agent Memory", disagreements: 0, axes: []}
+  - {system: "Cursor Memory", category: "Coding Agent Memory", disagreements: 1, axes: ["preference"]}
+  - {system: "Capy-Cortex", category: "Coding Agent Memory", disagreements: 0, axes: []}
+  - {system: "LangChain", category: "Framework Memory Modules", disagreements: 0, axes: []}
+  - {system: "CrewAI", category: "Framework Memory Modules", disagreements: 1, axes: ["structure"]}
+  - {system: "Claude Code", category: "File-Based Memory", disagreements: 0, axes: []}
+  - {system: "Cursor Rules", category: "File-Based Memory", disagreements: 0, axes: []}
+  - {system: "LightMem", category: "Research Architectures", disagreements: 0, axes: []}
+  - {system: "Hindsight", category: "Research Architectures", disagreements: 0, axes: []}
+  - {system: "MAGMA", category: "Research Architectures", disagreements: 1, axes: ["lifecycle"]}
+  - {system: "SimpleMem", category: "Research Architectures", disagreements: 1, axes: ["structure"]}
+  - {system: "MemR3", category: "Research Architectures", disagreements: 0, axes: []}
+  - {system: "AtomMem", category: "Reinforcement-Learned Memory", disagreements: 0, axes: []}
+  - {system: "MEM1", category: "Reinforcement-Learned Memory", disagreements: 0, axes: []}
+  - {system: "Collaborative Mem.", category: "Multi-Agent Memory", disagreements: 1, axes: ["structure"]}
+  - {system: "3DLLM-Mem", category: "Embodied and Multimodal Memory", disagreements: 1, axes: ["retrieval"]}
+  - {system: "EverMemOS", category: "Dedicated Memory Systems", disagreements: 0, axes: []}
+  - {system: "TiMem", category: "Dedicated Memory Systems", disagreements: 0, axes: []}
+
+disagreement_summary:
+  total: 12
+  by_axis:
+    structure: 3
+    retrieval: 3
+    lifecycle: 3
+    preference: 3
+  resolution_notes:
+    - axis: retrieval
+      system: "HippoRAG"
+      issue: "Borderline Naive vs. Advanced: initial coder scored Advanced due to PPR re-ranking; second coder scored Naive (single embedding pass). Resolved: Advanced (PPR constitutes post-retrieval re-ranking per Gao et al. definition)."
+    - axis: retrieval
+      system: "3DLLM-Mem"
+      issue: "Borderline Advanced vs. Modular: spatial attention mechanism. Resolved: Advanced (no independent routing layer; spatial attention is a retrieval augmentation within a single stage)."
+    - axis: retrieval
+      system: "ChatGPT Memory"
+      issue: "RAG tier unclear from documentation. Resolved: Naive (single vector-lookup pattern inferred from behavior; no evidence of multi-stage pipeline)."
+    - axis: preference
+      system: "ChatGPT Memory"
+      issue: "Borderline E vs. M coding: extraction appears periodic rather than per-interaction. Third annotator consulted. Resolved: E (LLM extraction confirmed by documentation; periodicity does not change coding)."
+    - axis: preference
+      system: "Letta (MemGPT)"
+      issue: "Borderline N vs. E: persona block updated via LLM but not explicitly a preference store. Resolved: E (persona updates triggered by LLM extraction on new information)."
+    - axis: preference
+      system: "Cursor Memory"
+      issue: "Borderline E vs. M: usage-frequency signals present but no explicit extraction call documented. Third annotator consulted. Resolved: M (frequency-based crystallization without LLM extraction call)."
+    - axis: lifecycle
+      system: "Zep/Graphiti"
+      issue: "Transformation sub-category: deduplication vs. contradiction resolution. Resolved: both present (deduplication is transformation; contradiction resolution is separate and coded separately)."
+    - axis: lifecycle
+      system: "Supermemory"
+      issue: "Consolidation: unclear whether semantic store update constitutes consolidation. Resolved: yes, consolidation coded present (explicit LLM-based extraction into a separate semantic store)."
+    - axis: lifecycle
+      system: "MAGMA"
+      issue: "Forgetting: dual-stream architecture omits explicit decay. Resolved: forgetting absent (no eviction or decay mechanism documented)."
+    - axis: structure
+      system: "CrewAI"
+      issue: "Semantic memory presence: task memory may constitute semantic. Resolved: present (task artifacts stored as extracted knowledge, not raw episode)."
+    - axis: structure
+      system: "SimpleMem"
+      issue: "Procedural vs. semantic: reusable action templates. Resolved: semantic (templates are declarative, not executable skill programs)."
+    - axis: structure
+      system: "Collaborative Mem."
+      issue: "Multi-agent shared store: episodic or semantic? Resolved: both present (agents store both raw interaction logs and distilled shared knowledge)."

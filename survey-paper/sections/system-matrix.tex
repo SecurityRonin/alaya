@@ -33,7 +33,7 @@ An interactive visualization with filtering is available at
   & \rotatebox{90}{\textbf{Contrad.}}
   & \rotatebox{90}{\textbf{Preference}} \\
 \midrule
-\multicolumn{10}{@{}l}{\textit{Dedicated Memory Systems (45)}} \\
+\multicolumn{10}{@{}l}{\textit{Dedicated Memory Systems (39)}} \\
 Backboard            & A & $\bullet$ & $\bullet$ &           &           &           &           &           &           \\
 ChatGPT Memory       & N & $\bullet$ &           &           &           &           & $\bullet$ &           & $\bullet$ \\
 Claude Memory Tool   & N & $\bullet$ &           &           &           &           &           &           &           \\
@@ -121,7 +121,7 @@ Claudesidian         & A & $\bullet$ &           & $\bullet$ &           &      
 Cursor Rules         & N & $\bullet$ &           &           &           &           &           &           & $\bullet$ \\
 Windsurf Memory      & N & $\bullet$ &           &           &           &           &           &           & $\bullet$ \\
 \midrule
-\multicolumn{10}{@{}l}{\textit{Research Architectures (42)}} \\
+\multicolumn{10}{@{}l}{\textit{Research Architectures (43)}} \\
 A-MEM                & A &           & $\bullet$ & $\bullet$ & $\bullet$ &           &           &           &           \\
 AgeMem               & A & $\bullet$ &           &           &           &           & $\bullet$ &           &           \\
 AriadneMem           & M &           & $\bullet$ & $\bullet$ & $\bullet$ &           &           & $\bullet$ &           \\
@@ -187,7 +187,7 @@ RoboMemory           & M & $\bullet$ & $\bullet$ & $\bullet$ &           &      
 
 Three patterns emerge from the per-system view that are not visible in the
 aggregate statistics.  First, contradiction resolution is the rarest
-capability: only 6 of 104~systems implement it (Mem0, Zep/Graphiti,
+capability: only 14 of 133~systems implement it (Mem0, Zep/Graphiti,
 Hindsight, G-Memory, Copilot Memory, and AriadneMem), spanning dedicated,
 coding agent, and research categories.
 Second, Modular RAG systems implement more lifecycle operations
@@ -219,25 +219,26 @@ consolidation and forgetting represents a notable exception.
 ]
 \addplot[fill=blue!40] coordinates {
     (4,File-Based)
-    (21,Coding Agent)
+    (25,Coding Agent)
     (12,Framework)
-    (25,Research)
-    (42,Dedicated)
+    (43,Research)
+    (39,Dedicated)
 };
 \end{axis}
 \end{tikzpicture}
-\caption{Number of classified systems by category.  Dedicated memory systems
-dominate the landscape, reflecting the field's focus on memory as a primary
-architectural concern.  Framework modules and coding agent tools are
-underrepresented, consistent with memory being an auxiliary feature in
-these categories.}
+\caption{Number of classified systems by category.  Research architectures (43)
+and dedicated memory systems (39) together account for the majority of the
+corpus.  Framework modules and file-based tools are underrepresented,
+consistent with memory being an auxiliary concern in orchestration and IDE
+contexts.}
 \label{fig:category-scores}
 \end{figure}
 
 Figure~\ref{fig:category-scores} summarizes the category-level pattern:
-dedicated systems dominate the classified landscape, while framework modules
-and coding tools remain underrepresented---consistent with memory being a
-secondary concern in orchestration and development tool contexts.
+research architectures and dedicated systems together account for 82 of
+133 classified systems, while framework modules and coding tools remain
+underrepresented---consistent with memory being a secondary concern in
+orchestration and development tool contexts.
 
 Figure~\ref{fig:quadrant} plots each system along two orthogonal dimensions
 derived from the capability matrix: \emph{structure breadth} (count of
@@ -424,13 +425,14 @@ Marker shapes distinguish system categories.}
 
 Table~\ref{tab:rag-breadth} cross-tabulates RAG tier with mean feature
 breadth count.  The progression is monotonic: Naive RAG systems average
-1.5 features, Advanced 3.2, and Modular 4.4---confirming that retrieval
+1.6 features, Advanced 3.2, and Modular 4.3---confirming that retrieval
 sophistication is a reliable proxy for overall architectural investment
 in memory lifecycle operations.
 
 \begin{table}[!t]
 \centering
-\caption{Mean feature breadth by RAG tier for 89 classified systems.
+\caption{Mean feature breadth by RAG tier for 133 classified systems
+with complete matrix records.
 Feature count tallies the same eight capabilities as
 Table~\ref{tab:capability-distribution}.}
 \label{tab:rag-breadth}
@@ -439,32 +441,33 @@ Table~\ref{tab:capability-distribution}.}
 \toprule
 \textbf{RAG Tier} & \textbf{$N$} & \textbf{Mean} & \textbf{Min} & \textbf{Max} \\
 \midrule
-Naive    & 25 & 1.5 & 1 & 5 \\
-Advanced & 51 & 3.2 & 2 & 7 \\
-Modular  & 10 & 4.4 & 2 & 7 \\
+Naive    & 25 & 1.6 & 1 & 5 \\
+Advanced & 79 & 3.2 & 1 & 8 \\
+Modular  & 29 & 4.3 & 2 & 7 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 Table~\ref{tab:cooccurrence} reveals pairwise feature co-occurrence
-across the 89 classified systems.  Two correlations are striking.
-First, consolidation and forgetting are perfectly co-occurrent: all 12
-systems with consolidation also implement forgetting, consistent with
-the architectural argument that consolidation creates a growing semantic
-store that requires active management.  Second, graph structure and
-fusion are strongly correlated (16 of 24 graph systems also use fusion),
-confirming that graph traversal provides a third retrieval signal that
-motivates principled fusion.  Contradiction resolution is the most
-isolated feature: only 6 systems implement it, all of which also have
-both episodic or semantic storage---suggesting it requires a mature
-architectural foundation.
+across the 133 classified systems.  Three correlations are notable.
+First, graph structure and fusion are moderately co-occurrent (23 of 42
+graph systems also use fusion, 55\%), confirming that graph traversal
+provides an additional retrieval signal that motivates principled fusion.
+Second, contradiction resolution is the rarest feature (14 systems) and
+is almost always accompanied by semantic storage (13 of 14, 93\%)---consistent
+with contradiction detection requiring a declarative fact store to compare
+against.  Third, consolidation and forgetting partially co-occur (16
+systems implement both), but the majority of consolidation systems
+(27 of 43, 63\%) do not implement explicit forgetting, suggesting that
+memory pruning and knowledge promotion are treated as orthogonal concerns
+in many architectures.
 
 \begin{table}[!t]
 \centering
-\caption{Feature co-occurrence matrix (lower triangle) for 89 classified
+\caption{Feature co-occurrence matrix (lower triangle) for 133 classified
 systems.  Diagonal (bold) shows total count per feature.  Notable:
-Consolidation $\leftrightarrow$ Forgetting = 12/12 (100\%);
-Graph $\leftrightarrow$ Fusion = 16/24 (67\%).}
+Graph $\leftrightarrow$ Fusion = 23/42 (55\%);
+Contradiction $\rightarrow$ Semantic = 13/14 (93\%).}
 \label{tab:cooccurrence}
 \scriptsize
 \setlength{\tabcolsep}{3pt}
@@ -479,14 +482,14 @@ Graph $\leftrightarrow$ Fusion = 16/24 (67\%).}
 & \rotatebox{70}{\textbf{Contrad.}}
 & \rotatebox{70}{\textbf{Pref.}} \\
 \midrule
-Episodic      & \textbf{72} \\
-Semantic      & 42 & \textbf{55} \\
-Graph         & 14 & 23 & \textbf{24} \\
-Fusion        & 23 & 27 & 16 & \textbf{30} \\
-Consolidation & 12 & 12 &  4 &  8 & \textbf{12} \\
-Forgetting    & 33 & 24 & 12 & 14 & 12 & \textbf{34} \\
-Contradiction &  5 &  6 &  3 &  4 &  1 &  3 & \textbf{6} \\
-Preference    & 24 & 18 &  6 & 12 &  5 & 15 &  2 & \textbf{26} \\
+Episodic      & \textbf{119} \\
+Semantic      &  77 & \textbf{90} \\
+Graph         &  32 & 40 & \textbf{42} \\
+Fusion        &  34 & 38 & 23 & \textbf{40} \\
+Consolidation &  43 & 37 & 16 & 15 & \textbf{43} \\
+Forgetting    &  41 & 28 & 10 & 14 & 16 & \textbf{42} \\
+Contradiction &  12 & 13 & 10 &  8 &  7 &  4 & \textbf{14} \\
+Preference    &  26 & 18 &  6 & 11 &  6 & 12 &  2 & \textbf{27} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -544,6 +547,6 @@ partition the landscape into distinct architectural tiers.}
 For interactive exploration with filtering by category, capability, RAG
 tier, and lifecycle operations, see the companion
 visualization.\footnote{\url{https://securityronin.github.io/alaya/docs/memory-landscape.html}
-The visualization includes the full 89-system matrix with sortable
+The visualization includes the full 133-system matrix with sortable
 columns, the quadrant plot with hover details, and the co-occurrence
 heatmap with color encoding.}

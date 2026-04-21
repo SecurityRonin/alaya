@@ -95,9 +95,18 @@ architectural features, not evidence quality.
 
 All baseline evaluation code (LoCoMo, LongMemEval\_S, and MAB
 replications), raw per-question results, and judge logs are available in
-the project repository~\cite{alaya2026}.  The system coding data in
-machine-readable format (JSON and CSV) is provided alongside the
-benchmark code; see the repository \texttt{README} for the current
-availability status of each artifact, exact reproduction steps,
+the project repository~\cite{alaya2026} under \texttt{bench/}.  The
+system coding data for the 133 systems with complete matrix records is
+provided as:
+\begin{itemize}[leftmargin=*, nosep]
+  \item \texttt{survey-paper/data/coding-records.csv} --- RAG tier and
+    eight binary capability features for all 133 systems.
+  \item \texttt{survey-paper/data/coding-records.json} --- same data in
+    JSON with schema metadata.
+  \item \texttt{survey-paper/data/intercoder-reliability.yaml} ---
+    dual-coded sample (28 systems), per-axis $\kappa$ values,
+    and adjudication log for all 12 disagreements.
+\end{itemize}
+See the repository \texttt{README} for exact reproduction steps,
 dependency versions, and the \texttt{all-MiniLM-L6-v2} model checkpoint
 hash used for na\"ive RAG embeddings.
