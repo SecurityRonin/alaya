@@ -17,7 +17,7 @@ LongMemEval\_S uses accuracy on 500 questions over ${\sim}115$k-token histories~
 DMR uses LLM-judge accuracy over 500 multi-session conversations~\cite{packer2023memgpt}.
 Dashes indicate no published result.
 \textbf{Scores are not directly comparable across rows}: judge models, prompt templates, and evaluation protocols vary; see methodological caveats below.
-Rows are grouped by primary benchmark coverage; ordering within groups does not imply ranking.}
+Rows within the published-results group are alphabetical by system name; ordering does not imply ranking.}
 \label{tab:benchmark-comparison}
 \begin{adjustbox}{max width=\textwidth}
 \begin{threeparttable}
@@ -25,36 +25,32 @@ Rows are grouped by primary benchmark coverage; ordering within groups does not 
 \toprule
 \textbf{System} & \textbf{LLM Backend} & \textbf{LoCoMo (\%)} & \textbf{LongMemEval\_S (\%)} & \textbf{DMR (\%)} & \textbf{Source} \\
 \midrule
-% --- Top tier ---
-Mastra Obs.\ Memory  & GPT-5-mini        & ---                  & \textbf{94.87}  & ---   & \cite{mastra2026om} \\
-Mastra Obs.\ Memory  & Gemini-3-Pro      & ---                  & 93.27           & ---   & \cite{mastra2026om} \\
+% --- Published results (alphabetical by system name) ---
 Backboard            & GPT-4.1\tnote{a}  & 90.10                & 93.40\tnote{b}  & ---   & \cite{backboard2025locomo,backboard2026longmemeval} \\
+EmergenceMem Int.    & GPT-4o            & ---                  & 86.00           & ---   & \cite{emergence2025longmemeval} \\
+EmergenceMem Simple  & GPT-4o            & ---                  & 82.40           & ---   & \cite{emergence2025longmemeval} \\
 EverMemOS            & GPT-4.1-mini      & 92.30\tnote{c}       & 83.00           & ---   & \cite{evermemos2025} \\
+Full-context         & GPT-4o            & ${\sim}72.9$\tnote{f}& ${\sim}60$--64  & 94.40\tnote{e} & \cite{maharana2024locomo,wu2025longmemeval,dempsey2025graphiti} \\
 Hindsight            & Gemini-3-Pro      & 89.61                & \textbf{91.40}  & ---   & \cite{latimer2025hindsight} \\
 Hindsight            & OSS-120B          & 85.67                & 89.00           & ---   & \cite{latimer2025hindsight} \\
 Hindsight            & OSS-20B           & 83.18                & 83.60           & ---   & \cite{latimer2025hindsight} \\
+LangMem              & GPT-4o-mini       & 58.10                & ---             & ---   & \cite{latimer2025hindsight} \\
+Letta (MemGPT)       & GPT-4o-mini       & 74.00                & ---             & 93.40\tnote{e} & \cite{letta2025benchmark,packer2023memgpt} \\
+Mastra Obs.\ Memory  & GPT-5-mini        & ---                  & \textbf{94.87}  & ---   & \cite{mastra2026om} \\
+Mastra Obs.\ Memory  & Gemini-3-Pro      & ---                  & 93.27           & ---   & \cite{mastra2026om} \\
+Mastra Obs.\ Memory  & GPT-4o            & ---                  & 84.23           & ---   & \cite{mastra2026om} \\
+Mem0                 & GPT-4o-mini       & 66.88                & ---             & ---   & \cite{choudhary2025mem0} \\
+Mem0 (graph)         & GPT-4o-mini       & 68.44                & ---             & ---   & \cite{choudhary2025mem0,latimer2025hindsight} \\
+Memobase v0.0.37     & GPT-4o-mini       & 75.78                & ---             & ---   & \cite{memobase2025,latimer2025hindsight} \\
 MemMachine v0.2      & GPT-4o-mini       & 84.87                & ---             & ---   & \cite{memmachine2025} \\
-EmergenceMem Int.    & GPT-4o            & ---                  & 86.00           & ---   & \cite{emergence2025longmemeval} \\
+MemOS                & GPT-4o-mini       & 75.80                & ---             & ---   & \cite{memos2025} \\
+Na\"ive RAG          & GPT-4o            & ---                  & ${\sim}52$      & ---   & \cite{emergence2025longmemeval} \\
+OpenAI Memory        & GPT-4o            & 52.90                & ---             & ---   & \cite{choudhary2025mem0,latimer2025hindsight} \\
 Supermemory          & Gemini-3-Pro      & ---                  & 85.20           & ---   & \cite{supermemory2025} \\
 Supermemory          & GPT-4o            & ---                  & 81.60           & ---   & \cite{supermemory2025} \\
-Mastra Obs.\ Memory  & GPT-4o            & ---                  & 84.23           & ---   & \cite{mastra2026om} \\
-EmergenceMem Simple  & GPT-4o            & ---                  & 82.40           & ---   & \cite{emergence2025longmemeval} \\
 TiMem                & GPT-4o            & 75.30                & 78.96           & ---   & \cite{timem2026} \\
 TiMem                & GPT-4o-mini       & ---                  & 76.88           & ---   & \cite{timem2026} \\
-\midrule
-% --- Mid tier ---
-MemOS                & GPT-4o-mini       & 75.80                & ---             & ---   & \cite{memos2025} \\
-Memobase v0.0.37     & GPT-4o-mini       & 75.78                & ---             & ---   & \cite{memobase2025,latimer2025hindsight} \\
 Zep / Graphiti       & GPT-4o            & 75.14\tnote{d}       & 71.20           & 94.80 & \cite{zep2025,dempsey2025graphiti} \\
-Letta (MemGPT)       & GPT-4o-mini       & 74.00                & ---             & 93.40\tnote{e} & \cite{letta2025benchmark,packer2023memgpt} \\
-Full-context         & GPT-4o            & ${\sim}72.9$\tnote{f}& ${\sim}60$--64  & 94.40\tnote{e} & \cite{maharana2024locomo,wu2025longmemeval,dempsey2025graphiti} \\
-Mem0 (graph)         & GPT-4o-mini       & 68.44                & ---             & ---   & \cite{choudhary2025mem0,latimer2025hindsight} \\
-Mem0                 & GPT-4o-mini       & 66.88                & ---             & ---   & \cite{choudhary2025mem0} \\
-\midrule
-% --- Lower tier / baselines ---
-LangMem              & GPT-4o-mini       & 58.10                & ---             & ---   & \cite{latimer2025hindsight} \\
-OpenAI Memory        & GPT-4o            & 52.90                & ---             & ---   & \cite{choudhary2025mem0,latimer2025hindsight} \\
-Na\"ive RAG          & GPT-4o            & ---                  & ${\sim}52$      & ---   & \cite{emergence2025longmemeval} \\
 Zep (per Mem0)       & GPT-4o            & 65.99\tnote{g}       & ---             & ---   & \cite{choudhary2025mem0} \\
 Zep (per Mem0 repl.) & GPT-4o            & 58.44\tnote{g}       & ---             & ---   & \cite{mem0replication2025} \\
 \midrule

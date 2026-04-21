@@ -73,14 +73,22 @@ reported: \texttt{[S]} $>$ \texttt{[D]} $>$ \texttt{[V]} $>$ \texttt{[I]}.
 \subsection{Per-System Coding Record}
 \label{sec:appendix-matrix}
 
-The authoritative per-system record of taxonomy classifications is the
-system matrix (Table~\ref{tab:system-matrix}).  The matrix encodes each
-system's position on all four taxonomy axes (Structure, Retrieval,
-Lifecycle, Preference Emergence) using the coding scheme defined in
-\S\ref{sec:coding}.  Evidence-level annotations for commercial systems
-appear inline in \S\ref{sec:production} of the main text; they are not
-reproduced in the matrix because the matrix encodes architectural
-features, not evidence quality.
+Table~\ref{tab:system-matrix} provides a tabular overview of all 138
+surveyed systems, recording each system's RAG tier (Naive, Advanced,
+Modular, or File-Based) and eight discriminating capability features
+(Episodic, Semantic, Graph, Fusion, Consolidation, Forgetting,
+Contradiction resolution, Preference modeling).  These eight binary
+features were selected because they are (a) verifiable from public
+sources and (b) the most frequently cited discriminators in the
+literature.  The matrix does \emph{not} encode the full four-axis coding
+scheme---working/procedural memory, lifecycle sub-categories, and
+preference subtypes (N/E/T/M) are captured in the structured data
+accompanying this paper.  The complete per-system coding records in
+machine-readable JSON and CSV format are available in the project
+repository~\cite{alaya2026}.  Evidence-level annotations for commercial
+systems appear inline in \S\ref{sec:production} of the main text; they
+are not reproduced in the matrix because the matrix encodes
+architectural features, not evidence quality.
 
 \subsection{Benchmark Evaluation Code and Data}
 \label{sec:appendix-code}

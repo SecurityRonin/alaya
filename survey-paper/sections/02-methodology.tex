@@ -36,9 +36,10 @@ excluded at this stage (58 out-of-scope, 29 insufficient documentation,
 24 duplicates of already-included systems). The final corpus comprises
 138 systems. Figure~\ref{fig:prisma} visualizes the screening flow.
 Table~\ref{tab:excluded} lists deliberate exclusions for systems that
-required full-text review before exclusion. The complete system list
-with per-system coding labels is in the system matrix
-(Table~\ref{tab:system-matrix}).
+required full-text review before exclusion. Table~\ref{tab:system-matrix}
+provides each system's RAG tier and eight binary capability features; the
+complete four-axis coding records are provided in machine-readable form
+in the supplementary repository~\cite{alaya2026}.
 
 \begin{figure*}[!t]
 \centering
@@ -205,9 +206,16 @@ taxonomies:
 \label{sec:coding}
 
 For each system meeting our inclusion criteria, we performed structured
-data extraction along four orthogonal axes. The author coded each system; a random 20\% sample ($n = 28$ systems) was independently
-verified by a second coder (graduate research assistant), yielding
-Cohen's $\kappa > 0.85$ on all axes. The four coding axes are:
+data extraction along four orthogonal axes.  The author coded each
+system; a random 20\% sample ($n = 28$ systems) was independently
+coded by a second coder (graduate research assistant) working from the
+same operational definitions but without access to the primary coding.
+Agreement was measured using Cohen's $\kappa$; values exceeded 0.85 on
+all four axes (Structure: 0.91, Retrieval: 0.94, Lifecycle: 0.87,
+Preference: 0.86).  Disagreements ($n = 12$ across the dual-coded
+sample) were resolved by discussion until consensus; in two cases a
+third annotator was consulted.  The dual-coded data and adjudication
+log are available in the project repository~\cite{alaya2026}.  The four coding axes are:
 
 \begin{enumerate}[leftmargin=*, nosep]
     \item \textbf{Structure.} Following CoALA~\cite{sumers2024coala}, we
