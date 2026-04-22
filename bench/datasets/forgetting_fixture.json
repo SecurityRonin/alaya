@@ -1,0 +1,248 @@
+[
+  {
+    "scenario_id": "renovation_fixture_001",
+    "domain": "home_renovation",
+    "seed_sessions": [
+      {
+        "role": "user",
+        "content": "I'm planning to renovate my kitchen. My budget is $15,000.",
+        "session_id": "seed_1",
+        "timestamp": "2025-01-10T09:00:00"
+      },
+      {
+        "role": "assistant",
+        "content": "That's a solid budget for a kitchen renovation. What are your priorities?",
+        "session_id": "seed_1",
+        "timestamp": "2025-01-10T09:01:00"
+      },
+      {
+        "role": "user",
+        "content": "I want new cabinets and quartz countertops. The contractor I chose is BuildRight Co.",
+        "session_id": "seed_1",
+        "timestamp": "2025-01-10T09:02:00"
+      },
+      {
+        "role": "assistant",
+        "content": "BuildRight Co. is a good choice. When do they start?",
+        "session_id": "seed_1",
+        "timestamp": "2025-01-10T09:03:00"
+      },
+      {
+        "role": "user",
+        "content": "They start on March 15th. I also want to keep the existing appliances to save money.",
+        "session_id": "seed_2",
+        "timestamp": "2025-01-17T10:00:00"
+      },
+      {
+        "role": "assistant",
+        "content": "Keeping appliances is smart. That frees up budget for the countertops.",
+        "session_id": "seed_2",
+        "timestamp": "2025-01-17T10:01:00"
+      },
+      {
+        "role": "user",
+        "content": "Exactly. My cabinet color preference is white shaker style.",
+        "session_id": "seed_2",
+        "timestamp": "2025-01-17T10:02:00"
+      }
+    ],
+    "growth_sessions": [
+      {
+        "role": "user",
+        "content": "I'm also thinking about the bathroom now. I need new tiles.",
+        "session_id": "growth_1",
+        "timestamp": "2025-02-01T09:00:00"
+      },
+      {
+        "role": "assistant",
+        "content": "What style of tiles are you considering?",
+        "session_id": "growth_1",
+        "timestamp": "2025-02-01T09:01:00"
+      },
+      {
+        "role": "user",
+        "content": "Subway tiles for the bathroom. Also, I changed my kitchen start date — it's now April 1st instead of March 15th.",
+        "session_id": "growth_1",
+        "timestamp": "2025-02-01T09:02:00"
+      },
+      {
+        "role": "assistant",
+        "content": "Understood, April 1st for the kitchen. Subway tiles are a classic choice for bathrooms.",
+        "session_id": "growth_1",
+        "timestamp": "2025-02-01T09:03:00"
+      },
+      {
+        "role": "user",
+        "content": "The bathroom tile budget is $3,000. I found a new tile supplier called TileWorld.",
+        "session_id": "growth_2",
+        "timestamp": "2025-02-08T10:00:00"
+      },
+      {
+        "role": "assistant",
+        "content": "TileWorld has good reviews. Will you use BuildRight for the bathroom too?",
+        "session_id": "growth_2",
+        "timestamp": "2025-02-08T10:01:00"
+      },
+      {
+        "role": "user",
+        "content": "No, I'm using a different contractor for the bathroom — TilePro Services.",
+        "session_id": "growth_2",
+        "timestamp": "2025-02-08T10:02:00"
+      }
+    ],
+    "seed_questions": [
+      {
+        "id": "sq_001",
+        "question": "What is the budget for the kitchen renovation?",
+        "gold": "$15,000",
+        "type": "seed_retrieval"
+      },
+      {
+        "id": "sq_002",
+        "question": "Which contractor was chosen for the kitchen renovation?",
+        "gold": "BuildRight Co.",
+        "type": "seed_retrieval"
+      },
+      {
+        "id": "sq_003",
+        "question": "What cabinet style did the user choose?",
+        "gold": "white shaker style",
+        "type": "seed_retrieval"
+      }
+    ],
+    "growth_questions": [
+      {
+        "id": "gq_001",
+        "question": "What type of tiles is the user planning for the bathroom?",
+        "gold": "subway tiles",
+        "type": "growth_retrieval"
+      },
+      {
+        "id": "gq_002",
+        "question": "What is the name of the tile supplier the user found?",
+        "gold": "TileWorld",
+        "type": "growth_retrieval"
+      }
+    ],
+    "contradiction_questions": [
+      {
+        "id": "cq_001",
+        "question": "When does the kitchen renovation start?",
+        "gold": "April 1st",
+        "gold_before_update": "March 15th",
+        "type": "contradiction"
+      }
+    ]
+  },
+  {
+    "scenario_id": "health_fixture_001",
+    "domain": "health_tracking",
+    "seed_sessions": [
+      {
+        "role": "user",
+        "content": "I'm trying to improve my fitness. I run 5 miles every morning.",
+        "session_id": "seed_1",
+        "timestamp": "2025-01-05T07:00:00"
+      },
+      {
+        "role": "assistant",
+        "content": "That's impressive! What's your goal — endurance or speed?",
+        "session_id": "seed_1",
+        "timestamp": "2025-01-05T07:01:00"
+      },
+      {
+        "role": "user",
+        "content": "Endurance. I want to complete a marathon. My doctor is Dr. Patel.",
+        "session_id": "seed_1",
+        "timestamp": "2025-01-05T07:02:00"
+      },
+      {
+        "role": "assistant",
+        "content": "Marathon training takes about 16 weeks. Dr. Patel can advise on injury prevention.",
+        "session_id": "seed_1",
+        "timestamp": "2025-01-05T07:03:00"
+      },
+      {
+        "role": "user",
+        "content": "I take magnesium supplements every night. I also avoid dairy products.",
+        "session_id": "seed_2",
+        "timestamp": "2025-01-12T07:00:00"
+      },
+      {
+        "role": "assistant",
+        "content": "Magnesium helps with muscle recovery. Noted on the dairy restriction.",
+        "session_id": "seed_2",
+        "timestamp": "2025-01-12T07:01:00"
+      }
+    ],
+    "growth_sessions": [
+      {
+        "role": "user",
+        "content": "I've been adding strength training to my routine — two sessions per week.",
+        "session_id": "growth_1",
+        "timestamp": "2025-02-03T07:00:00"
+      },
+      {
+        "role": "assistant",
+        "content": "Strength training complements marathon prep well. What exercises?",
+        "session_id": "growth_1",
+        "timestamp": "2025-02-03T07:01:00"
+      },
+      {
+        "role": "user",
+        "content": "Squats and lunges mainly. Also, I switched doctors — I now see Dr. Kim instead of Dr. Patel.",
+        "session_id": "growth_1",
+        "timestamp": "2025-02-03T07:02:00"
+      },
+      {
+        "role": "assistant",
+        "content": "Dr. Kim specializes in sports medicine, which should be helpful.",
+        "session_id": "growth_1",
+        "timestamp": "2025-02-03T07:03:00"
+      },
+      {
+        "role": "user",
+        "content": "My marathon target is the Chicago Marathon in October. I joined a running club called PaceSetters.",
+        "session_id": "growth_2",
+        "timestamp": "2025-02-10T07:00:00"
+      }
+    ],
+    "seed_questions": [
+      {
+        "id": "sq_001",
+        "question": "How far does the user run each morning?",
+        "gold": "5 miles",
+        "type": "seed_retrieval"
+      },
+      {
+        "id": "sq_002",
+        "question": "What supplement does the user take every night?",
+        "gold": "magnesium",
+        "type": "seed_retrieval"
+      }
+    ],
+    "growth_questions": [
+      {
+        "id": "gq_001",
+        "question": "Which marathon is the user targeting?",
+        "gold": "Chicago Marathon",
+        "type": "growth_retrieval"
+      },
+      {
+        "id": "gq_002",
+        "question": "What running club did the user join?",
+        "gold": "PaceSetters",
+        "type": "growth_retrieval"
+      }
+    ],
+    "contradiction_questions": [
+      {
+        "id": "cq_001",
+        "question": "Who is the user's current doctor?",
+        "gold": "Dr. Kim",
+        "gold_before_update": "Dr. Patel",
+        "type": "contradiction"
+      }
+    ]
+  }
+]

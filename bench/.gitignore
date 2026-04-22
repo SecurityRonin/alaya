@@ -1,4 +1,6 @@
 datasets/*.json
+# Re-include small fixture files that are checked in for tests
+!datasets/*_fixture.json
 results/*.json
 __pycache__/
 *.pyc

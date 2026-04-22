@@ -61,7 +61,7 @@ def _print_table(results: list[dict]) -> None:
 
 
 @click.command()
-@click.argument("benchmark", type=click.Choice(["locomo", "longmemeval", "mab"]))
+@click.argument("benchmark", type=click.Choice(["locomo", "longmemeval", "mab", "forgetting"]))
 @click.option("--systems", "-s", default="fullcontext,naive_rag",
               help="Comma-separated adapter names")
 @click.option("--limit", "-n", type=int, default=None,
@@ -78,6 +78,7 @@ def cli(benchmark: str, systems: str, limit: int | None, dry_run: bool, dataset:
         python run.py locomo --systems fullcontext,naive_rag --limit 10
         python run.py longmemeval --systems alaya,mem0 --dry-run
         python run.py mab --systems fullcontext,naive_rag -c AR,CR
+        python run.py forgetting --systems fullcontext,naive_rag --dry-run
     """
     _register_adapters()
 
@@ -92,11 +93,15 @@ def cli(benchmark: str, systems: str, limit: int | None, dry_run: bool, dataset:
 
     # Resolve dataset path (not needed for MAB which loads from HuggingFace)
     dataset_path = None
-    if benchmark != "mab":
+    if benchmark not in ("mab",):
         if dataset:
             dataset_path = Path(dataset)
         elif benchmark == "locomo":
             dataset_path = DATASETS_DIR / "locomo10.json"
+        elif benchmark == "forgetting":
+            dataset_path = DATASETS_DIR / "forgetting_dynamics.json"
+            if not dataset_path.exists():
+                dataset_path = DATASETS_DIR / "forgetting_fixture.json"
         else:
             dataset_path = DATASETS_DIR / "longmemeval_s.json"
 
@@ -127,6 +132,10 @@ def cli(benchmark: str, systems: str, limit: int | None, dry_run: bool, dataset:
             from runners.mab import run_mab
             result = run_mab(adapter, judge_fn, llm_call_fn,
                              competencies=comp_list, limit=limit, dry_run=dry_run)
+        elif benchmark == "forgetting":
+            from runners.forgetting import run_forgetting
+            result = run_forgetting(adapter, dataset_path, judge_fn, llm_call_fn,
+                                    limit=limit, dry_run=dry_run)
         else:
             from runners.longmemeval import run_longmemeval
             result = run_longmemeval(adapter, dataset_path, judge_fn, llm_call_fn,
