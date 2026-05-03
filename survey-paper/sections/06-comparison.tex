@@ -295,6 +295,67 @@ memory systems and research architectures that treat retrieval as a first-class
 architectural concern.
 
 %% ---------------------------------------------------------------
+\subsection{Positioning Against Concurrent Surveys}
+\label{sec:competing-surveys}
+
+The rapid growth of agent memory as a research area has produced several
+concurrent surveys, each offering a complementary lens on the landscape.
+Positioning our contribution against these works clarifies both the
+shared foundations and our methodological differentiators.
+
+Liu \etal~\cite{liu2025memoryage} present \emph{Memory in the Age of AI
+Agents}, a taxonomy organized along three axes: \emph{forms}
+(token/parametric/latent), \emph{functions}
+(factual/experiential/working), and \emph{dynamics}
+(formation/evolution/retrieval).  With 100+ papers catalogued in a
+companion GitHub repository and featured as HuggingFace Daily Paper \#1,
+this survey provides the broadest bibliographic coverage to date.  Our
+work differs in granularity: rather than classifying papers by abstract
+taxonomic category, we code each \emph{system} against a machine-readable
+feature matrix (\S\ref{sec:feature-prevalence}), enabling quantitative
+cross-system comparison.
+
+The security-focused survey \emph{Mnemonic Sovereignty}~\cite{mnemonicsovereignty2026}
+introduces a lifecycle-phase $\times$ security-objective matrix and coins
+the concept of ``mnemonic sovereignty''---an agent's right to control its
+own memory.  It covers attack vectors absent from our taxonomy, including
+MEMFLOW exfiltration and MINJA injection attacks.  Our surveys are
+complementary: we map the \emph{architectural} landscape while Mnemonic
+Sovereignty maps the \emph{attack surface} that these architectures expose.
+
+Zhang \etal~\cite{zhang2024survey} established the foundational
+write--manage--read operations taxonomy in ACM TOIS, covering systems
+through early 2024.  Our survey extends their coverage with four years
+of subsequent systems, adding the preference emergence and forgetting
+dynamics axes that the 2024--2026 wave of systems has made salient.
+
+The ICLR 2026 MemAgents Workshop~\cite{memagentsworkshop2026} provides
+further evidence of field maturation, establishing agent memory as a
+distinct sub-community with dedicated peer review and shared benchmarks.
+
+Against this backdrop, our survey offers four methodological
+differentiators absent from all concurrent works:
+
+\begin{enumerate}[leftmargin=*, nosep]
+  \item \textbf{Per-system empirical coding.}  Every system is coded
+    against a machine-readable CSV/JSON matrix with inter-rater
+    reliability ($\kappa > 0.85$), enabling reproducible quantitative
+    analysis rather than narrative-only comparison.
+  \item \textbf{Reproducible benchmark baselines.}  We provide our own
+    LoCoMo and LongMemEval replications with published code
+    (\S\ref{sec:baseline-replication}), plus the ForgettingDynamics
+    benchmark with the Retrieval Degradation Rate (RDR) metric---the
+    first benchmark targeting forgetting quality.
+  \item \textbf{Preference emergence axis.}  Our N/E/T/M coding scheme
+    for preference learning mechanisms (None/Explicit/Tracked/Modeled)
+    captures a dimension absent from all concurrent survey taxonomies.
+  \item \textbf{Coding agent and file-based categories.}  We are the
+    only survey that systematically covers coding-specific memory systems
+    (Claude Code, OpenClaw, Cursor, Windsurf, Augment) and file-based
+    memory architectures (MEMORY.md, \texttt{.cursorrules}).
+\end{enumerate}
+
+%% ---------------------------------------------------------------
 \subsection{Benchmark Cross-Comparison}
 \label{sec:benchmark-cross-comparison}
 
