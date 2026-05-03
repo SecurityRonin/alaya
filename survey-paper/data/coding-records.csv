@@ -1,5 +1,6 @@
 system,category,rag_tier,episodic,semantic,graph,fusion,consolidation,forgetting,contradiction,preference
 Backboard,Dedicated Memory Systems (45),Advanced,1,1,0,0,0,0,0,0
+Bedrock AgentCore,Dedicated Memory Systems (45),Advanced,1,1,0,0,1,0,0,1
 ChatGPT Memory,Dedicated Memory Systems (45),Naive,1,0,0,0,0,1,0,1
 Claude Memory Tool,Dedicated Memory Systems (45),Naive,1,0,0,0,0,0,0,0
 Cognee,Dedicated Memory Systems (45),Advanced,1,1,1,0,0,0,0,0
@@ -8,10 +9,14 @@ EmergenceMem,Dedicated Memory Systems (45),Advanced,1,1,0,0,0,0,0,0
 EverMemOS,Dedicated Memory Systems (45),Advanced,1,1,1,0,1,1,0,0
 Gemini Memory,Dedicated Memory Systems (45),Naive,1,0,0,0,0,0,0,1
 Grok Memory,Dedicated Memory Systems (45),Naive,1,0,0,0,0,0,0,1
+Hermes Agent,Dedicated Memory Systems (45),Modular,1,1,1,1,0,1,0,1
+Honcho,Dedicated Memory Systems (45),Advanced,1,1,0,0,1,1,0,1
+MAGMA,Dedicated Memory Systems (45),Modular,1,1,1,1,1,0,0,0
 Mastra Obs. Mem.,Dedicated Memory Systems (45),Advanced,1,1,0,0,0,0,0,0
 MCP Mem. Service,Dedicated Memory Systems (45),Advanced,0,1,1,1,0,0,0,0
 mcp-memory-svc,Dedicated Memory Systems (45),Advanced,1,1,1,0,1,0,0,0
 Mem0,Dedicated Memory Systems (45),Advanced,1,1,1,1,1,1,1,1
+Memanto,Dedicated Memory Systems (45),Advanced,0,1,0,0,0,0,1,0
 Memary,Dedicated Memory Systems (45),Advanced,0,1,1,0,0,1,0,0
 MemMachine,Dedicated Memory Systems (45),Advanced,1,1,0,0,0,0,0,0
 Memobase,Dedicated Memory Systems (45),Naive,0,0,0,0,0,0,0,1
@@ -37,6 +42,7 @@ Supermemory,Dedicated Memory Systems (45),Advanced,1,1,0,0,1,1,1,0
 TiMem,Dedicated Memory Systems (45),Advanced,1,1,0,0,1,1,0,0
 Vestige,Dedicated Memory Systems (45),Modular,1,1,1,1,0,1,0,1
 RecallM,Dedicated Memory Systems (45),Advanced,0,1,1,0,0,0,1,0
+RetainDB,Dedicated Memory Systems (45),Advanced,1,1,0,0,0,0,0,0
 Zep/Graphiti,Dedicated Memory Systems (45),Modular,1,1,1,1,1,1,1,0
 Agency Swarm,Framework Memory Modules (12),Naive,1,0,0,0,0,0,0,0
 AgentScope,Framework Memory Modules (12),Advanced,1,1,0,1,1,1,0,1
@@ -50,81 +56,90 @@ Letta (MemGPT),Framework Memory Modules (12),Naive,1,1,0,0,1,1,0,1
 LlamaIndex,Framework Memory Modules (12),Naive,1,0,0,0,0,1,0,0
 MS GraphRAG,Framework Memory Modules (12),Modular,0,1,1,1,0,0,0,0
 Qwen-Agent,Framework Memory Modules (12),Naive,1,0,0,0,0,0,0,0
-AgentMemory,Coding Agent Memory (25),Modular,1,1,1,1,1,1,1,0
-Augment Code,Coding Agent Memory (25),Advanced,1,1,0,0,0,0,0,1
-Basic Memory,Coding Agent Memory (25),Advanced,0,1,1,0,0,0,0,0
-bellamem,Coding Agent Memory (25),Advanced,1,1,1,0,0,0,1,0
-Beads,Coding Agent Memory (25),Advanced,1,1,1,0,1,1,0,0
-Capy-Cortex,Coding Agent Memory (25),Advanced,1,1,1,1,1,0,0,0
-chum-mem,Coding Agent Memory (25),Modular,1,1,1,1,1,0,1,0
-Cipher (ByteRover),Coding Agent Memory (25),Advanced,1,1,0,0,0,1,0,0
-claude-mem,Coding Agent Memory (25),Advanced,1,1,0,0,1,0,0,0
-Clawdbot-Next,Coding Agent Memory (25),Advanced,1,0,0,1,0,0,0,0
-ClaudeHistory Cloud,Coding Agent Memory (25),Naive,1,0,0,0,0,0,0,0
-Copilot Memory,Coding Agent Memory (25),Advanced,1,1,0,0,0,0,1,0
-Cursor Memory,Coding Agent Memory (25),Advanced,1,0,0,0,0,0,0,1
-Engram,Coding Agent Memory (25),Naive,1,0,0,0,0,0,0,0
-episodic-memory,Coding Agent Memory (25),Advanced,1,0,0,0,0,0,0,0
-Focus,Coding Agent Memory (25),Advanced,1,0,0,0,1,0,0,0
-IronClaw,Coding Agent Memory (25),Advanced,1,1,0,1,0,0,0,0
-Mastra,Coding Agent Memory (25),Advanced,1,1,0,0,0,0,0,0
-Memori,Coding Agent Memory (25),Advanced,1,1,0,0,1,0,0,0
-MemoryMesh,Coding Agent Memory (25),Naive,1,0,0,0,0,0,0,0
-Nanobot,Coding Agent Memory (25),Naive,1,0,0,0,0,0,0,0
-OpenFang,Coding Agent Memory (25),Advanced,1,1,1,1,0,1,0,0
-Memsearch,Coding Agent Memory (25),Advanced,1,0,0,0,0,1,0,0
-MemPalace,Coding Agent Memory (25),Advanced,1,0,1,0,0,0,0,0
-QMD,Coding Agent Memory (25),Modular,1,1,0,1,0,0,0,0
-Claude Code,File-Based Memory (4),Naive,1,0,0,0,0,0,0,1
-Claudesidian,File-Based Memory (4),Advanced,1,0,1,0,0,0,0,0
-Cursor Rules,File-Based Memory (4),Naive,1,0,0,0,0,0,0,1
-Windsurf Memory,File-Based Memory (4),Naive,1,0,0,0,0,0,0,1
-A-MEM,Research Architectures (42),Advanced,0,1,1,1,0,0,0,0
-AgeMem,Research Architectures (42),Advanced,1,0,0,0,0,1,0,0
-AriadneMem,Research Architectures (42),Modular,0,1,1,1,0,0,1,0
-FadeMem,Research Architectures (42),Advanced,1,1,0,0,0,1,0,0
-G-Memory,Research Architectures (42),Advanced,1,1,0,0,0,0,1,0
-GAM,Research Architectures (42),Modular,1,1,1,0,1,0,0,0
-Generative Agents,Research Architectures (42),Advanced,1,1,0,1,1,1,0,1
-HippoRAG,Research Architectures (42),Modular,0,1,1,0,0,0,0,0
-HippoRAG2,Research Architectures (42),Modular,1,1,1,1,0,0,0,0
-Hindsight,Research Architectures (42),Modular,1,1,1,1,0,0,1,1
-ID-RAG,Research Architectures (42),Advanced,1,1,1,0,0,0,0,1
-Kumiho,Research Architectures (42),Modular,1,1,1,1,1,0,1,0
-LightMem,Research Architectures (42),Advanced,1,1,0,0,1,1,0,0
-LightRAG,Research Architectures (42),Modular,0,1,1,1,0,0,0,0
-MAGMA,Research Architectures (42),Modular,1,1,1,1,1,0,0,0
-MaRS,Research Architectures (42),Advanced,1,1,0,0,0,1,0,0
-Mem-alpha,Research Architectures (42),Advanced,1,1,0,0,0,1,0,0
-MemAgent,Research Architectures (42),Advanced,1,0,0,0,0,1,0,0
-MemoryBank,Research Architectures (42),Advanced,1,1,0,0,0,1,0,1
-MemoRAG,Research Architectures (42),Advanced,1,1,0,1,0,0,0,0
-MemR3,Research Architectures (42),Advanced,1,1,0,0,0,0,0,0
-MemRL,Research Architectures (42),Advanced,1,0,0,0,0,1,0,0
-Memory-R1,Research Architectures (42),Advanced,1,0,0,0,0,1,0,0
-Oblivion,Research Architectures (42),Advanced,1,0,0,0,0,1,0,0
-PersonaRAG,Research Architectures (42),Advanced,1,1,0,0,0,0,0,1
-SimpleMem,Research Architectures (42),Advanced,1,1,0,1,1,1,0,0
-SuperLocalMemory,Research Architectures (42),Modular,1,1,0,1,0,1,0,0
-SYNAPSE,Research Architectures (42),Modular,1,1,1,1,1,1,0,0
-APEX-MEM,Research Architectures (42),Modular,1,1,1,1,1,0,1,0
-FLEX,Research Architectures (42),Advanced,1,1,0,0,1,0,0,0
-FOREVER,Research Architectures (42),Advanced,1,0,0,0,0,1,0,0
-H-EPM,Research Architectures (42),Modular,1,1,1,0,1,0,0,0
-MemEvolve,Research Architectures (42),Modular,1,1,0,1,1,0,0,0
-MemoBrain,Research Architectures (42),Advanced,1,0,0,0,1,0,0,0
-Memory Worth,Research Architectures (42),Advanced,1,0,0,0,0,1,0,0
-MemP,Research Architectures (42),Advanced,1,0,0,0,1,0,0,0
-Nemori,Research Architectures (42),Advanced,1,1,1,0,1,0,0,0
-ReasoningBank,Research Architectures (42),Advanced,1,1,0,0,1,0,0,0
-RMM,Research Architectures (42),Advanced,1,1,0,0,1,0,0,0
-Sophia,Research Architectures (42),Modular,1,1,0,0,1,0,0,0
-SSGM,Research Architectures (42),Advanced,1,0,0,0,0,0,1,0
-TSM,Research Architectures (42),Advanced,1,1,1,0,1,0,0,0
-U-Mem,Research Architectures (42),Advanced,1,1,0,0,1,0,0,0
-AtomMem,Reinforcement-Learned Memory (3),Modular,1,0,0,0,1,1,0,0
-MEM1,Reinforcement-Learned Memory (3),Modular,1,0,0,0,1,1,0,0
-MemSearcher,Reinforcement-Learned Memory (3),Modular,1,1,0,1,1,0,0,0
+AgentMemory,Coding Agent Memory (26),Modular,1,1,1,1,1,1,1,0
+Augment Code,Coding Agent Memory (26),Advanced,1,1,0,0,0,0,0,1
+Basic Memory,Coding Agent Memory (26),Advanced,0,1,1,0,0,0,0,0
+bellamem,Coding Agent Memory (26),Advanced,1,1,1,0,0,0,1,0
+Beads,Coding Agent Memory (26),Advanced,1,1,1,0,1,1,0,0
+Capy-Cortex,Coding Agent Memory (26),Advanced,1,1,1,1,1,0,0,0
+chum-mem,Coding Agent Memory (26),Modular,1,1,1,1,1,0,1,0
+Cipher (ByteRover),Coding Agent Memory (26),Advanced,1,1,0,0,0,1,0,0
+claude-mem,Coding Agent Memory (26),Advanced,1,1,0,0,1,0,0,0
+coolmanns 12-layer,Coding Agent Memory (26),Modular,1,1,1,1,1,1,1,0
+Clawdbot-Next,Coding Agent Memory (26),Advanced,1,0,0,1,0,0,0,0
+ClaudeHistory Cloud,Coding Agent Memory (26),Naive,1,0,0,0,0,0,0,0
+Copilot Memory,Coding Agent Memory (26),Advanced,1,1,0,0,0,0,1,0
+Cursor Memory,Coding Agent Memory (26),Advanced,1,0,0,0,0,0,0,1
+Engram,Coding Agent Memory (26),Naive,1,0,0,0,0,0,0,0
+episodic-memory,Coding Agent Memory (26),Advanced,1,0,0,0,0,0,0,0
+Focus,Coding Agent Memory (26),Advanced,1,0,0,0,1,0,0,0
+IronClaw,Coding Agent Memory (26),Advanced,1,1,0,1,0,0,0,0
+Mastra,Coding Agent Memory (26),Advanced,1,1,0,0,0,0,0,0
+Memori,Coding Agent Memory (26),Advanced,1,1,0,0,1,0,0,0
+MemoryMesh,Coding Agent Memory (26),Naive,1,0,0,0,0,0,0,0
+Nanobot,Coding Agent Memory (26),Naive,1,0,0,0,0,0,0,0
+OpenFang,Coding Agent Memory (26),Advanced,1,1,1,1,0,1,0,0
+Memsearch,Coding Agent Memory (26),Advanced,1,0,0,0,0,1,0,0
+MemPalace,Coding Agent Memory (26),Advanced,1,0,1,0,0,0,0,0
+QMD,Coding Agent Memory (26),Modular,1,1,0,1,0,0,0,0
+Claude Code,File-Based Memory (6),Naive,1,0,0,0,0,0,0,1
+Claude Code Memory,File-Based Memory (6),Naive,1,0,0,0,1,0,0,1
+Claude Managed Agents,File-Based Memory (6),Naive,1,0,0,0,0,0,0,0
+Claudesidian,File-Based Memory (6),Advanced,1,0,1,0,0,0,0,0
+Cursor Rules,File-Based Memory (6),Naive,1,0,0,0,0,0,0,1
+Windsurf Memory,File-Based Memory (6),Naive,1,0,0,0,0,0,0,1
+A-MEM,Research Architectures (46),Advanced,0,1,1,1,0,0,0,0
+Animesis/CMA,Research Architectures (46),Advanced,1,1,0,0,1,1,0,0
+AgeMem,Research Architectures (46),Advanced,1,0,0,0,0,1,0,0
+AriadneMem,Research Architectures (46),Modular,0,1,1,1,0,0,1,0
+AWM,Research Architectures (46),Advanced,0,0,0,0,1,0,0,0
+Dynamic Cheatsheet,Research Architectures (46),Naive,0,0,0,0,0,1,0,0
+FadeMem,Research Architectures (46),Advanced,1,1,0,0,0,1,0,0
+G-Memory,Research Architectures (46),Advanced,1,1,0,0,0,0,1,0
+GAM,Research Architectures (46),Modular,1,1,1,0,1,0,0,0
+Generative Agents,Research Architectures (46),Advanced,1,1,0,1,1,1,0,1
+HippoRAG,Research Architectures (46),Modular,0,1,1,0,0,0,0,0
+HippoRAG2,Research Architectures (46),Modular,1,1,1,1,0,0,0,0
+Hindsight,Research Architectures (46),Modular,1,1,1,1,0,0,1,1
+ID-RAG,Research Architectures (46),Advanced,1,1,1,0,0,0,0,1
+Kumiho,Research Architectures (46),Modular,1,1,1,1,1,0,1,0
+LightMem,Research Architectures (46),Advanced,1,1,0,0,1,1,0,0
+LightRAG,Research Architectures (46),Modular,0,1,1,1,0,0,0,0
+MaRS,Research Architectures (46),Advanced,1,1,0,0,0,1,0,0
+Mem-alpha,Research Architectures (46),Advanced,1,1,0,0,0,1,0,0
+MemAgent,Research Architectures (46),Advanced,1,0,0,0,0,1,0,0
+MemoryBank,Research Architectures (46),Advanced,1,1,0,0,0,1,0,1
+MemoRAG,Research Architectures (46),Advanced,1,1,0,1,0,0,0,0
+MemR3,Research Architectures (46),Advanced,1,1,0,0,0,0,0,0
+Memory-R1,Research Architectures (46),Advanced,1,0,0,0,0,1,0,0
+Oblivion,Research Architectures (46),Advanced,1,0,0,0,0,1,0,0
+O-Mem,Research Architectures (46),Advanced,1,1,0,0,1,0,0,1
+PersonaRAG,Research Architectures (46),Advanced,1,1,0,0,0,0,0,1
+SimpleMem,Research Architectures (46),Advanced,1,1,0,1,1,1,0,0
+SuperLocalMemory,Research Architectures (46),Modular,1,1,0,1,0,1,0,0
+SYNAPSE,Research Architectures (46),Modular,1,1,1,1,1,1,0,0
+APEX-MEM,Research Architectures (46),Modular,1,1,1,1,1,0,1,0
+FLEX,Research Architectures (46),Advanced,1,1,0,0,1,0,0,0
+FOREVER,Research Architectures (46),Advanced,1,0,0,0,0,1,0,0
+H-EPM,Research Architectures (46),Modular,1,1,1,0,1,0,0,0
+MemEvolve,Research Architectures (46),Modular,1,1,0,1,1,0,0,0
+MemoBrain,Research Architectures (46),Advanced,1,0,0,0,1,0,0,0
+Memory Worth,Research Architectures (46),Advanced,1,0,0,0,0,1,0,0
+MemP,Research Architectures (46),Advanced,1,0,0,0,1,0,0,0
+Nemori,Research Architectures (46),Advanced,1,1,1,0,1,0,0,0
+NGC,Research Architectures (46),Naive,0,0,0,0,0,1,0,0
+ReasoningBank,Research Architectures (46),Advanced,1,1,0,0,1,0,0,0
+RMM,Research Architectures (46),Advanced,1,1,0,0,1,0,0,0
+Sophia,Research Architectures (46),Modular,1,1,0,0,1,0,0,0
+SSGM,Research Architectures (46),Advanced,1,0,0,0,0,0,1,0
+TSM,Research Architectures (46),Advanced,1,1,1,0,1,0,0,0
+U-Mem,Research Architectures (46),Advanced,1,1,0,0,1,0,0,0
+AtomMem,Reinforcement-Learned Memory (6),Modular,1,0,0,0,1,1,0,0
+Live-Evo,Reinforcement-Learned Memory (6),Advanced,1,0,0,0,0,1,0,0
+MEM1,Reinforcement-Learned Memory (6),Modular,1,0,0,0,1,1,0,0
+MemAgent (ICLR),Reinforcement-Learned Memory (6),Naive,0,0,0,0,0,1,0,0
+MemRL,Reinforcement-Learned Memory (6),Advanced,1,0,0,0,0,1,0,0
+MemSearcher,Reinforcement-Learned Memory (6),Modular,1,1,0,1,1,0,0,0
 Collaborative Mem.,Multi-Agent Memory (4),Modular,1,1,1,0,0,0,0,0
 Intrinsic Mem. Ag.,Multi-Agent Memory (4),Advanced,1,1,0,0,1,0,0,0
 LEGOMem,Multi-Agent Memory (4),Advanced,1,0,0,0,1,0,0,0

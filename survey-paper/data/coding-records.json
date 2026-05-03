@@ -31,6 +31,19 @@
       "preference": 0
     },
     {
+      "system": "Bedrock AgentCore",
+      "category": "Dedicated Memory Systems (45)",
+      "rag_tier": "Advanced",
+      "episodic": 1,
+      "semantic": 1,
+      "graph": 0,
+      "fusion": 0,
+      "consolidation": 1,
+      "forgetting": 0,
+      "contradiction": 0,
+      "preference": 1
+    },
+    {
       "system": "ChatGPT Memory",
       "category": "Dedicated Memory Systems (45)",
       "rag_tier": "Naive",
@@ -135,6 +148,45 @@
       "preference": 1
     },
     {
+      "system": "Hermes Agent",
+      "category": "Dedicated Memory Systems (45)",
+      "rag_tier": "Modular",
+      "episodic": 1,
+      "semantic": 1,
+      "graph": 1,
+      "fusion": 1,
+      "consolidation": 0,
+      "forgetting": 1,
+      "contradiction": 0,
+      "preference": 1
+    },
+    {
+      "system": "Honcho",
+      "category": "Dedicated Memory Systems (45)",
+      "rag_tier": "Advanced",
+      "episodic": 1,
+      "semantic": 1,
+      "graph": 0,
+      "fusion": 0,
+      "consolidation": 1,
+      "forgetting": 1,
+      "contradiction": 0,
+      "preference": 1
+    },
+    {
+      "system": "MAGMA",
+      "category": "Dedicated Memory Systems (45)",
+      "rag_tier": "Modular",
+      "episodic": 1,
+      "semantic": 1,
+      "graph": 1,
+      "fusion": 1,
+      "consolidation": 1,
+      "forgetting": 0,
+      "contradiction": 0,
+      "preference": 0
+    },
+    {
       "system": "Mastra Obs. Mem.",
       "category": "Dedicated Memory Systems (45)",
       "rag_tier": "Advanced",
@@ -185,6 +237,19 @@
       "forgetting": 1,
       "contradiction": 1,
       "preference": 1
+    },
+    {
+      "system": "Memanto",
+      "category": "Dedicated Memory Systems (45)",
+      "rag_tier": "Advanced",
+      "episodic": 0,
+      "semantic": 1,
+      "graph": 0,
+      "fusion": 0,
+      "consolidation": 0,
+      "forgetting": 0,
+      "contradiction": 1,
+      "preference": 0
     },
     {
       "system": "Memary",
@@ -512,6 +577,19 @@
       "preference": 0
     },
     {
+      "system": "RetainDB",
+      "category": "Dedicated Memory Systems (45)",
+      "rag_tier": "Advanced",
+      "episodic": 1,
+      "semantic": 1,
+      "graph": 0,
+      "fusion": 0,
+      "consolidation": 0,
+      "forgetting": 0,
+      "contradiction": 0,
+      "preference": 0
+    },
+    {
       "system": "Zep/Graphiti",
       "category": "Dedicated Memory Systems (45)",
       "rag_tier": "Modular",
@@ -682,7 +760,7 @@
     },
     {
       "system": "AgentMemory",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Modular",
       "episodic": 1,
       "semantic": 1,
@@ -695,7 +773,7 @@
     },
     {
       "system": "Augment Code",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -708,7 +786,7 @@
     },
     {
       "system": "Basic Memory",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Advanced",
       "episodic": 0,
       "semantic": 1,
@@ -721,7 +799,7 @@
     },
     {
       "system": "bellamem",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -734,7 +812,7 @@
     },
     {
       "system": "Beads",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -747,7 +825,7 @@
     },
     {
       "system": "Capy-Cortex",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -760,7 +838,7 @@
     },
     {
       "system": "chum-mem",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Modular",
       "episodic": 1,
       "semantic": 1,
@@ -773,7 +851,7 @@
     },
     {
       "system": "Cipher (ByteRover)",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -786,7 +864,7 @@
     },
     {
       "system": "claude-mem",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -798,8 +876,21 @@
       "preference": 0
     },
     {
+      "system": "coolmanns 12-layer",
+      "category": "Coding Agent Memory (26)",
+      "rag_tier": "Modular",
+      "episodic": 1,
+      "semantic": 1,
+      "graph": 1,
+      "fusion": 1,
+      "consolidation": 1,
+      "forgetting": 1,
+      "contradiction": 1,
+      "preference": 0
+    },
+    {
       "system": "Clawdbot-Next",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 0,
@@ -812,7 +903,7 @@
     },
     {
       "system": "ClaudeHistory Cloud",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Naive",
       "episodic": 1,
       "semantic": 0,
@@ -825,7 +916,7 @@
     },
     {
       "system": "Copilot Memory",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -838,7 +929,7 @@
     },
     {
       "system": "Cursor Memory",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 0,
@@ -851,7 +942,7 @@
     },
     {
       "system": "Engram",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Naive",
       "episodic": 1,
       "semantic": 0,
@@ -864,7 +955,7 @@
     },
     {
       "system": "episodic-memory",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 0,
@@ -877,7 +968,7 @@
     },
     {
       "system": "Focus",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 0,
@@ -890,7 +981,7 @@
     },
     {
       "system": "IronClaw",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -903,7 +994,7 @@
     },
     {
       "system": "Mastra",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -916,7 +1007,7 @@
     },
     {
       "system": "Memori",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -929,7 +1020,7 @@
     },
     {
       "system": "MemoryMesh",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Naive",
       "episodic": 1,
       "semantic": 0,
@@ -942,7 +1033,7 @@
     },
     {
       "system": "Nanobot",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Naive",
       "episodic": 1,
       "semantic": 0,
@@ -955,7 +1046,7 @@
     },
     {
       "system": "OpenFang",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -968,7 +1059,7 @@
     },
     {
       "system": "Memsearch",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 0,
@@ -981,7 +1072,7 @@
     },
     {
       "system": "MemPalace",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 0,
@@ -994,7 +1085,7 @@
     },
     {
       "system": "QMD",
-      "category": "Coding Agent Memory (25)",
+      "category": "Coding Agent Memory (26)",
       "rag_tier": "Modular",
       "episodic": 1,
       "semantic": 1,
@@ -1007,7 +1098,7 @@
     },
     {
       "system": "Claude Code",
-      "category": "File-Based Memory (4)",
+      "category": "File-Based Memory (6)",
       "rag_tier": "Naive",
       "episodic": 1,
       "semantic": 0,
@@ -1019,8 +1110,34 @@
       "preference": 1
     },
     {
+      "system": "Claude Code Memory",
+      "category": "File-Based Memory (6)",
+      "rag_tier": "Naive",
+      "episodic": 1,
+      "semantic": 0,
+      "graph": 0,
+      "fusion": 0,
+      "consolidation": 1,
+      "forgetting": 0,
+      "contradiction": 0,
+      "preference": 1
+    },
+    {
+      "system": "Claude Managed Agents",
+      "category": "File-Based Memory (6)",
+      "rag_tier": "Naive",
+      "episodic": 1,
+      "semantic": 0,
+      "graph": 0,
+      "fusion": 0,
+      "consolidation": 0,
+      "forgetting": 0,
+      "contradiction": 0,
+      "preference": 0
+    },
+    {
       "system": "Claudesidian",
-      "category": "File-Based Memory (4)",
+      "category": "File-Based Memory (6)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 0,
@@ -1033,7 +1150,7 @@
     },
     {
       "system": "Cursor Rules",
-      "category": "File-Based Memory (4)",
+      "category": "File-Based Memory (6)",
       "rag_tier": "Naive",
       "episodic": 1,
       "semantic": 0,
@@ -1046,7 +1163,7 @@
     },
     {
       "system": "Windsurf Memory",
-      "category": "File-Based Memory (4)",
+      "category": "File-Based Memory (6)",
       "rag_tier": "Naive",
       "episodic": 1,
       "semantic": 0,
@@ -1059,7 +1176,7 @@
     },
     {
       "system": "A-MEM",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 0,
       "semantic": 1,
@@ -1071,8 +1188,21 @@
       "preference": 0
     },
     {
+      "system": "Animesis/CMA",
+      "category": "Research Architectures (46)",
+      "rag_tier": "Advanced",
+      "episodic": 1,
+      "semantic": 1,
+      "graph": 0,
+      "fusion": 0,
+      "consolidation": 1,
+      "forgetting": 1,
+      "contradiction": 0,
+      "preference": 0
+    },
+    {
       "system": "AgeMem",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 0,
@@ -1085,7 +1215,7 @@
     },
     {
       "system": "AriadneMem",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Modular",
       "episodic": 0,
       "semantic": 1,
@@ -1097,8 +1227,34 @@
       "preference": 0
     },
     {
+      "system": "AWM",
+      "category": "Research Architectures (46)",
+      "rag_tier": "Advanced",
+      "episodic": 0,
+      "semantic": 0,
+      "graph": 0,
+      "fusion": 0,
+      "consolidation": 1,
+      "forgetting": 0,
+      "contradiction": 0,
+      "preference": 0
+    },
+    {
+      "system": "Dynamic Cheatsheet",
+      "category": "Research Architectures (46)",
+      "rag_tier": "Naive",
+      "episodic": 0,
+      "semantic": 0,
+      "graph": 0,
+      "fusion": 0,
+      "consolidation": 0,
+      "forgetting": 1,
+      "contradiction": 0,
+      "preference": 0
+    },
+    {
       "system": "FadeMem",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -1111,7 +1267,7 @@
     },
     {
       "system": "G-Memory",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -1124,7 +1280,7 @@
     },
     {
       "system": "GAM",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Modular",
       "episodic": 1,
       "semantic": 1,
@@ -1137,7 +1293,7 @@
     },
     {
       "system": "Generative Agents",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -1150,7 +1306,7 @@
     },
     {
       "system": "HippoRAG",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Modular",
       "episodic": 0,
       "semantic": 1,
@@ -1163,7 +1319,7 @@
     },
     {
       "system": "HippoRAG2",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Modular",
       "episodic": 1,
       "semantic": 1,
@@ -1176,7 +1332,7 @@
     },
     {
       "system": "Hindsight",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Modular",
       "episodic": 1,
       "semantic": 1,
@@ -1189,7 +1345,7 @@
     },
     {
       "system": "ID-RAG",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -1202,7 +1358,7 @@
     },
     {
       "system": "Kumiho",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Modular",
       "episodic": 1,
       "semantic": 1,
@@ -1215,7 +1371,7 @@
     },
     {
       "system": "LightMem",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -1228,7 +1384,7 @@
     },
     {
       "system": "LightRAG",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Modular",
       "episodic": 0,
       "semantic": 1,
@@ -1240,21 +1396,8 @@
       "preference": 0
     },
     {
-      "system": "MAGMA",
-      "category": "Research Architectures (42)",
-      "rag_tier": "Modular",
-      "episodic": 1,
-      "semantic": 1,
-      "graph": 1,
-      "fusion": 1,
-      "consolidation": 1,
-      "forgetting": 0,
-      "contradiction": 0,
-      "preference": 0
-    },
-    {
       "system": "MaRS",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -1267,7 +1410,7 @@
     },
     {
       "system": "Mem-alpha",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -1280,7 +1423,7 @@
     },
     {
       "system": "MemAgent",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 0,
@@ -1293,7 +1436,7 @@
     },
     {
       "system": "MemoryBank",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -1306,7 +1449,7 @@
     },
     {
       "system": "MemoRAG",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -1319,7 +1462,7 @@
     },
     {
       "system": "MemR3",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -1331,21 +1474,8 @@
       "preference": 0
     },
     {
-      "system": "MemRL",
-      "category": "Research Architectures (42)",
-      "rag_tier": "Advanced",
-      "episodic": 1,
-      "semantic": 0,
-      "graph": 0,
-      "fusion": 0,
-      "consolidation": 0,
-      "forgetting": 1,
-      "contradiction": 0,
-      "preference": 0
-    },
-    {
       "system": "Memory-R1",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 0,
@@ -1358,7 +1488,7 @@
     },
     {
       "system": "Oblivion",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 0,
@@ -1370,8 +1500,21 @@
       "preference": 0
     },
     {
+      "system": "O-Mem",
+      "category": "Research Architectures (46)",
+      "rag_tier": "Advanced",
+      "episodic": 1,
+      "semantic": 1,
+      "graph": 0,
+      "fusion": 0,
+      "consolidation": 1,
+      "forgetting": 0,
+      "contradiction": 0,
+      "preference": 1
+    },
+    {
       "system": "PersonaRAG",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -1384,7 +1527,7 @@
     },
     {
       "system": "SimpleMem",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -1397,7 +1540,7 @@
     },
     {
       "system": "SuperLocalMemory",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Modular",
       "episodic": 1,
       "semantic": 1,
@@ -1410,7 +1553,7 @@
     },
     {
       "system": "SYNAPSE",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Modular",
       "episodic": 1,
       "semantic": 1,
@@ -1423,7 +1566,7 @@
     },
     {
       "system": "APEX-MEM",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Modular",
       "episodic": 1,
       "semantic": 1,
@@ -1436,7 +1579,7 @@
     },
     {
       "system": "FLEX",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -1449,7 +1592,7 @@
     },
     {
       "system": "FOREVER",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 0,
@@ -1462,7 +1605,7 @@
     },
     {
       "system": "H-EPM",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Modular",
       "episodic": 1,
       "semantic": 1,
@@ -1475,7 +1618,7 @@
     },
     {
       "system": "MemEvolve",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Modular",
       "episodic": 1,
       "semantic": 1,
@@ -1488,7 +1631,7 @@
     },
     {
       "system": "MemoBrain",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 0,
@@ -1501,7 +1644,7 @@
     },
     {
       "system": "Memory Worth",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 0,
@@ -1514,7 +1657,7 @@
     },
     {
       "system": "MemP",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 0,
@@ -1527,7 +1670,7 @@
     },
     {
       "system": "Nemori",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -1539,8 +1682,21 @@
       "preference": 0
     },
     {
+      "system": "NGC",
+      "category": "Research Architectures (46)",
+      "rag_tier": "Naive",
+      "episodic": 0,
+      "semantic": 0,
+      "graph": 0,
+      "fusion": 0,
+      "consolidation": 0,
+      "forgetting": 1,
+      "contradiction": 0,
+      "preference": 0
+    },
+    {
       "system": "ReasoningBank",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -1553,7 +1709,7 @@
     },
     {
       "system": "RMM",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -1566,7 +1722,7 @@
     },
     {
       "system": "Sophia",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Modular",
       "episodic": 1,
       "semantic": 1,
@@ -1579,7 +1735,7 @@
     },
     {
       "system": "SSGM",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 0,
@@ -1592,7 +1748,7 @@
     },
     {
       "system": "TSM",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -1605,7 +1761,7 @@
     },
     {
       "system": "U-Mem",
-      "category": "Research Architectures (42)",
+      "category": "Research Architectures (46)",
       "rag_tier": "Advanced",
       "episodic": 1,
       "semantic": 1,
@@ -1618,20 +1774,33 @@
     },
     {
       "system": "AtomMem",
-      "category": "Reinforcement-Learned Memory (3)",
+      "category": "Reinforcement-Learned Memory (6)",
       "rag_tier": "Modular",
       "episodic": 1,
       "semantic": 0,
       "graph": 0,
       "fusion": 0,
       "consolidation": 1,
+      "forgetting": 1,
+      "contradiction": 0,
+      "preference": 0
+    },
+    {
+      "system": "Live-Evo",
+      "category": "Reinforcement-Learned Memory (6)",
+      "rag_tier": "Advanced",
+      "episodic": 1,
+      "semantic": 0,
+      "graph": 0,
+      "fusion": 0,
+      "consolidation": 0,
       "forgetting": 1,
       "contradiction": 0,
       "preference": 0
     },
     {
       "system": "MEM1",
-      "category": "Reinforcement-Learned Memory (3)",
+      "category": "Reinforcement-Learned Memory (6)",
       "rag_tier": "Modular",
       "episodic": 1,
       "semantic": 0,
@@ -1643,8 +1812,34 @@
       "preference": 0
     },
     {
+      "system": "MemAgent (ICLR)",
+      "category": "Reinforcement-Learned Memory (6)",
+      "rag_tier": "Naive",
+      "episodic": 0,
+      "semantic": 0,
+      "graph": 0,
+      "fusion": 0,
+      "consolidation": 0,
+      "forgetting": 1,
+      "contradiction": 0,
+      "preference": 0
+    },
+    {
+      "system": "MemRL",
+      "category": "Reinforcement-Learned Memory (6)",
+      "rag_tier": "Advanced",
+      "episodic": 1,
+      "semantic": 0,
+      "graph": 0,
+      "fusion": 0,
+      "consolidation": 0,
+      "forgetting": 1,
+      "contradiction": 0,
+      "preference": 0
+    },
+    {
       "system": "MemSearcher",
-      "category": "Reinforcement-Learned Memory (3)",
+      "category": "Reinforcement-Learned Memory (6)",
       "rag_tier": "Modular",
       "episodic": 1,
       "semantic": 1,
