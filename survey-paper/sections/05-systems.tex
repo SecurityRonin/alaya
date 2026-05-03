@@ -57,6 +57,14 @@ features (Mem0-g with entity extraction, relation generation, and
 contradiction resolution) require the \$249/month Pro tier, limiting
 accessibility for individual developers and small teams.
 
+Mem0's graph memory mode is now generally available (no longer
+experimental). The extraction algorithm has been simplified to a single
+LLM call (ADD-only), replacing the prior multi-step pipeline.
+New storage backends include Apache Cassandra and Valkey; FalkorDB
+provides per-user graph isolation with sub-140\,ms queries.
+The system integrates with 21 frameworks and has reached approximately
+48K GitHub stars.
+
 \paragraph{Zep / Graphiti.}
 Graphiti~\cite{dempsey2025graphiti}, the engine underlying Zep's memory
 service, constructs a hierarchical temporal knowledge graph on Neo4j
@@ -101,6 +109,12 @@ with single-signal vector similarity. The OS metaphor proved
 influential: MemoryOS~\cite{kang2025memoryos} and OpenViking both
 adopted tiered hierarchies, though with different management
 strategies.
+
+Letta has since introduced MemFS (git-tracked memory files), a
+Conversations API enabling shared memory across parallel agent
+instances, and sleep-time compute for asynchronous memory management.
+The Letta Code App (April~2026) is a memory-first coding agent
+evaluated on Terminal-Bench.
 
 \paragraph{Hindsight.}
 Hindsight~\cite{latimer2025hindsight} introduces the most novel memory
@@ -182,6 +196,34 @@ API tool and Claude Code's system are canonical examples of the
 MEMORY.md problem analyzed in \S\ref{sec:memorymd}: full-context
 injection with no retrieval, no lifecycle management, and a linear
 scaling cost in memory size.
+
+\paragraph{Claude Code Memory.}
+Anthropic's Claude Code implements a four-layer memory
+architecture\evD: (1)~\texttt{CLAUDE.md} files at three scopes (global,
+project, path-scoped rules); (2)~Auto Memory, where the agent
+self-writes notes about build commands, architecture decisions, and code
+style into a per-repository memory directory; (3)~session context;
+and (4)~Auto Dream, a background consolidation process that runs every
+24+ hours, converting relative dates to absolute, deleting contradicted
+facts, and merging duplicates while keeping \texttt{MEMORY.md} under
+200~lines. During dream cycles, the agent can only write to memory
+files (never source code). The system represents the most widely
+deployed file-based agent memory architecture.
+
+\paragraph{Claude Memory Tool (API).}
+The Memory Tool (\texttt{type: memory\_20250818})\evD\ is a client-side
+tool for the Claude API that provides six CRUD operations over a
+\texttt{/memories} directory. The agent is instructed to scan the full
+directory before each task. Approximately 2{,}500 tokens of overhead per
+call. Now generally available on Claude API, Bedrock, and Vertex AI.
+
+\paragraph{Claude Managed Agents Memory.}
+In public beta since April~2026\evV, this enterprise offering
+provides server-managed persistent memory as container-mounted
+stores (\texttt{/mnt/memory/}), each approximately 100\,KB. Up to 8
+stores per session with \texttt{read\_only} or \texttt{read\_write}
+modes and immutable versioning for audit. Early adopters include
+Netflix and Rakuten (reported 97\% fewer first-pass errors)\evV.
 
 \paragraph{Gemini Memory (Google).}
 Google's Gemini~\cite{gemini2026memory}\evV deploys persistent memory across
@@ -945,6 +987,18 @@ tokens per message (93.5\% waste in multi-message
 sessions)~\cite{openclaw9157}. We analyze the cost, structure, and
 retrieval failure modes of file-based memory in detail in
 \Cref{sec:memorymd}.
+
+Since our initial review, OpenClaw has introduced two architecturally
+significant features. The \emph{Active Memory} plugin (April~2026)
+runs a blocking memory sub-agent \emph{before} the main response,
+shifting retrieval from passive (user-triggered) to proactive
+(pre-emptive). The \emph{Dreaming} system formalizes background
+consolidation in three phases---Light (ingest and deduplicate), REM
+(flag candidates for decay using recency, recall frequency, query
+diversity, and concept richness), and Deep (score against thresholds
+and promote survivors to \texttt{MEMORY.md})---scheduled via cron
+(default 3\,AM). QMD is now available as a swappable retrieval
+backend. As of May~2026, OpenClaw has approximately 347K GitHub stars.
 
 %% ===============================================================
 \subsection{Research Architectures}
