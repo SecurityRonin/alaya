@@ -5,13 +5,13 @@
 \label{sec:system-matrix}
 
 Table~\ref{tab:system-matrix} presents per-feature classifications for
-138~systems with complete capability data across the eight discriminating
+150~systems with complete capability data across the eight discriminating
 features defined in \S\ref{sec:long-tail}.  Systems are grouped by category
 and sorted alphabetically within each group.
 
 \begin{table*}[!t]
 \centering
-\caption{Per-system capability matrix for 138 classified systems.
+\caption{Per-system capability matrix for 148 classified systems.
 $\bullet$~=~capability present.
 RAG tier: N~=~Naive, A~=~Advanced, M~=~Modular~\cite{gao2023rag}.
 An interactive visualization with filtering is available at
@@ -251,7 +251,7 @@ contexts.}
 
 Figure~\ref{fig:category-scores} summarizes the category-level pattern:
 research architectures and dedicated systems together account for 82 of
-133 classified systems, while framework modules and coding tools remain
+148 classified systems, while framework modules and coding tools remain
 underrepresented---consistent with memory being a secondary concern in
 orchestration and development tool contexts.
 
@@ -446,7 +446,7 @@ in memory lifecycle operations.
 
 \begin{table}[!t]
 \centering
-\caption{Mean feature breadth by RAG tier for 133 classified systems
+\caption{Mean feature breadth by RAG tier for 148 classified systems
 with complete matrix records.
 Feature count tallies the same eight capabilities as
 Table~\ref{tab:capability-distribution}.}
@@ -456,33 +456,33 @@ Table~\ref{tab:capability-distribution}.}
 \toprule
 \textbf{RAG Tier} & \textbf{$N$} & \textbf{Mean} & \textbf{Min} & \textbf{Max} \\
 \midrule
-Naive    & 25 & 1.6 & 1 & 5 \\
-Advanced & 79 & 3.2 & 1 & 8 \\
-Modular  & 29 & 4.3 & 2 & 7 \\
+Naive    & 30 & 1.6 & 1 & 5 \\
+Advanced & 87 & 3.2 & 1 & 8 \\
+Modular  & 31 & 4.4 & 2 & 7 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 Table~\ref{tab:cooccurrence} reveals pairwise feature co-occurrence
-across the 133 classified systems.  Three correlations are notable.
-First, graph structure and fusion are moderately co-occurrent (23 of 42
-graph systems also use fusion, 55\%), confirming that graph traversal
+across the 148 classified systems.  Three correlations are notable.
+First, graph structure and fusion are moderately co-occurrent (25 of 44
+graph systems also use fusion, 57\%), confirming that graph traversal
 provides an additional retrieval signal that motivates principled fusion.
-Second, contradiction resolution is the rarest feature (14 systems) and
-is almost always accompanied by semantic storage (13 of 14, 93\%)---consistent
-with contradiction detection requiring a declarative fact store to compare
-against.  Third, consolidation and forgetting partially co-occur (16
-systems implement both), but the majority of consolidation systems
-(27 of 43, 63\%) do not implement explicit forgetting, suggesting that
-memory pruning and knowledge promotion are treated as orthogonal concerns
-in many architectures.
+Second, contradiction resolution remains the rarest feature (16 systems)
+and is almost always accompanied by semantic storage (15 of 16,
+94\%)---consistent with contradiction detection requiring a declarative
+fact store to compare against.  Third, consolidation and forgetting
+partially co-occur (19 systems implement both), but the majority of
+consolidation systems (31 of 50, 62\%) do not implement explicit
+forgetting, suggesting that memory pruning and knowledge promotion are
+treated as orthogonal concerns in many architectures.
 
 \begin{table}[!t]
 \centering
-\caption{Feature co-occurrence matrix (lower triangle) for 133 classified
+\caption{Feature co-occurrence matrix (lower triangle) for 148 classified
 systems.  Diagonal (bold) shows total count per feature.  Notable:
-Graph $\leftrightarrow$ Fusion = 23/42 (55\%);
-Contradiction $\rightarrow$ Semantic = 13/14 (93\%).}
+Graph $\leftrightarrow$ Fusion = 25/44 (57\%);
+Contradiction $\rightarrow$ Semantic = 15/16 (94\%).}
 \label{tab:cooccurrence}
 \scriptsize
 \setlength{\tabcolsep}{3pt}
@@ -497,14 +497,14 @@ Contradiction $\rightarrow$ Semantic = 13/14 (93\%).}
 & \rotatebox{70}{\textbf{Contrad.}}
 & \rotatebox{70}{\textbf{Pref.}} \\
 \midrule
-Episodic      & \textbf{119} \\
-Semantic      &  77 & \textbf{90} \\
-Graph         &  32 & 40 & \textbf{42} \\
-Fusion        &  34 & 38 & 23 & \textbf{40} \\
-Consolidation &  43 & 37 & 16 & 15 & \textbf{43} \\
-Forgetting    &  41 & 28 & 10 & 14 & 16 & \textbf{42} \\
-Contradiction &  12 & 13 & 10 &  8 &  7 &  4 & \textbf{14} \\
-Preference    &  26 & 18 &  6 & 11 &  6 & 12 &  2 & \textbf{27} \\
+Episodic      & \textbf{129} \\
+Semantic      &  84 & \textbf{98} \\
+Graph         &  34 & 42 & \textbf{44} \\
+Fusion        &  36 & 40 & 25 & \textbf{42} \\
+Consolidation &  49 & 42 & 17 & 16 & \textbf{50} \\
+Forgetting    &  46 & 32 & 12 & 16 & 19 & \textbf{50} \\
+Contradiction &  13 & 15 & 11 &  9 &  8 &  5 & \textbf{16} \\
+Preference    &  31 & 22 &  7 & 12 & 10 & 14 &  2 & \textbf{32} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -562,6 +562,6 @@ partition the landscape into distinct architectural tiers.}
 For interactive exploration with filtering by category, capability, RAG
 tier, and lifecycle operations, see the companion
 visualization.\footnote{\url{https://securityronin.github.io/alaya/docs/memory-landscape.html}
-The visualization includes the full 133-system matrix with sortable
+The visualization includes the full 150-system matrix with sortable
 columns, the quadrant plot with hover details, and the co-occurrence
 heatmap with color encoding.}
