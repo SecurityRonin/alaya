@@ -35,6 +35,44 @@ management strategy, and which forgetting model best balances memory
 fidelity against retrieval precision across interaction horizons
 spanning weeks to years.
 
+\subsection{Policy-Learned Memory Management}
+\label{sec:rl-memory}
+
+A striking trend in 2025--2026 is the shift from hand-designed memory
+lifecycles to \emph{learned} ones, in which reinforcement learning
+agents discover when to create, update, consolidate, and discard
+memories entirely from task reward. AtomMem~\cite{chen2026atommem}
+formulates atomic CRUD operations as a POMDP and trains an 8B-parameter
+policy via RL, achieving +10 exact-match points over static workflow
+baselines. MemRL~\cite{wang2026memrl} introduces a non-parametric RL
+framework that stores intent--experience--utility triplets and retrieves
+them in two phases---first by semantic similarity, then ranked by learned
+Q-values. Memory-R1~\cite{memoryr1_2026} separates a \emph{Memory
+Manager} (trained with PPO/GRPO over ADD/UPDATE/DELETE/NOOP actions)
+from an Answer Agent, enabling independent optimization of memory
+policy and downstream task performance.
+MemAgent~\cite{memagent2026}, an ICLR~2026 Oral, extends DAPO with
+overwrite-based memory actions and demonstrates extrapolation from 8K
+to 3.5M tokens with less than 10\% performance degradation.
+NGC~\cite{li2026ngc} learns KV cache eviction jointly with
+chain-of-thought reasoning under a single task reward, achieving 2--3$\times$
+compression. MemEvolve~\cite{memevolve2025} takes a meta-evolutionary
+approach with dual loops---inner experience accumulation and outer
+architecture mutation---while Live-Evo~\cite{liveevo2026} enables
+online self-evolution through contrastive evaluation from continuous
+user feedback.
+
+These systems blur the traditional boundaries between formation,
+consolidation, forgetting, and transformation: a learned policy may
+simultaneously decide to consolidate one memory, forget another, and
+transform a third, with no explicit lifecycle stage.
+Du~\cite{du2026memoryautonomous} independently identifies
+``policy-learned management'' as a fifth mechanism family alongside
+read, write, reflect, and forget. Whether learned policies can
+outperform carefully hand-designed lifecycles in long-horizon production
+deployments---where reward signals are sparse and distribution shift is
+continuous---remains a critical open question.
+
 \subsection{Preference Emergence vs.\ Extraction}
 
 Two fundamentally different paradigms exist for modeling user
@@ -184,6 +222,34 @@ representations that generalize better than raw storage.  Such
 benchmarks would need to simulate multi-session interactions spanning
 weeks or months, with evaluation criteria that capture the trajectory
 of memory quality rather than point-in-time accuracy alone.
+
+\subsection{Emerging Evaluation Paradigms}
+\label{sec:new-benchmarks}
+
+A new generation of benchmarks is beginning to address these gaps by
+moving beyond static history injection toward dynamic, process-oriented
+evaluation.  MemoryAgentBench~\cite{memoryagentbench2026}, introduced
+at ICLR~2026, evaluates memory through incremental multi-turn
+interactions in which the agent must acquire, update, and apply
+knowledge across sessions rather than answering questions over a
+pre-loaded history.  Evo-Memory~\cite{evomemory2025}, developed by
+Google DeepMind, provides a streaming benchmark for self-evolving
+memory, spanning 10 diverse task types and measuring performance along
+four evaluation axes including temporal consistency and knowledge
+integration.  PersonaMem-v2~\cite{personamemv2_2025} tests implicit
+personalization at scale: 1{,}000 personas, 20K+ preferences, and
+128K-token contexts, with the striking finding that RL-fine-tuned 4B
+models outperform GPT-5 on implicit preference inference---validating
+the importance of the preference emergence axis discussed in
+\S\ref{sec:open-problems}.  Finally,
+Memora~\cite{memora2026} introduces evaluation over week-to-month
+timescales and proposes the FAMA (Forgetting-Aware Memory Accuracy)
+metric, which penalizes reuse of obsolete memories---a criterion
+complementary to the Retrieval Decay Ratio used in our
+ForgettingDynamics benchmark (\S\ref{sec:forgetting-dynamics}).
+Collectively, these benchmarks signal a shift from ``what does the
+system remember?''\ to ``how well does memory evolve?'', aligning with
+the process-oriented perspective advocated throughout this survey.
 
 \subsection{Memory Security and Privacy}
 

@@ -39,6 +39,7 @@ Letta (MemGPT)       & GPT-4o-mini       & 74.00                & ---           
 Mastra Obs.\ Memory  & GPT-5-mini        & ---                  & \textbf{94.87}  & ---   & \cite{mastra2026om} \\
 Mastra Obs.\ Memory  & Gemini-3-Pro      & ---                  & 93.27           & ---   & \cite{mastra2026om} \\
 Mastra Obs.\ Memory  & GPT-4o            & ---                  & 84.23           & ---   & \cite{mastra2026om} \\
+Memanto              & GPT-4o            & 87.10                & 89.80           & ---   & \cite{memanto2026} \\
 Mem0                 & GPT-4o-mini       & 66.88                & ---             & ---   & \cite{choudhary2025mem0} \\
 Mem0 (graph)         & GPT-4o-mini       & 68.44                & ---             & ---   & \cite{choudhary2025mem0,latimer2025hindsight} \\
 Memobase v0.0.37     & GPT-4o-mini       & 75.78                & ---             & ---   & \cite{memobase2025,latimer2025hindsight} \\
@@ -72,7 +73,8 @@ Recursive Summary    & GPT-4-turbo       & ---                  & ---           
 \item[e] DMR conversations are only ${\sim}60$ messages (${\sim}$4K tokens), fitting easily in modern context windows.  The full-context baseline (94.4\%) nearly matches MemGPT (93.4\%).
 \item[f] Approximate; LoCoMo conversations average ${\sim}$16--26K tokens, within GPT-4o's 128K window.
 \item[g] Disputed score.  Mem0 evaluated Zep at 65.99\%; Mem0's subsequent replication attempt yielded 58.44\%.  Both differ substantially from Zep's self-reported 75.14\%.
-\item[h] Our baselines (\S\ref{sec:baseline-replication}, \S\ref{sec:mab-replication}).  Generator: Gemini-2.0-Flash-001 via OpenRouter (temp.~0, max\_tokens~512).  Judge: GPT-4o-mini (temp.~0, max\_tokens~10).  LoCoMo: categories 1--4 (1{,}540 questions; cat.~5 adversarial excluded).  LongMemEval\_S: 500 questions.  MAB: 734 questions across 4 competencies (Table~\ref{tab:mab-baselines}).  Na\"ive RAG: ChromaDB, all-MiniLM-L6-v2 embeddings, top-10 cosine retrieval.  Code and results at~\cite{alaya2026}.
+\item[i] Memanto scores are accuracy-based, directly comparable to other LoCoMo entries.
+	\item[h] Our baselines (\S\ref{sec:baseline-replication}, \S\ref{sec:mab-replication}).  Generator: Gemini-2.0-Flash-001 via OpenRouter (temp.~0, max\_tokens~512).  Judge: GPT-4o-mini (temp.~0, max\_tokens~10).  LoCoMo: categories 1--4 (1{,}540 questions; cat.~5 adversarial excluded).  LongMemEval\_S: 500 questions.  MAB: 734 questions across 4 competencies (Table~\ref{tab:mab-baselines}).  Na\"ive RAG: ChromaDB, all-MiniLM-L6-v2 embeddings, top-10 cosine retrieval.  Code and results at~\cite{alaya2026}.
 \end{tablenotes}
 \end{threeparttable}
 \end{adjustbox}
