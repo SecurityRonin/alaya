@@ -10,7 +10,7 @@ name = "alaya"
 crate-type = ["cdylib"]
 
 [features]
-default = ["encryption"]
+default = []
 encryption = ["alaya/sqlcipher"]
 
 [dependencies]
