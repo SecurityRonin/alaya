@@ -4,6 +4,8 @@
 
 # Alaya
 
+[![MCP Toplist](https://mcptoplist.com/badge/io.github.h4x0r%2Falaya-mcp.svg)](https://mcptoplist.com/server/io.github.h4x0r%2Falaya-mcp)
+
 [![DOI](https://zenodo.org/badge/1167077192.svg)](https://zenodo.org/badge/latestdoi/1167077192)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/Rust-1.85%2B-orange.svg)](https://www.rust-lang.org/)
